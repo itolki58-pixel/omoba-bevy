@@ -61,6 +61,9 @@ enum HomeAction {
 struct HomeRoot;
 
 #[derive(Component)]
+struct HomeMatchmakingStatus;
+
+#[derive(Component)]
 enum HomeChrome {
     Frame,
     Scrim,
@@ -308,7 +311,7 @@ fn signature(
     locale: Option<&Locale>,
     ui_scale: f32,
     viewport: Vec2,
-    search_status: Option<String>,
+    searching: bool,
 ) -> HomeSignature {
     let profile = career.view.profile.as_ref();
     HomeSignature {
@@ -1304,6 +1307,7 @@ fn refresh_matchmaking_status(
     career: Res<CareerClient>,
     mut labels: Query<&mut Text, With<HomeMatchmakingStatus>>,
 ) {
+    if !matchmaking.is_searching() { return; }
     let Ok(mut label) = labels.single_mut() else { return };
     let status = career.view.match_service.as_ref()
         .map(crate::match_service::status_text)
