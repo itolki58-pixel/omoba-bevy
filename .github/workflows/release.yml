@@ -111,8 +111,6 @@ jobs:
         env:
           # Optional: a stable signing key so updates install over each other.
           OMOBA_ANDROID_KEYSTORE_BASE64: ${{ secrets.OMOBA_ANDROID_KEYSTORE_BASE64 }}
-          # Optional: a stable signing key so updates install over each other.
-          OMOBA_ANDROID_KEYSTORE_BASE64: ${{ secrets.OMOBA_ANDROID_KEYSTORE_BASE64 }}
         run: |
           args=(build android --out dist)
           if [ -n "$RELEASE_SERVER" ]; then args+=(--server "$RELEASE_SERVER"); fi
