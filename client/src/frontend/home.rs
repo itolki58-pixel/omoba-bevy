@@ -677,7 +677,7 @@ fn spawn_home(
             });
 
             let searching = matchmaking.is_searching();
-            let play_label = if searching { tr("searching.match.connecting").to_owned() } else { match &party_line.party {
+            let play_label = if searching { tr("common.cancel").to_owned() } else { match &party_line.party {
                 Some((size, _, true)) => trf("home.play.party", &[("size", size)]),
                 Some(_) => tr("home.play.party_lobby").to_owned(),
                 None if career.view.match_service.is_some() => {
@@ -733,7 +733,7 @@ fn spawn_home(
                 if searching {
                     column.spawn((widgets::label(&career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into()), if phone { 11.0 * unit } else { 13.0 }, theme::GOLD), TextLayout::justify(Justify::Center), Name::new("HomeMatchmakingStatus")));
                 }
-                if !can_resume && !searching && !matches!(session.state(), ClientConnectionState::Connected) {
+                if !can_resume && !searching && (!matches!(session.state(), ClientConnectionState::Connected) || career.view.match_service.is_none()) {
                     column.commands().entity(play).insert(Pressable {
                         disabled: true,
                         ..default()
@@ -1195,6 +1195,11 @@ fn home_actions(
                     continue;
                 }
 
+                if career.view.match_service.is_none() {
+                    // A standalone game server is not a public matchmaking lobby.
+                    // Never bypass the queue and drop the player directly into a match.
+                    continue;
+                }
                 matchmaking.preference = shared::match_service::MatchPreference::Quick;
 
                 // Join the queue immediately with the default loadout.
