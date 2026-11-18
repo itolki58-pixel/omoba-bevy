@@ -1247,7 +1247,9 @@ fn home_actions(
 
                 // Stay on Home while the public lobby searches for up to 50 seconds.
             }
-            HomeAction::CancelSearch => session_ui.write(crate::net::SessionUiCommand::LeaveMatch),
+            HomeAction::CancelSearch => {
+                session_ui.write(crate::net::SessionUiCommand::LeaveMatch);
+            }
             HomeAction::BotPractice => {
                 if session.is_offline() {
                     session_ui.write(crate::net::SessionUiCommand::LeaveMatch);
