@@ -455,6 +455,20 @@ mod runtime_tests {
     }
 
     #[test]
+    fn expired_quick_match_without_any_arrived_human_does_not_start() {
+        let (mut rt, _addr, _join) = fixture();
+        let now = Instant::now();
+        if let crate::match_service::MatchService::Worker(worker) = &mut rt.match_service {
+            worker.manifest.join_deadline_ms = unix_ms().saturating_sub(1);
+        } else {
+            panic!("fixture must use an allocated worker");
+        }
+
+        assert!(!rt.allocated_humans_ready());
+        assert!(!rt.begin_career_round(now));
+    }
+
+    #[test]
     fn allocated_practice_refuses_debug_toggles_after_the_durable_start() {
         let (mut rt, addr, join) = fixture();
         let now = Instant::now();
