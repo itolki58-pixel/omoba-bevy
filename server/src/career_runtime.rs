@@ -566,7 +566,14 @@ impl ServerRuntime {
     /// Called at the final formation boundary. Career-backed rounds remain at
     /// Starting(0) until durable allocation ACK; no combat or income runs early.
     pub(crate) fn begin_career_round(&mut self, now: Instant) -> bool {
-        if self.match_service.worker().is_some_and(|w| w.recovery || w.cancelled())
+        let expired_without_any_human = self.match_service.worker().is_some_and(|worker| {
+            crate::match_allocation::unix_ms() > worker.manifest.join_deadline_ms
+        }) && !self.allocated_humans_ready();
+        if (self
+            .match_service
+            .worker()
+            .is_some_and(|worker| worker.recovery || worker.cancelled())
+            || expired_without_any_human)
             && self.match_started_at.is_none()
         {
             return false;
