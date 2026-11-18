@@ -54,6 +54,7 @@ enum HomeAction {
     Server,
     AcceptInvite(u64),
     DeclineInvite(u64),
+    CancelSearch,
 }
 
 #[derive(Component)]
@@ -286,6 +287,7 @@ struct HomeSignature {
     card: ProfileCard,
     last_result: Option<String>,
     public_matchmaking: bool,
+    search_status: Option<String>,
     /// (party id, inviter) of the newest pending party invite.
     invite: Option<(u64, String)>,
     /// Party size and leader, when in a party.
@@ -306,6 +308,7 @@ fn signature(
     locale: Option<&Locale>,
     ui_scale: f32,
     viewport: Vec2,
+    search_status: Option<String>,
 ) -> HomeSignature {
     let profile = career.view.profile.as_ref();
     HomeSignature {
@@ -338,6 +341,7 @@ fn signature(
         compatibility_issue: session.compatibility_issue,
         card: card.clone(),
         public_matchmaking: career.view.match_service.is_some(),
+        search_status,
         last_result: career
             .view
             .last_result
@@ -414,6 +418,7 @@ fn spawn_home(
     locale: Option<Res<Locale>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     resume: Option<Res<crate::net::recovery::ResumeMatchState>>,
+    matchmaking: Res<crate::match_service::MatchServiceClient>,
 ) {
     let can_resume = resume.as_ref().is_some_and(|resume| resume.saved.is_some());
     if automation_bypass() {
@@ -459,6 +464,7 @@ fn spawn_home(
         locale.as_deref(),
         ui_scale_value,
         viewport,
+        matchmaking.is_searching().then(|| career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into())),
     );
     let (status, status_color) = connection_line(&session);
     let profile = career.view.profile.clone();
@@ -670,14 +676,15 @@ fn spawn_home(
                 ));
             });
 
-            let play_label = match &party_line.party {
+            let searching = matchmaking.is_searching();
+            let play_label = if searching { tr("searching.match.connecting").to_owned() } else { match &party_line.party {
                 Some((size, _, true)) => trf("home.play.party", &[("size", size)]),
                 Some(_) => tr("home.play.party_lobby").to_owned(),
                 None if career.view.match_service.is_some() => {
                     tr("home.play.quick_match").to_owned()
                 }
                 None => tr("home.play.play").to_owned(),
-            };
+            }};
             root.spawn((
                 Node {
                     position_type: PositionType::Absolute,
@@ -719,15 +726,14 @@ fn spawn_home(
                     TextStyle::new(TextRole::ButtonLg),
                     ButtonKind::Primary,
                     Some(Icon::HudAttack),
-                    if can_resume {
-                        HomeAction::Resume
-                    } else {
-                        HomeAction::Play
-                    },
+                    if can_resume { HomeAction::Resume } else if searching { HomeAction::CancelSearch } else { HomeAction::Play },
                     "HomePlay".into(),
                     (),
                 );
-                if !can_resume && !matches!(session.state(), ClientConnectionState::Connected) {
+                if searching {
+                    column.spawn((widgets::label(&career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into()), if phone { 11.0 * unit } else { 13.0 }, theme::GOLD), TextLayout::justify(Justify::Center), Name::new("HomeMatchmakingStatus")));
+                }
+                if !can_resume && !searching && !matches!(session.state(), ClientConnectionState::Connected) {
                     column.commands().entity(play).insert(Pressable {
                         disabled: true,
                         ..default()
@@ -1202,8 +1208,9 @@ fn home_actions(
                     sprite_character: Some(selection.sprite_character.clone()),
                 });
 
-                next.set(AppScreen::Searching);
+                // Stay on Home while the public lobby searches for up to 50 seconds.
             }
+            HomeAction::CancelSearch => session_ui.write(crate::net::SessionUiCommand::LeaveMatch),
             HomeAction::BotPractice => {
                 if session.is_offline() {
                     session_ui.write(crate::net::SessionUiCommand::LeaveMatch);
@@ -1253,6 +1260,7 @@ fn refresh_home(
     mut last: Local<Option<HomeSignature>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     resume: Option<Res<crate::net::recovery::ResumeMatchState>>,
+    matchmaking: Res<crate::match_service::MatchServiceClient>,
 ) {
     let mut current = signature(
         &career,
@@ -1264,6 +1272,7 @@ fn refresh_home(
         windows.single().map_or(Vec2::new(1280.0, 720.0), |w| {
             Vec2::new(w.width(), w.height())
         }),
+        matchmaking.is_searching().then(|| career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into())),
     );
     current.resume_available = resume.as_ref().is_some_and(|resume| resume.saved.is_some());
     if last.as_ref() == Some(&current) {
@@ -1279,7 +1288,7 @@ fn refresh_home(
         .despawn();
     spawn_home(
         commands, career, session, card, thumbnails, preview, platform, ui_scale, party, locale,
-        windows, resume,
+        windows, resume, matchmaking,
     );
 }
 
