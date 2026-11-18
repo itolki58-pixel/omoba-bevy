@@ -30,7 +30,7 @@ impl Plugin for HomeScreenPlugin {
             .add_systems(Update, layout_home_chrome.run_if(in_state(AppScreen::Home)))
             .add_systems(
                 Update,
-                (home_actions, refresh_home)
+                (home_actions, refresh_home, refresh_matchmaking_status)
                     .chain()
                     .after(UiSet::Dispatch)
                     .run_if(in_state(AppScreen::Home)),
