@@ -1229,7 +1229,7 @@ fn home_actions(
                 }
 
                 if career.view.match_service.is_none() || career.view.profile.is_none() {
-                    // A standalone game server or unauthenticated guest is not a public matchmaking lobby.
+                    // Standalone servers and guest sessions cannot use public matchmaking.
                     // Never bypass the queue and drop the player directly into a match.
                     continue;
                 }
