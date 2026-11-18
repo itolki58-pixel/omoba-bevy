@@ -1059,7 +1059,7 @@ fn spawn_home_identity(
             text.spawn(widgets::heading(name, 16.0));
             text.spawn(widgets::label(
                 &format!(
-                    "{} · {}",
+                    "{} В· {}",
                     card.title_text(wins),
                     trf(
                         "card.level_class",
@@ -1181,16 +1181,35 @@ fn home_actions(
                 session_ui.write(crate::net::SessionUiCommand::StartOffline);
                 next.set(AppScreen::HeroSelect);
             }
-            HomeAction::Play | HomeAction::BotPractice => {
-                // Backing out of the practice picker restores the saved server first.
+            HomeAction::Play => {
+                // Restore the online session before starting matchmaking.
+                if session.is_offline() {
+                    session_ui.write(crate::net::SessionUiCommand::LeaveMatch);
+                    next.set(AppScreen::HeroSelect);
+                    continue;
+                }
+
+                matchmaking.preference = shared::match_service::MatchPreference::Quick;
+
+                // Join the queue immediately with the default loadout.
+                // Character selection opens after the match is allocated.
+                let selection = crate::team::TeamSelection::default();
+                requests.write(NetworkCommand::JoinPrematch {
+                    handheld: selection.handheld.clone(),
+                    character: selection.character,
+                    hero_class: selection.hero_class,
+                    avatar: selection.avatar.clone(),
+                    sprite_character: Some(selection.sprite_character.clone()),
+                });
+
+                next.set(AppScreen::Searching);
+            }
+            HomeAction::BotPractice => {
                 if session.is_offline() {
                     session_ui.write(crate::net::SessionUiCommand::LeaveMatch);
                 }
 
-                matchmaking.preference = match *action {
-                    HomeAction::BotPractice => shared::match_service::MatchPreference::BotPractice,
-                    _ => shared::match_service::MatchPreference::Quick,
-                };
+                matchmaking.preference = shared::match_service::MatchPreference::BotPractice;
                 next.set(AppScreen::HeroSelect);
             }
             HomeAction::Card => next.set(AppScreen::Card),
@@ -1672,9 +1691,9 @@ mod tests {
             .resource_mut::<Locale>()
             .set(LocaleId::parse("zh-Hans").unwrap());
         app.update();
-        assert_eq!(label(&mut app, "HomePlay"), "开始游戏");
-        assert_eq!(label(&mut app, "HomeCustomizeCard"), "自定义名片");
-        assert_eq!(label(&mut app, "HomeHistory"), "对局记录");
+        assert_eq!(label(&mut app, "HomePlay"), "ејЂе§‹жёёж€Џ");
+        assert_eq!(label(&mut app, "HomeCustomizeCard"), "и‡Єе®љд№‰еђЌз‰‡");
+        assert_eq!(label(&mut app, "HomeHistory"), "еЇ№е±Ђи®°еЅ•");
         assert_ne!(status(&mut app), english_status);
         assert_eq!(
             status(&mut app),
