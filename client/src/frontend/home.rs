@@ -764,7 +764,8 @@ fn spawn_home(
                 if !can_resume
                     && !searching
                     && (!matches!(session.state(), ClientConnectionState::Connected)
-                        || career.view.match_service.is_none())
+                        || career.view.match_service.is_none()
+                        || career.view.profile.is_none())
                 {
                     column.commands().entity(play).insert(Pressable {
                         disabled: true,
@@ -1227,8 +1228,8 @@ fn home_actions(
                     continue;
                 }
 
-                if career.view.match_service.is_none() {
-                    // A standalone game server is not a public matchmaking lobby.
+                if career.view.match_service.is_none() || career.view.profile.is_none() {
+                    // A standalone game server or unauthenticated guest is not a public matchmaking lobby.
                     // Never bypass the queue and drop the player directly into a match.
                     continue;
                 }
