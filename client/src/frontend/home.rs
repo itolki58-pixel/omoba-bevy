@@ -734,7 +734,7 @@ fn spawn_home(
                     (),
                 );
                 if searching {
-                    column.spawn((widgets::label(&career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into()), if phone { 11.0 * unit } else { 13.0 }, theme::GOLD), TextLayout::justify(Justify::Center), Name::new("HomeMatchmakingStatus")));
+                    column.spawn((widgets::label(&career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into()), if phone { 11.0 * unit } else { 13.0 }, theme::GOLD), TextLayout::justify(Justify::Center), HomeMatchmakingStatus, Name::new("HomeMatchmakingStatus")));
                 }
                 if !can_resume && !searching && (!matches!(session.state(), ClientConnectionState::Connected) || career.view.match_service.is_none()) {
                     column.commands().entity(play).insert(Pressable {
