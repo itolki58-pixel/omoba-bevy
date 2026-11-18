@@ -1653,6 +1653,7 @@ mod tests {
             .init_resource::<ProfileCard>()
             .init_resource::<AvatarThumbnails>()
             .init_resource::<crate::party::PartyClient>()
+            .init_resource::<crate::match_service::MatchServiceClient>()
             .insert_resource(crate::ui::UiPlatform(crate::platform::UiProfile::Desktop))
             .add_systems(Startup, (spawn_home_backdrop, spawn_home))
             .add_systems(Update, refresh_home);
