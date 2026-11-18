@@ -11,7 +11,7 @@ use crate::match_allocation::{AllocatedHuman, Manifest, Phase, Status, Worker, u
 use crate::runtime::ServerRuntime;
 
 const MAX_WAITING: usize = 128;
-const QUICK_WAIT: Duration = Duration::from_secs(30);
+const QUICK_WAIT: Duration = Duration::from_secs(50);
 #[derive(Clone)]
 struct Waiting {
     profile: ProfileSummary,
@@ -718,10 +718,10 @@ mod tests {
     }
 
     #[test]
-    fn quick_waits_thirty_seconds_and_humans_never_fill() {
+    fn quick_waits_fifty_seconds_and_humans_never_fill() {
         let now = Instant::now();
         let mut q = vec![w(1, MatchPreference::Quick, now)];
-        assert!(select(&q, now + Duration::from_secs(29)).is_none());
+        assert!(select(&q, now + Duration::from_secs(49)).is_none());
         assert_eq!(select(&q, now + QUICK_WAIT), Some(vec![0]));
         q[0].preference = MatchPreference::HumansOnly;
         assert!(select(&q, now + Duration::from_secs(999)).is_none());
