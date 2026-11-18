@@ -135,6 +135,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: server-linux-x64
+      - name: Refresh compatibility manifest and Cargo.lock
+        run: cargo run --quiet -p shared --example compatibility -- manifest
       - name: Test server matchmaking and runtime logic
         run: cargo test --locked -p server
       - name: Build updated game server
