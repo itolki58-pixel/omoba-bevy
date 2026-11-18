@@ -418,7 +418,7 @@ mod runtime_tests {
     fn quick_match_replaces_non_arriving_allocated_humans_after_join_deadline() {
         let (mut rt, addr, join) = fixture();
         let now = Instant::now();
-        if let MatchService::Worker(worker) = &mut rt.match_service {
+        if let crate::match_service::MatchService::Worker(worker) = &mut rt.match_service {
             worker.manifest.humans.push(AllocatedHuman {
                 profile_id: "c".repeat(64),
                 session_id: "seat-b".into(),
@@ -432,7 +432,7 @@ mod runtime_tests {
         rt.handle_packet(addr, join, now);
         assert!(!rt.allocated_humans_ready(), "wait while the join window is open");
 
-        if let MatchService::Worker(worker) = &mut rt.match_service {
+        if let crate::match_service::MatchService::Worker(worker) = &mut rt.match_service {
             worker.manifest.join_deadline_ms = unix_ms().saturating_sub(1);
         }
         assert!(rt.allocated_humans_ready(), "expired no-show seat may be bot-filled");
