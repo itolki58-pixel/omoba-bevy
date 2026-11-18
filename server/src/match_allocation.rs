@@ -186,7 +186,7 @@ impl ServerRuntime {
     }
     pub(crate) fn allocated_humans_ready(&self) -> bool {
         self.match_service.worker().is_none_or(|worker| {
-            worker.manifest.humans.iter().all(|h| {
+            let all_arrived = worker.manifest.humans.iter().all(|h| {
                 self.world.players.values().any(|p| {
                     p.joined
                         && !p.hero.identity.is_bot
@@ -195,7 +195,26 @@ impl ServerRuntime {
                             .as_ref()
                             .is_some_and(|p| p.profile_id == h.profile_id)
                 })
-            })
+            });
+            if all_arrived {
+                return true;
+            }
+
+            // A quick-match allocation is frozen before clients connect. Once
+            // its join window expires, preserve the humans who did arrive and
+            // let fill_practice_bots replace the seats whose owners never joined.
+            let any_human_arrived = worker.manifest.humans.iter().any(|h| {
+                self.world.players.values().any(|p| {
+                    p.joined
+                        && !p.hero.identity.is_bot
+                        && p.session_id.as_deref() == Some(h.session_id.as_str())
+                        && p.career_profile
+                            .as_ref()
+                            .is_some_and(|p| p.profile_id == h.profile_id)
+                })
+            });
+            any_human_arrived
+                && crate::match_allocation::unix_ms() > worker.manifest.join_deadline_ms
         })
     }
 }
@@ -393,6 +412,46 @@ mod runtime_tests {
         assert_eq!(allocation.participants.len(), 10);
         rt.career.backend.test_ack_start(&allocation.result_id);
         assert!(rt.begin_career_round(now));
+    }
+
+    #[test]
+    fn quick_match_replaces_non_arriving_allocated_humans_after_join_deadline() {
+        let (mut rt, addr, join) = fixture();
+        let now = Instant::now();
+        if let MatchService::Worker(worker) = &mut rt.match_service {
+            worker.manifest.humans.push(AllocatedHuman {
+                profile_id: "c".repeat(64),
+                session_id: "seat-b".into(),
+                team: Team::Blue,
+            });
+            worker.manifest.join_deadline_ms = unix_ms() + 60_000;
+        } else {
+            panic!("fixture must use an allocated worker");
+        }
+
+        rt.handle_packet(addr, join, now);
+        assert!(!rt.allocated_humans_ready(), "wait while the join window is open");
+
+        if let MatchService::Worker(worker) = &mut rt.match_service {
+            worker.manifest.join_deadline_ms = unix_ms().saturating_sub(1);
+        }
+        assert!(rt.allocated_humans_ready(), "expired no-show seat may be bot-filled");
+
+        rt.fill_practice_bots(now);
+        assert_eq!(
+            rt.world.players.values().filter(|p| p.joined).count(),
+            10,
+            "one arrived human plus nine bots must complete the roster"
+        );
+        assert_eq!(
+            rt.world.players.values().filter(|p| p.joined && p.hero.identity.is_bot).count(),
+            9
+        );
+
+        assert!(!rt.begin_career_round(now), "durable start waits for its ACK");
+        let allocation = rt.career_allocation_for_test().unwrap();
+        rt.career.backend.test_ack_start(&allocation.result_id);
+        assert!(rt.begin_career_round(now), "the completed bot-filled roster can start");
     }
 
     #[test]
