@@ -680,14 +680,18 @@ fn spawn_home(
             });
 
             let searching = matchmaking.is_searching();
-            let play_label = if searching { tr("common.cancel").to_owned() } else { match &party_line.party {
-                Some((size, _, true)) => trf("home.play.party", &[("size", size)]),
-                Some(_) => tr("home.play.party_lobby").to_owned(),
-                None if career.view.match_service.is_some() => {
-                    tr("home.play.quick_match").to_owned()
+            let play_label = if searching {
+                tr("common.cancel").to_owned()
+            } else {
+                match &party_line.party {
+                    Some((size, _, true)) => trf("home.play.party", &[("size", size)]),
+                    Some(_) => tr("home.play.party_lobby").to_owned(),
+                    None if career.view.match_service.is_some() => {
+                        tr("home.play.quick_match").to_owned()
+                    }
+                    None => tr("home.play.play").to_owned(),
                 }
-                None => tr("home.play.play").to_owned(),
-            }};
+            };
             root.spawn((
                 Node {
                     position_type: PositionType::Absolute,
@@ -729,14 +733,39 @@ fn spawn_home(
                     TextStyle::new(TextRole::ButtonLg),
                     ButtonKind::Primary,
                     Some(Icon::HudAttack),
-                    if can_resume { HomeAction::Resume } else if searching { HomeAction::CancelSearch } else { HomeAction::Play },
+                    if can_resume {
+                        HomeAction::Resume
+                    } else if searching {
+                        HomeAction::CancelSearch
+                    } else {
+                        HomeAction::Play
+                    },
                     "HomePlay".into(),
                     (),
                 );
                 if searching {
-                    column.spawn((widgets::label(&career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into()), if phone { 11.0 * unit } else { 13.0 }, theme::GOLD), TextLayout::justify(Justify::Center), HomeMatchmakingStatus, Name::new("HomeMatchmakingStatus")));
+                    let status = career
+                        .view
+                        .match_service
+                        .as_ref()
+                        .map(crate::match_service::status_text)
+                        .unwrap_or_else(|| tr("searching.match.connecting").into());
+                    column.spawn((
+                        widgets::label(
+                            &status,
+                            if phone { 11.0 * unit } else { 13.0 },
+                            theme::GOLD,
+                        ),
+                        TextLayout::justify(Justify::Center),
+                        HomeMatchmakingStatus,
+                        Name::new("HomeMatchmakingStatus"),
+                    ));
                 }
-                if !can_resume && !searching && (!matches!(session.state(), ClientConnectionState::Connected) || career.view.match_service.is_none()) {
+                if !can_resume
+                    && !searching
+                    && (!matches!(session.state(), ClientConnectionState::Connected)
+                        || career.view.match_service.is_none())
+                {
                     column.commands().entity(play).insert(Pressable {
                         disabled: true,
                         ..default()
@@ -1280,7 +1309,7 @@ fn refresh_home(
         windows.single().map_or(Vec2::new(1280.0, 720.0), |w| {
             Vec2::new(w.width(), w.height())
         }),
-        matchmaking.is_searching().then(|| career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into())),
+        matchmaking.is_searching(),
     );
     current.resume_available = resume.as_ref().is_some_and(|resume| resume.saved.is_some());
     if last.as_ref() == Some(&current) {
@@ -1307,9 +1336,16 @@ fn refresh_matchmaking_status(
     career: Res<CareerClient>,
     mut labels: Query<&mut Text, With<HomeMatchmakingStatus>>,
 ) {
-    if !matchmaking.is_searching() { return; }
-    let Ok(mut label) = labels.single_mut() else { return };
-    let status = career.view.match_service.as_ref()
+    if !matchmaking.is_searching() {
+        return;
+    }
+    let Ok(mut label) = labels.single_mut() else {
+        return;
+    };
+    let status = career
+        .view
+        .match_service
+        .as_ref()
         .map(crate::match_service::status_text)
         .unwrap_or_else(|| tr("searching.match.connecting").into());
     if label.0 != status {
