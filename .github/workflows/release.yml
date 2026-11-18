@@ -121,9 +121,42 @@ jobs:
           path: dist/*/*.apk
           if-no-files-found: error
 
+  server:
+    name: server linux x64
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev pkg-config
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: server-linux-x64
+      - name: Build updated game server
+        run: cargo build --release --locked -p server
+      - name: Package server binary
+        run: |
+          mkdir -p dist/server-linux-x64
+          install -m 0755 target/release/server dist/server-linux-x64/omoba-server
+          cat > dist/server-linux-x64/README.txt <<'EOF'
+          OMOBA server build for Linux x86_64.
+          Run: ./omoba-server
+          Configure runtime environment according to RUNBOOK.md before public deployment.
+          This is a server executable, not an Android APK.
+          EOF
+          tar -C dist -czf dist/omoba-server-linux-x64.tar.gz server-linux-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omoba-server-linux-x64
+          path: dist/omoba-server-linux-x64.tar.gz
+          if-no-files-found: error
+
   draft:
     name: draft release
-    needs: [android]
+    needs: [android, server]
     if: ${{ !cancelled() && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
