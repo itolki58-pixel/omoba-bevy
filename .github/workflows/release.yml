@@ -38,6 +38,7 @@ env:
 
 jobs:
   desktop:
+    if: ${{ false }}
     name: ${{ matrix.platform }}
     strategy:
       fail-fast: false
@@ -121,7 +122,7 @@ jobs:
 
   draft:
     name: draft release
-    needs: [desktop, android]
+    needs: [android]
     if: ${{ !cancelled() && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
