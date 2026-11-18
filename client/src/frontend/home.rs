@@ -287,7 +287,7 @@ struct HomeSignature {
     card: ProfileCard,
     last_result: Option<String>,
     public_matchmaking: bool,
-    search_status: Option<String>,
+    searching: bool,
     /// (party id, inviter) of the newest pending party invite.
     invite: Option<(u64, String)>,
     /// Party size and leader, when in a party.
@@ -341,7 +341,7 @@ fn signature(
         compatibility_issue: session.compatibility_issue,
         card: card.clone(),
         public_matchmaking: career.view.match_service.is_some(),
-        search_status,
+        searching,
         last_result: career
             .view
             .last_result
@@ -464,7 +464,7 @@ fn spawn_home(
         locale.as_deref(),
         ui_scale_value,
         viewport,
-        matchmaking.is_searching().then(|| career.view.match_service.as_ref().map(crate::match_service::status_text).unwrap_or_else(|| tr("searching.match.connecting").into())),
+        matchmaking.is_searching(),
     );
     let (status, status_color) = connection_line(&session);
     let profile = career.view.profile.clone();
@@ -1295,6 +1295,22 @@ fn refresh_home(
         commands, career, session, card, thumbnails, preview, platform, ui_scale, party, locale,
         windows, resume, matchmaking,
     );
+}
+
+/// Update the queue line in place: the Home screen and its hero preview stay mounted
+/// for the whole search, while the server's authoritative count/timer can change.
+fn refresh_matchmaking_status(
+    matchmaking: Res<crate::match_service::MatchServiceClient>,
+    career: Res<CareerClient>,
+    mut labels: Query<&mut Text, With<HomeMatchmakingStatus>>,
+) {
+    let Ok(mut label) = labels.single_mut() else { return };
+    let status = career.view.match_service.as_ref()
+        .map(crate::match_service::status_text)
+        .unwrap_or_else(|| tr("searching.match.connecting").into());
+    if label.0 != status {
+        label.0 = status;
+    }
 }
 
 /// A bounded invitation in the left column. On phones it replaces the recent
