@@ -725,7 +725,9 @@ fn spawn_home(
                     } else {
                         kit::button_node(ButtonSize::Hero, ButtonKind::Primary, form)
                     },
-                    if can_resume {
+                    if searching {
+                        tr("common.cancel").to_owned()
+                    } else if can_resume {
                         tr("home.play.resume").to_owned()
                     } else {
                         play_label
@@ -733,10 +735,10 @@ fn spawn_home(
                     TextStyle::new(TextRole::ButtonLg),
                     ButtonKind::Primary,
                     Some(Icon::HudAttack),
-                    if can_resume {
-                        HomeAction::Resume
-                    } else if searching {
+                    if searching {
                         HomeAction::CancelSearch
+                    } else if can_resume {
+                        HomeAction::Resume
                     } else {
                         HomeAction::Play
                     },
