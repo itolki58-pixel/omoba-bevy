@@ -135,6 +135,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: server-linux-x64
+      - name: Test server matchmaking and runtime logic
+        run: cargo test --locked -p server
       - name: Build updated game server
         run: cargo build --release --locked -p server
       - name: Package server binary
