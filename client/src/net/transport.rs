@@ -121,6 +121,24 @@ pub(in crate::net) fn spawn_network_transport(
     });
 }
 
+fn is_private_or_local_endpoint(address: SocketAddr) -> bool {
+    match address.ip() {
+        std::net::IpAddr::V4(ip) => {
+            ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_unspecified()
+                || (u32::from(ip) & 0xffc0_0000) == 0x6440_0000
+        }
+        std::net::IpAddr::V6(ip) => {
+            ip.is_loopback()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local()
+                || ip.is_unspecified()
+        }
+    }
+}
+
 /// Resolve exactly once on the existing network thread. Each address needs a
 /// socket bound to its own IP family: an IPv4 wildcard cannot connect to IPv6.
 /// UDP connect checks local routing, not server reachability; the normal snapshot
@@ -245,7 +263,14 @@ pub(in crate::net) fn run_udp_client(
     }
     println!("UDP socket connected to {server_addr}; waiting for first snapshot");
 
-    let mut public_transport = public_transport::PublicClientTransport::new();
+    // LAN/loopback hosts use the standalone JSON protocol. Sending the public
+    // role-discovery envelope to them makes older standalone servers reject it
+    // as an unknown ClientPacket variant. Only probe internet-routable hosts.
+    let probe_public_transport = socket
+        .peer_addr()
+        .map(|address| !is_private_or_local_endpoint(address))
+        .unwrap_or(false);
+    let mut public_transport = public_transport::PublicClientTransport::new(probe_public_transport);
     let mut assembler = SnapshotAssembler::default();
     let mut recv_buf = vec![0_u8; SERVER_DATAGRAM_RECEIVE_CAPACITY];
     let mut last_heartbeat_at = Instant::now();

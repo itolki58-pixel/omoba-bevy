@@ -98,7 +98,14 @@ impl AvatarAssetCache {
         asset_server: &AssetServer,
         slug: &str,
     ) -> (Handle<WorldAsset>, Handle<Gltf>) {
-        self.ensure_loaded_from(asset_server, slug, format!("avatars/{slug}.glb"))
+        // Zargat reuses the shipped, rigged Crowley humanoid as its animation
+        // skeleton; the client adds his authored infernal armor, wings and blade.
+        let path = if slug == "zargat" {
+            "avatars/crowley.glb".to_owned()
+        } else {
+            format!("avatars/{slug}.glb")
+        };
+        self.ensure_loaded_from(asset_server, slug, path)
     }
 
     /// `path` is the model's asset path; store avatars live under `ekza://`.
@@ -211,6 +218,7 @@ impl Plugin for SetupPlugin {
         )
         .init_resource::<LightingSettings>()
         .init_resource::<AvatarAssetCache>()
+        .add_systems(Startup, crate::zargat::setup_zargat_assets)
         .add_systems(
             Update,
             (
@@ -218,6 +226,15 @@ impl Plugin for SetupPlugin {
                 force_vrm_models_double_sided,
                 apply_lighting_settings_system,
             )
+                .run_if(in_models3d()),
+        )
+        .add_systems(
+            Update,
+            (
+                crate::zargat::attach_zargat_visuals,
+                crate::zargat::animate_zargat_wings,
+            )
+                .chain()
                 .run_if(in_models3d()),
         );
         register_local_player_spawn(app);

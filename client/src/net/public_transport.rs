@@ -16,9 +16,10 @@ pub(super) struct PublicClientTransport {
     auth_nonce: Option<String>,
     sequence: u64,
     standalone_confirmed: bool,
+    probe_enabled: bool,
 }
 impl PublicClientTransport {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(probe_enabled: bool) -> Self {
         let mut nonce = [0; 16];
         let client_nonce = getrandom::fill(&mut nonce)
             .map(|_| hex(&nonce))
@@ -29,6 +30,7 @@ impl PublicClientTransport {
             auth_nonce: None,
             sequence: 0,
             standalone_confirmed: false,
+            probe_enabled,
         }
     }
 
@@ -93,6 +95,7 @@ impl PublicClientTransport {
             && !self.client_nonce.is_empty()
             && !signing_ready
             && !self.standalone_confirmed
+            && self.probe_enabled
         {
             send_wire(
                 socket,
@@ -193,7 +196,7 @@ mod tests {
             .unwrap();
         let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
         sender.connect(receiver.local_addr().unwrap()).unwrap();
-        let mut transport = PublicClientTransport::new();
+        let mut transport = PublicClientTransport::new(true);
         let mut buf = [0; 2048];
         transport
             .send(

@@ -9,6 +9,20 @@ use std::path::PathBuf;
 mod ui_profile;
 pub(crate) use ui_profile::{UiProfile, ui_profile};
 
+#[cfg(target_os = "android")]
+pub(crate) fn set_soft_keyboard_visible(visible: bool) {
+    if let Some(app) = bevy::android::ANDROID_APP.get() {
+        if visible {
+            app.show_soft_input(false);
+        } else {
+            app.hide_soft_input(false);
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+pub(crate) fn set_soft_keyboard_visible(_visible: bool) {}
+
 pub fn configure_app(app: &mut App) {
     #[cfg(any(target_os = "android", target_os = "ios"))]
     app.insert_resource(bevy::winit::WinitSettings::mobile());

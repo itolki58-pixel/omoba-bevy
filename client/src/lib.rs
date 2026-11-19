@@ -75,6 +75,7 @@ mod verdant3d;
 mod vfx_clock;
 mod world;
 mod world2d;
+mod zargat;
 
 pub(crate) use combat::targeting;
 

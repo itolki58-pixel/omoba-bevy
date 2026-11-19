@@ -30,7 +30,7 @@ impl Plugin for HomeScreenPlugin {
             .add_systems(Update, layout_home_chrome.run_if(in_state(AppScreen::Home)))
             .add_systems(
                 Update,
-                (home_actions, refresh_home)
+                (home_actions, refresh_home, refresh_matchmaking_status)
                     .chain()
                     .after(UiSet::Dispatch)
                     .run_if(in_state(AppScreen::Home)),
@@ -54,10 +54,14 @@ enum HomeAction {
     Server,
     AcceptInvite(u64),
     DeclineInvite(u64),
+    CancelSearch,
 }
 
 #[derive(Component)]
 struct HomeRoot;
+
+#[derive(Component)]
+struct HomeMatchmakingStatus;
 
 #[derive(Component)]
 enum HomeChrome {
@@ -164,7 +168,7 @@ fn spawn_home_backdrop(mut commands: Commands, platform: Res<crate::ui::UiPlatfo
                 },
                 BackgroundGradient::from(LinearGradient::to_bottom(vec![
                     ColorStop::percent(
-                        theme::perceptual(color::SCRIM_LIVING).with_alpha(0.65),
+                        Color::srgba(0.018, 0.028, 0.11, 0.78),
                         0.0,
                     ),
                     ColorStop::percent(Color::NONE, 100.0),
@@ -286,6 +290,7 @@ struct HomeSignature {
     card: ProfileCard,
     last_result: Option<String>,
     public_matchmaking: bool,
+    searching: bool,
     /// (party id, inviter) of the newest pending party invite.
     invite: Option<(u64, String)>,
     /// Party size and leader, when in a party.
@@ -306,6 +311,7 @@ fn signature(
     locale: Option<&Locale>,
     ui_scale: f32,
     viewport: Vec2,
+    searching: bool,
 ) -> HomeSignature {
     let profile = career.view.profile.as_ref();
     HomeSignature {
@@ -338,6 +344,7 @@ fn signature(
         compatibility_issue: session.compatibility_issue,
         card: card.clone(),
         public_matchmaking: career.view.match_service.is_some(),
+        searching,
         last_result: career
             .view
             .last_result
@@ -380,6 +387,18 @@ pub fn last_match_line(result: &shared::career::MatchResult, profile_id: Option<
 }
 
 /// Shared status line: the home header and the picker header both use it.
+/// A storage-disabled standalone host explicitly advertises unranked guest play.
+/// This is the only safe case where Home may bypass the public lobby/profile gate:
+/// the standalone server accepts direct Join packets and fills the remaining seats
+/// with its local practice bots. An unavailable or not-yet-loaded career view is
+/// not enough to enable this path.
+fn standalone_guest_available(career: &CareerClient) -> bool {
+    // A standalone server has no public matchmaking service by design. It
+    // accepts direct unranked joins, so do not make the Play button wait for
+    // an optional career-status error string to arrive over UDP.
+    career.view.match_service.is_none()
+}
+
 pub(crate) fn connection_line(session: &ClientSession) -> (String, Color) {
     if let Some(issue) = session.compatibility_issue {
         let key = if issue == shared::compatibility::CompatibilityIssue::Unavailable {
@@ -414,6 +433,7 @@ fn spawn_home(
     locale: Option<Res<Locale>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     resume: Option<Res<crate::net::recovery::ResumeMatchState>>,
+    matchmaking: Res<crate::match_service::MatchServiceClient>,
 ) {
     let can_resume = resume.as_ref().is_some_and(|resume| resume.saved.is_some());
     if automation_bypass() {
@@ -459,9 +479,11 @@ fn spawn_home(
         locale.as_deref(),
         ui_scale_value,
         viewport,
+        matchmaking.is_searching(),
     );
     let (status, status_color) = connection_line(&session);
     let profile = career.view.profile.clone();
+    let standalone_guest = standalone_guest_available(&career);
     let last_match = career
         .view
         .last_result
@@ -670,13 +692,18 @@ fn spawn_home(
                 ));
             });
 
-            let play_label = match &party_line.party {
-                Some((size, _, true)) => trf("home.play.party", &[("size", size)]),
-                Some(_) => tr("home.play.party_lobby").to_owned(),
-                None if career.view.match_service.is_some() => {
-                    tr("home.play.quick_match").to_owned()
+            let searching = matchmaking.is_searching();
+            let play_label = if searching {
+                tr("common.cancel").to_owned()
+            } else {
+                match &party_line.party {
+                    Some((size, _, true)) => trf("home.play.party", &[("size", size)]),
+                    Some(_) => tr("home.play.party_lobby").to_owned(),
+                    None if career.view.match_service.is_some() => {
+                        tr("home.play.quick_match").to_owned()
+                    }
+                    None => tr("home.play.play").to_owned(),
                 }
-                None => tr("home.play.play").to_owned(),
             };
             root.spawn((
                 Node {
@@ -711,7 +738,9 @@ fn spawn_home(
                     } else {
                         kit::button_node(ButtonSize::Hero, ButtonKind::Primary, form)
                     },
-                    if can_resume {
+                    if searching {
+                        tr("common.cancel").to_owned()
+                    } else if can_resume {
                         tr("home.play.resume").to_owned()
                     } else {
                         play_label
@@ -719,7 +748,9 @@ fn spawn_home(
                     TextStyle::new(TextRole::ButtonLg),
                     ButtonKind::Primary,
                     Some(Icon::HudAttack),
-                    if can_resume {
+                    if searching {
+                        HomeAction::CancelSearch
+                    } else if can_resume {
                         HomeAction::Resume
                     } else {
                         HomeAction::Play
@@ -727,7 +758,31 @@ fn spawn_home(
                     "HomePlay".into(),
                     (),
                 );
-                if !can_resume && !matches!(session.state(), ClientConnectionState::Connected) {
+                if searching {
+                    let status = career
+                        .view
+                        .match_service
+                        .as_ref()
+                        .map(crate::match_service::status_text)
+                        .unwrap_or_else(|| tr("searching.match.connecting").into());
+                    column.spawn((
+                        widgets::label(
+                            &status,
+                            if phone { 11.0 * unit } else { 13.0 },
+                            theme::GOLD,
+                        ),
+                        TextLayout::justify(Justify::Center),
+                        HomeMatchmakingStatus,
+                        Name::new("HomeMatchmakingStatus"),
+                    ));
+                }
+                if !can_resume
+                    && !searching
+                    && (!matches!(session.state(), ClientConnectionState::Connected)
+                        || (!standalone_guest
+                            && (career.view.match_service.is_none()
+                                || career.view.profile.is_none())))
+                {
                     column.commands().entity(play).insert(Pressable {
                         disabled: true,
                         ..default()
@@ -776,9 +831,7 @@ fn spawn_home(
                         "HomeOfflinePractice",
                     ),
                 ] {
-                    if action == HomeAction::BotPractice
-                        && (can_resume || career.view.match_service.is_none())
-                    {
+                    if action == HomeAction::BotPractice && can_resume {
                         continue;
                     }
                     let button = kit::spawn_button(
@@ -830,11 +883,17 @@ fn spawn_home(
             root.spawn((
                 Node {
                     position_type: PositionType::Absolute,
-                    left: Val::Px(if phone { 92.0 * unit } else { 856.0 }),
-                    top: Val::Px(if phone { 317.0 * unit } else { 500.0 }),
-                    width: Val::Px(if phone { 660.0 * unit } else { 360.0 }),
-                    height: Val::Px(if phone { 52.0 * unit } else { 88.0 }),
-                    column_gap: Val::Px(if phone { 12.0 } else { space::S8 }),
+                    left: Val::Px(if phone { 92.0 * unit } else { 48.0 }),
+                    top: Val::Px(if phone { 317.0 * unit } else { 354.0 }),
+                    width: Val::Px(if phone { 660.0 * unit } else { 224.0 }),
+                    height: Val::Px(if phone { 52.0 * unit } else { 300.0 }),
+                    flex_direction: if phone {
+                        FlexDirection::Row
+                    } else {
+                        FlexDirection::Column
+                    },
+                    row_gap: Val::Px(if phone { 0.0 } else { space::S8 }),
+                    column_gap: Val::Px(if phone { 12.0 } else { 0.0 }),
                     border_radius: BorderRadius::all(Val::Px(radius::LG)),
                     ..default()
                 },
@@ -928,7 +987,7 @@ fn spawn_home_identity(
             Node {
                 position_type: PositionType::Absolute,
                 left: Val::Px(HOME_INSET),
-                top: Val::Px(248.0),
+                top: Val::Px(104.0),
                 width: Val::Px(380.0),
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(space::S8),
@@ -1106,11 +1165,21 @@ fn spawn_home_nav(
     kit::spawn_button(
         parent,
         Node {
-            width: Val::Px(if phone { 156.0 * unit } else { 84.0 }),
-            height: Val::Px(if phone { 52.0 * unit } else { 88.0 }),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
+            width: Val::Px(if phone { 156.0 * unit } else { 224.0 }),
+            height: Val::Px(if phone { 52.0 * unit } else { 54.0 }),
+            padding: UiRect::horizontal(Val::Px(if phone { 0.0 } else { space::S16 })),
+            flex_direction: if phone {
+                FlexDirection::Column
+            } else {
+                FlexDirection::Row
+            },
+            justify_content: if phone {
+                JustifyContent::Center
+            } else {
+                JustifyContent::FlexStart
+            },
             align_items: AlignItems::Center,
+            column_gap: Val::Px(if phone { 0.0 } else { space::S12 }),
             row_gap: Val::Px(space::S4),
             border_radius: BorderRadius::all(Val::Px(radius::MD)),
             ..default()
@@ -1189,6 +1258,14 @@ fn home_actions(
                     continue;
                 }
 
+                if !standalone_guest_available(&career)
+                    && (career.view.match_service.is_none() || career.view.profile.is_none())
+                {
+                    // Public matchmaking requires an authenticated profile. The sole
+                    // exception is an explicitly advertised storage-disabled standalone
+                    // host, which runs an unranked local match with server-filled bots.
+                    continue;
+                }
                 matchmaking.preference = shared::match_service::MatchPreference::Quick;
 
                 // Join the queue immediately with the default loadout.
@@ -1202,7 +1279,10 @@ fn home_actions(
                     sprite_character: Some(selection.sprite_character.clone()),
                 });
 
-                next.set(AppScreen::Searching);
+                // Stay on Home while the public lobby searches for up to 50 seconds.
+            }
+            HomeAction::CancelSearch => {
+                session_ui.write(crate::net::SessionUiCommand::LeaveMatch);
             }
             HomeAction::BotPractice => {
                 if session.is_offline() {
@@ -1253,6 +1333,7 @@ fn refresh_home(
     mut last: Local<Option<HomeSignature>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     resume: Option<Res<crate::net::recovery::ResumeMatchState>>,
+    matchmaking: Res<crate::match_service::MatchServiceClient>,
 ) {
     let mut current = signature(
         &career,
@@ -1264,6 +1345,7 @@ fn refresh_home(
         windows.single().map_or(Vec2::new(1280.0, 720.0), |w| {
             Vec2::new(w.width(), w.height())
         }),
+        matchmaking.is_searching(),
     );
     current.resume_available = resume.as_ref().is_some_and(|resume| resume.saved.is_some());
     if last.as_ref() == Some(&current) {
@@ -1279,8 +1361,32 @@ fn refresh_home(
         .despawn();
     spawn_home(
         commands, career, session, card, thumbnails, preview, platform, ui_scale, party, locale,
-        windows, resume,
+        windows, resume, matchmaking,
     );
+}
+
+/// Update the queue line in place: the Home screen and its hero preview stay mounted
+/// for the whole search, while the server's authoritative count/timer can change.
+fn refresh_matchmaking_status(
+    matchmaking: Res<crate::match_service::MatchServiceClient>,
+    career: Res<CareerClient>,
+    mut labels: Query<&mut Text, With<HomeMatchmakingStatus>>,
+) {
+    if !matchmaking.is_searching() {
+        return;
+    }
+    let Ok(mut label) = labels.single_mut() else {
+        return;
+    };
+    let status = career
+        .view
+        .match_service
+        .as_ref()
+        .map(crate::match_service::status_text)
+        .unwrap_or_else(|| tr("searching.match.connecting").into());
+    if label.0 != status {
+        label.0 = status;
+    }
 }
 
 /// A bounded invitation in the left column. On phones it replaces the recent
@@ -1552,6 +1658,16 @@ mod tests {
     }
 
     #[test]
+    fn standalone_guest_play_does_not_wait_for_a_career_error_packet() {
+        let mut career = CareerClient::default();
+        assert!(standalone_guest_available(&career));
+        career.view.storage_enabled = true;
+        assert!(standalone_guest_available(&career));
+        career.view.match_service = Some(shared::match_service::MatchServiceView::Idle);
+        assert!(!standalone_guest_available(&career));
+    }
+
+    #[test]
     fn connection_line_reports_every_session_state() {
         for state in [
             ClientConnectionState::Connected,
@@ -1644,6 +1760,7 @@ mod tests {
             .init_resource::<ProfileCard>()
             .init_resource::<AvatarThumbnails>()
             .init_resource::<crate::party::PartyClient>()
+            .init_resource::<crate::match_service::MatchServiceClient>()
             .insert_resource(crate::ui::UiPlatform(crate::platform::UiProfile::Desktop))
             .add_systems(Startup, (spawn_home_backdrop, spawn_home))
             .add_systems(Update, refresh_home);

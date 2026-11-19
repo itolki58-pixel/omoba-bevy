@@ -47,6 +47,14 @@ fn chat_allowed(joined: bool, state: &GameState) -> bool {
     joined && matches!(state, GameState::Running | GameState::Victory { .. })
 }
 
+/// Android can temporarily report the game window as unfocused while the IME
+/// switches input methods (for example, when Gboard opens its language picker).
+/// Keep an active phone chat alive through that focus hand-off; the IME owns
+/// the temporary focus, not a request to close the in-game composer.
+fn chat_focus_loss_closes(phone: bool, chat_open: bool, focused: bool) -> bool {
+    !focused && !(phone && chat_open)
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct Hold {
     id: u64,
@@ -526,7 +534,7 @@ impl SocialClient {
     pub(crate) fn qa_send_chat(&mut self, out: &mut MessageWriter<NetworkCommand>) {
         self.chat_open = true;
         self.opened_frame = true;
-        self.draft = "QA: Привет 小明 — ready for practice!".into(); // i18n-allow: QA harness draft
+        self.draft = "QA: Привет Игрок — ready for practice!".into(); // i18n-allow: QA harness draft
         self.send_chat(out);
     }
     #[cfg(feature = "qa")]
@@ -749,7 +757,10 @@ fn input(
         return;
     };
     let admitted = chat_allowed(world.session.join_confirmed(), &world.snapshot.state);
-    if !admitted || !window.focused || (world.mobile.enabled && !world.mobile.landscape) {
+    if !admitted
+        || chat_focus_loss_closes(world.mobile.enabled, social.chat_open, window.focused)
+        || (world.mobile.enabled && !world.mobile.landscape)
+    {
         if social.namespace.is_some() && !world.session.is_connected() {
             social.clear();
         }
@@ -1047,11 +1058,17 @@ fn chat_keyboard(
             if !window.ime_enabled {
                 window.ime_enabled = true;
             }
+            if !social.ime_owned {
+                // NativeActivity's implicit IME toggle is unreliable on modern
+                // Android. Use android-activity's fixed explicit request as well.
+                crate::platform::set_soft_keyboard_visible(true);
+            }
             social.ime_owned = true;
         } else if social.ime_owned {
             if window.ime_enabled {
                 window.ime_enabled = false;
             }
+            crate::platform::set_soft_keyboard_visible(false);
             social.ime_owned = false;
         }
     }
@@ -2438,7 +2455,7 @@ mod tests {
             assert_eq!(typing.top, reading.top);
             assert_eq!(typing.width, reading.width);
         }
-        let preview = composer_preview("Привет 小明, this is a long draft", "中文", 128.0);
+        let preview = composer_preview("Привет Игрок, this is a long draft", "中文", 128.0);
         assert!(preview.starts_with('…'));
         assert!(preview.ends_with("中文 |"));
     }
@@ -2607,7 +2624,7 @@ mod tests {
 
     #[test]
     fn chat_bubble_preview_includes_nickname_and_bounds_wide_text() {
-        assert_eq!(chat_bubble_preview("小明", "hello"), "小明: hello");
+        assert_eq!(chat_bubble_preview("Игрок", "hello"), "Игрок: hello");
         let preview = chat_bubble_preview("很长的昵称名字测试", "世界你好".repeat(40).as_str());
         assert!(preview.contains(": ") && preview.ends_with('…'));
         assert!(
@@ -2914,7 +2931,7 @@ mod tests {
         SocialEvent {
             id,
             player_id: 7,
-            nickname: "小明".into(),
+            nickname: "Игрок".into(),
             team: shared::social::SocialTeam::Green,
             age_ms: 0,
             kind,
@@ -3082,6 +3099,15 @@ mod tests {
         assert!(social.draft.is_empty());
     }
     #[test]
+    fn android_ime_focus_handoff_does_not_close_an_open_chat() {
+        assert!(!chat_focus_loss_closes(true, true, false));
+        assert!(!chat_focus_loss_closes(true, true, true));
+        assert!(chat_focus_loss_closes(true, false, false));
+        assert!(chat_focus_loss_closes(false, true, false));
+        assert!(!chat_focus_loss_closes(false, true, true));
+    }
+
+    #[test]
     fn chat_ime_commits_once_and_closed_frame_blocks_gameplay_orders() {
         use bevy::input::ButtonState;
         let mut app = App::new();
@@ -3100,18 +3126,18 @@ mod tests {
             .id();
         app.world_mut().write_message(Ime::Commit {
             window,
-            value: "Привет 小明".into(),
+            value: "Привет Игрок".into(),
         });
         app.world_mut().write_message(KeyboardInput {
             window,
             key_code: KeyCode::KeyA,
-            logical_key: Key::Character("Привет 小明".into()),
-            text: Some("Привет 小明".into()),
+            logical_key: Key::Character("Привет Игрок".into()),
+            text: Some("Привет Игрок".into()),
             state: ButtonState::Pressed,
             repeat: false,
         });
         app.update();
-        assert_eq!(app.world().resource::<SocialClient>().draft, "Привет 小明");
+        assert_eq!(app.world().resource::<SocialClient>().draft, "Привет Игрок");
         assert!(app.world().get::<Window>(window).unwrap().ime_enabled);
         app.world_mut().resource_mut::<SocialClient>().close();
         app.update();
@@ -3119,7 +3145,7 @@ mod tests {
         assert!(!app.world().get::<Window>(window).unwrap().ime_enabled);
         let mut value = "a".repeat(160);
         let before = value.clone();
-        assert!(append_chat(&mut value, "小").is_err());
+        assert!(append_chat(&mut value, "я").is_err());
         assert_eq!(value, before);
     }
     #[test]

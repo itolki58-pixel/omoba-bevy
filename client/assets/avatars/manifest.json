@@ -134,6 +134,15 @@
       "slug": "orion",
       "source_url": "https://gateway.pinata.cloud/ipfs/Qmed8jVF5FvBn6Jerxk8Wm5DwRjuAHRfBXgofTue37orBC/Avatar_Orion.vrm",
       "thumbnail": "orion.png"
+    },
+    {
+      "author": "Polygonal-Mind",
+      "collection": "100Avatars R3 / OMOBA Original",
+      "display_name": "Заргат",
+      "license": "CC0",
+      "slug": "zargat",
+      "source_url": "https://arweave.net/U5J00CQ4NHUkXH7rrM4DTt4Oi3JqkTXKzC2z4oX67qs",
+      "thumbnail": "crowley.jpg"
     }
   ]
 }

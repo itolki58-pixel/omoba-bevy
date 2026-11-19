@@ -78,6 +78,9 @@ pub(crate) struct ServerRuntime {
     pub(crate) victory_at: Option<Instant>,
     pub(crate) recv_buf: Vec<u8>,
     pub(crate) invalid_request_diagnostic: RateLimitedDiagnostic,
+    /// Windows reports ICMP Port Unreachable for stale UDP peers as WSAECONNRESET.
+    /// This is a per-datagram network condition, not a fatal server socket failure.
+    pub(crate) udp_reset_diagnostic: RateLimitedDiagnostic,
     pub(crate) snapshot_send_diagnostic: RateLimitedDiagnostic,
     /// Standalone only: status-reply bookkeeping per unverified endpoint.
     pub(crate) prejoin_replies: HashMap<std::net::SocketAddr, prejoin::PrejoinReply>,
@@ -178,6 +181,7 @@ impl ServerRuntime {
             victory_at: None,
             recv_buf: vec![0_u8; CLIENT_DATAGRAM_RECEIVE_CAPACITY],
             invalid_request_diagnostic: RateLimitedDiagnostic::default(),
+            udp_reset_diagnostic: RateLimitedDiagnostic::default(),
             snapshot_send_diagnostic: RateLimitedDiagnostic::default(),
             prejoin_replies: HashMap::new(),
             prejoin_limit_diagnostic: RateLimitedDiagnostic::default(),
