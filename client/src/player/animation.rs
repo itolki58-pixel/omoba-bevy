@@ -644,6 +644,17 @@ fn setup_player_animation_library(
                     clips.push(handle);
                 }
             }
+            // Additional authored hero motions are addressable by skill-presentation
+            // cues, so hit reactions, turns, stops and ultimates can be played without
+            // changing the authoritative movement or combat simulation.
+            let extra_motions: Vec<(String, Handle<AnimationClip>)> = [
+                "hit", "turnleft", "turnright", "stop", "ultimate",
+            ]
+            .iter()
+            .filter_map(|needle| find_clip(&[needle]))
+            .collect();
+            let extra_start = clips.len();
+            clips.extend(extra_motions.iter().map(|(_, handle)| handle.clone()));
             let (graph, nodes) = AnimationGraph::from_clips(clips);
             let Some(idle_node) = nodes.first().copied() else {
                 continue;
@@ -663,7 +674,15 @@ fn setup_player_animation_library(
                     attack_node: optional_indices[0].and_then(|index| nodes.get(index).copied()),
                     cast_node: optional_indices[1].and_then(|index| nodes.get(index).copied()),
                     death_node: optional_indices[2].and_then(|index| nodes.get(index).copied()),
-                    motion_nodes: Vec::new(),
+                    motion_nodes: extra_motions
+                        .into_iter()
+                        .enumerate()
+                        .filter_map(|(index, (name, _))| {
+                            nodes.get(extra_start + index).copied().map(|node| {
+                                (name.to_ascii_lowercase(), node)
+                            })
+                        })
+                        .collect(),
                 },
             );
             info!(
