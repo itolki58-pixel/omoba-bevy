@@ -282,7 +282,7 @@ for side in (-1,1):
 # Muscular arms and exposed hooked claws.
 for side,suffix in [(-1,"L"),(1,"R")]:
     sphere("Demon bicep "+suffix,(side*0.49,0,1.34),(0.205,0.215,0.29),MAT_SKIN,"upper_arm."+suffix)
-    sphere("Obsidian pauldron "+suffix,(side*0.43,-0.03,1.58),(0.27,0.25,0.18),MAT_RED,"chest")
+    sphere("Living shoulder muscle "+suffix,(side*0.43,-0.03,1.58),(0.25,0.21,0.19),MAT_SKIN,"chest")
     sphere("Demon forearm "+suffix,(side*0.68,-0.015,1.03),(0.17,0.18,0.265),MAT_SKIN,"forearm."+suffix)
     sphere("Hardened wrist hide "+suffix,(side*0.71,-0.15,0.91),(0.16,0.13,0.18),MAT_SKIN,"forearm."+suffix)
     for claw in range(3):
@@ -390,7 +390,7 @@ for side in (-1, 1):
 
 # Central facial mask, layered throat gorget and engraved armor studs.
 sphere("Nasal bridge", (0,-0.258,1.79), (0.055,0.045,0.105), MAT_RED, "head", 20, 14)
-cube("Mouth grille", (0,-0.267,1.675), (0.19,0.045,0.055), MAT_GOLD, "jaw", 0.012)
+curve_tube("Infernal lip ridge", [(-0.10,-0.29,1.69),(0,-0.31,1.68),(0.10,-0.29,1.69)], 0.018, MAT_RED, "jaw", 3)
 for x in (-0.055, 0, 0.055):
     cube("Mask vent", (x,-0.294,1.675), (0.012,0.012,0.042), MAT_ARMOR, "jaw", 0.004)
 for z in (1.62, 1.56, 1.50):
@@ -666,8 +666,8 @@ def attack_pose(f):
     else:
         p=1.0-(u-0.62)/0.38
         setrot("pelvis",0,0,0.40*p)
-        setrot("spine",0,0,0.30*p)
-        setrot("chest",0,0,0.62*p)
+        setrot("spine",0,0,-0.12*p)
+        setrot("chest",0,0,-0.18*p)
         setrot("upper_arm.R",0,0,0.60*p)
         setrot("forearm.R",0,0,0.48*p)
         setrot("sword",0,0,0.70*p)
@@ -675,7 +675,7 @@ def attack_pose(f):
         setrot("wing.L",0,0,0.30*p)
         setrot("wing.R",0,0,-0.30*p)
         setrot("tail.02",0,0,0.28*p)
-        setrot("tail.03",0,0,0.40*p)
+        setrot("tail.03",0,0,0.32*p)
         setrot("head",0,0,-0.10*p)
 make_action("Attack", [1,4,8,12,17,22,27], attack_pose)
 
