@@ -1,3 +1,4 @@
+# Rebuild after Zargat rig bone validation fix
 name: Android client APK
 
 on:
