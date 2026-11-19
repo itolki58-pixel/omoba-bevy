@@ -34,22 +34,6 @@ struct ZargatWing {
     side: f32,
 }
 
-/// Installs the authored infernal overlay on every replicated Zargat model.
-pub(crate) struct ZargatPlugin;
-
-impl Plugin for ZargatPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_zargat_assets)
-            .add_systems(
-                PostUpdate,
-                (attach_zargat_visuals, animate_zargat_wings)
-                    .chain()
-                    .before(bevy::transform::TransformSystems::Propagate)
-                    .run_if(crate::sprite::in_models3d()),
-            );
-    }
-}
-
 pub(crate) fn setup_zargat_assets(
     mut commands: Commands,
     mode: Res<PlayerVisualMode>,
