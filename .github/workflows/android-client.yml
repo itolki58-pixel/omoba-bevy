@@ -92,7 +92,11 @@ jobs:
           required = {"Idle", "Run", "Walk", "Attack", "Cast", "Death"}
           missing = required - set(names)
           assert not missing, f"Missing Zaragat animation clips: {sorted(missing)}"
-          print(f"Validated Zaragat GLB: {path.stat().st_size} bytes; meshes={len(doc['meshes'])}; skins={len(doc['skins'])}; animations={names}")
+          node_names = {node.get("name", "") for node in doc.get("nodes", [])}
+          required_bones = {"jaw", "neck", "finger.1.L", "finger.2.L", "finger.3.L", "finger.1.R", "finger.2.R", "finger.3.R"}
+          missing_bones = required_bones - node_names
+          assert not missing_bones, f"Missing Zaragat rig bones: {sorted(missing_bones)}"
+          print(f"Validated Zaragat GLB: {path.stat().st_size} bytes; meshes={len(doc['meshes'])}; skins={len(doc['skins'])}; bones={len(node_names)}; animations={names}")
           PY
       - name: Refresh compatibility manifest and lockfile
         run: cargo run --quiet -p shared --example compatibility -- manifest
