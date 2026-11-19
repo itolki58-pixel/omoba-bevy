@@ -87,8 +87,9 @@ fn private_create(path: &Path) -> io::Result<fs::File> {
     options.open(path)
 }
 
-/// Publish a complete key with an exclusive hard link. Concurrent clients use
-/// the winning file; neither an existing nor a corrupt identity is overwritten.
+/// Create the private key file exclusively. This avoids hard-link requirements,
+/// which are not supported by every app-private filesystem on mobile devices.
+/// An existing identity (including a damaged one) is never overwritten.
 pub(super) fn load_or_create_key(directory: &Path) -> Result<SigningKey, String> {
     let path = directory.join(KEY_FILE);
     match fs::symlink_metadata(&path) {
@@ -100,39 +101,26 @@ pub(super) fn load_or_create_key(directory: &Path) -> Result<SigningKey, String>
     let mut seed = [0; 32];
     getrandom::fill(&mut seed).map_err(|_| tr("identity.random_unavailable"))?;
     let key = SigningKey::from_bytes(&seed);
-    let mut suffix = [0; 16];
-    getrandom::fill(&mut suffix).map_err(|_| tr("identity.random_unavailable"))?;
-    let temporary = directory.join(format!(".career-key-{}.tmp", hex(&suffix)));
-    let mut created = false;
-    let result = (|| {
-        let mut file = private_create(&temporary).map_err(|_| tr("identity.key.create_failed"))?;
-        created = true;
-        let saved = IdentityFile {
-            version: 1,
-            seed: hex(&seed),
-            public_key: hex(key.verifying_key().as_bytes()),
-        };
-        let encoded = serde_json::to_vec(&saved).map_err(|_| tr("identity.key.encode_failed"))?;
-        file.write_all(&encoded)
-            .and_then(|_| file.sync_all())
-            .map_err(|_| tr("identity.key.save_failed"))?;
-        match fs::hard_link(&temporary, &path) {
-            Ok(()) => {
-                #[cfg(unix)]
-                fs::File::open(directory)
-                    .and_then(|directory| directory.sync_all())
-                    .map_err(|_| tr("identity.key.confirm_failed"))?;
-                Ok(key)
-            }
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => read_key(&path),
-            Err(_) => Err(tr("identity.key.publish_failed").into()),
-        }
-    })();
-    // Only this invocation's random temporary file can be removed here.
-    if created {
-        let _ = fs::remove_file(&temporary);
-    }
-    result
+    let saved = IdentityFile {
+        version: 1,
+        seed: hex(&seed),
+        public_key: hex(key.verifying_key().as_bytes()),
+    };
+    let encoded = serde_json::to_vec(&saved).map_err(|_| tr("identity.key.encode_failed"))?;
+
+    let mut file = match private_create(&path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => return read_key(&path),
+        Err(_) => return Err(tr("identity.key.create_failed").into()),
+    };
+    file.write_all(&encoded)
+        .and_then(|_| file.sync_all())
+        .map_err(|_| tr("identity.key.save_failed"))?;
+    #[cfg(unix)]
+    fs::File::open(directory)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|_| tr("identity.key.confirm_failed"))?;
+    Ok(key)
 }
 
 fn identity_directory() -> Option<PathBuf> {
