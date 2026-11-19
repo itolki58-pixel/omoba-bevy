@@ -240,6 +240,7 @@ def curve_tube(name, points, radius, material, bone_name, resolution=3):
         bp.handle_right_type = "AUTO"
     obj = bpy.data.objects.new(name, curve)
     bpy.context.collection.objects.link(obj)
+    bpy.ops.object.select_all(action="DESELECT")
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
     bpy.ops.object.convert(target="MESH")
