@@ -873,7 +873,11 @@ fn spawn_home(
                     top: Val::Px(if phone { 317.0 * unit } else { 354.0 }),
                     width: Val::Px(if phone { 660.0 * unit } else { 224.0 }),
                     height: Val::Px(if phone { 52.0 * unit } else { 300.0 }),
-                    flex_direction: if phone { FlexDirection::Row } else { FlexDirection::Column },
+                    flex_direction: if phone {
+                        FlexDirection::Row
+                    } else {
+                        FlexDirection::Column
+                    },
                     row_gap: Val::Px(if phone { 0.0 } else { space::S8 }),
                     column_gap: Val::Px(if phone { 12.0 } else { 0.0 }),
                     border_radius: BorderRadius::all(Val::Px(radius::LG)),
@@ -1150,8 +1154,16 @@ fn spawn_home_nav(
             width: Val::Px(if phone { 156.0 * unit } else { 224.0 }),
             height: Val::Px(if phone { 52.0 * unit } else { 54.0 }),
             padding: UiRect::horizontal(Val::Px(if phone { 0.0 } else { space::S16 })),
-            flex_direction: if phone { FlexDirection::Column } else { FlexDirection::Row },
-            justify_content: if phone { JustifyContent::Center } else { JustifyContent::FlexStart },
+            flex_direction: if phone {
+                FlexDirection::Column
+            } else {
+                FlexDirection::Row
+            },
+            justify_content: if phone {
+                JustifyContent::Center
+            } else {
+                JustifyContent::FlexStart
+            },
             align_items: AlignItems::Center,
             column_gap: Val::Px(if phone { 0.0 } else { space::S12 }),
             row_gap: Val::Px(space::S4),
