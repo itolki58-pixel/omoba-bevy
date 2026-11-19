@@ -72,7 +72,6 @@ use crate::{
     verdant3d::Verdant3dPlugin,
     world::SetupPlugin,
     world2d::World2dPlugin,
-    zargat::ZargatPlugin,
 };
 
 /// Preferences, the server session, the match service and the career identity.
@@ -150,7 +149,6 @@ impl PluginGroup for PresentationPlugins {
             .add(World2dPlugin)
             // 3D model backend.
             .add(Presentation3dPlugin)
-            .add(ZargatPlugin)
             .add(Verdant3dPlugin)
             .add(DecorPlugin)
             .add(JungleVisualsPlugin)
