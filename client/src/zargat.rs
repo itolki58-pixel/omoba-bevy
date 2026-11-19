@@ -23,30 +23,30 @@ pub(crate) struct ZargatAssets {
 }
 
 #[derive(Component)]
-struct ZargatVisual;
+pub(crate) struct ZargatVisual;
 
 #[derive(Component)]
-struct ZargatPart { owner_id: Option<u64>, base_scale: Vec3 }
+pub(crate) struct ZargatPart { owner_id: Option<u64>, base_scale: Vec3 }
 
 /// Marks the isolated avatar-collection preview, which uses render layer 28.
 #[derive(Component)]
 pub(crate) struct ZargatPreview;
 
 #[derive(Component)]
-struct ZargatWing {
+pub(crate) struct ZargatWing {
     rest: Quat,
     side: f32,
 }
 
 #[derive(Component)]
-struct ZargatTail { rest: Quat, phase: f32, side: f32 }
+pub(crate) struct ZargatTail { rest: Quat, phase: f32, side: f32 }
 
 #[derive(Component)]
-struct ZargatSword { rest: Quat, last_sequence: u64, swing_age: f32, slot: u8 }
+pub(crate) struct ZargatSword { rest: Quat, last_sequence: u64, swing_age: f32, slot: u8 }
 
 /// Procedural shoulder and forearm motion layered over the Crowley locomotion rig.
 #[derive(Component)]
-struct ZargatArm {
+pub(crate) struct ZargatArm {
     rest: Quat,
     side: f32,
     forearm: bool,
