@@ -24,8 +24,12 @@ def mat(name, color, metallic=0.0, rough=0.5, emission=None):
     p.inputs["Metallic"].default_value = metallic
     p.inputs["Roughness"].default_value = rough
     if emission:
-        p.inputs["Emission Color"].default_value = (*emission, 1.0)
-        p.inputs["Emission Strength"].default_value = 2.0
+        emission_input = p.inputs.get("Emission Color") or p.inputs.get("Emission")
+        if emission_input:
+            emission_input.default_value = (*emission, 1.0)
+        strength_input = p.inputs.get("Emission Strength")
+        if strength_input:
+            strength_input.default_value = 2.0
     return m
 
 MAT_SKIN = mat("Zargat | Ashen crimson skin", (0.19, 0.035, 0.055), 0.08, 0.62)
