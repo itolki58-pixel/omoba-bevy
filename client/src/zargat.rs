@@ -432,7 +432,7 @@ pub(crate) fn animate_zargat_wings(
     time: Res<Time>,
     snapshot: Res<GameStateSnapshot>,
     mut wings: Query<(&ZargatWing, &ZargatPart, &mut Transform)>,
-    mut tails: Query<(&ZargatTail, &ZargatPart, &mut Transform), Without<ZargatWing>>,
+    mut tails: Query<(&ZargatTail, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatSword>)>,
     mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>, Without<ZargatSword>)>,
     mut swords: Query<(&mut ZargatSword, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>)>,
     actions: Query<(&NetworkPlayerId, &PlayerCosmeticAction)>,
