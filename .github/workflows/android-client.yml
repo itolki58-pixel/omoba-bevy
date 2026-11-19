@@ -61,7 +61,7 @@ jobs:
       - name: Generate standalone Zaragat model and rig
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy
+          sudo apt-get install -y blender python3-numpy libegl1 libgl1 libglib2.0-0
           export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
           rm -f client/assets/avatars/zargat.glb
           blender --background --python scripts/generate_zargat.py
