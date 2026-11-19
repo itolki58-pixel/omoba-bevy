@@ -418,7 +418,7 @@ pub(crate) fn animate_zargat_wings(
     time: Res<Time>,
     mut wings: Query<(&ZargatWing, &mut Transform)>,
     mut tails: Query<(&ZargatTail, &mut Transform), Without<ZargatWing>>,
-    mut parts: Query<(&Name, &mut Transform), Without<ZargatTail>>,
+    mut parts: Query<(&Name, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>)>,
 ) {
     let t = time.elapsed_secs();
     let wave = (t * 2.2).sin() * 0.14;
