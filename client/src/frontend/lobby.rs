@@ -191,7 +191,7 @@ fn spawn_backdrop(mut commands: Commands, platform: Res<crate::ui::UiPlatform>) 
         .with_children(|root| {
             living_background::spawn(
                 root,
-                LivingScene::Arena,
+                LivingScene::Stage,
                 LivingBands::default(),
                 theme::Form::of(platform.is_mobile()),
             );
@@ -205,9 +205,9 @@ fn spawn_backdrop(mut commands: Commands, platform: Res<crate::ui::UiPlatform>) 
                     ..default()
                 },
                 BackgroundGradient::from(LinearGradient::to_bottom(vec![
-                    ColorStop::percent(Color::srgba(0.02, 0.07, 0.065, 0.88), 0.0),
-                    ColorStop::percent(Color::srgba(0.02, 0.07, 0.065, 0.28), 40.0),
-                    ColorStop::percent(Color::srgba(0.02, 0.07, 0.065, 0.94), 100.0),
+                    ColorStop::percent(Color::srgba(0.012, 0.025, 0.085, 0.92), 0.0),
+                    ColorStop::percent(Color::srgba(0.10, 0.075, 0.20, 0.34), 40.0),
+                    ColorStop::percent(Color::srgba(0.012, 0.018, 0.065, 0.96), 100.0),
                 ])),
                 Pickable::IGNORE,
             ));
@@ -399,7 +399,7 @@ fn spawn_lobby(
                         title.spawn((
                             Text::new(tr("lobby.title")),
                             theme::styled_text(
-                                TextStyle::new(TextRole::Title).sized(Metric::new(32.0, 24.0)),
+                                TextStyle::new(TextRole::Title).sized(Metric::new(36.0, 26.0)),
                             ),
                             TextColor(theme::IVORY),
                         ));
@@ -481,7 +481,7 @@ fn spawn_lobby(
                                     border_radius: BorderRadius::all(Val::Px(4.0)),
                                     ..default()
                                 },
-                                BackgroundColor(Color::srgba(0.02, 0.06, 0.05, 0.82)),
+                                BackgroundColor(Color::srgba(0.025, 0.035, 0.105, 0.88)),
                             ));
                         });
                     column
@@ -654,7 +654,7 @@ fn spawn_nameplates(
                         ..default()
                     },
                     BorderColor::all(if you { theme::GOLD } else { theme::PANEL_EDGE }),
-                    BackgroundColor(Color::srgba(0.02, 0.06, 0.05, 0.82)),
+                    BackgroundColor(Color::srgba(0.025, 0.035, 0.105, 0.88)),
                     Name::new(format!("LobbyMemberPlate{index}")),
                 ))
                 .with_children(|plate| {
@@ -724,8 +724,8 @@ fn spawn_social(parent: &mut ChildSpawnerCommands, sig: &LobbySignature, phone: 
                 border_radius: BorderRadius::all(Val::Px(12.0)),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.025, 0.075, 0.067, 0.95)),
-            BorderColor::all(theme::PANEL_EDGE),
+            BackgroundColor(Color::srgba(0.025, 0.035, 0.105, 0.96)),
+            BorderColor::all(theme::GOLD),
             Name::new("LobbySocial"),
         ))
         .with_children(|panel| {
