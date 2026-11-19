@@ -186,10 +186,10 @@ def wing_mesh(side, suffix):
     return finish_part(obj,obj.name,MAT_WING,"wing."+suffix)
 
 # Core anatomy and plated silhouette.
-sphere("Infernal torso",(0,0,1.30),(0.43,0.27,0.43),MAT_SKIN,"spine")
-sphere("Broad chest",(0,-0.015,1.48),(0.55,0.30,0.32),MAT_SKIN,"chest")
-cube("Obsidian breastplate",(0,-0.285,1.43),(0.72,0.12,0.46),MAT_ARMOR,"chest",0.06)
-sphere("Molten heart",(0,-0.36,1.43),(0.13,0.035,0.16),MAT_EMBER,"chest")
+sphere("Infernal torso",(0,0,1.28),(0.46,0.31,0.48),MAT_SKIN,"spine")
+sphere("Broad chest",(0,-0.005,1.49),(0.61,0.34,0.36),MAT_SKIN,"chest")
+sphere("Obsidian breastplate",(0,-0.285,1.45),(0.47,0.105,0.30),MAT_ARMOR,"chest")
+sphere("Molten heart",(0,-0.386,1.45),(0.105,0.025,0.12),MAT_EMBER,"chest")
 for z in (1.30,1.42,1.54):
     for side in (-1,1):
         cone_between("Cuirass molten rune",(side*0.10,-0.36,z),(side*0.17,-0.36,z+0.07),0.025,MAT_GOLD,"chest",6)
@@ -197,9 +197,9 @@ sphere("Infernal pelvis",(0,0,0.86),(0.34,0.24,0.22),MAT_ARMOR,"pelvis")
 cube("Skull belt",(0,-0.24,0.86),(0.24,0.055,0.16),MAT_GOLD,"pelvis",0.025)
 
 # Head, horns, mane, eyes and jaw.
-sphere("Demon skull",(0,-0.015,1.83),(0.25,0.23,0.30),MAT_SKIN,"head")
-cube("Infernal face guard",(0,-0.22,1.78),(0.40,0.075,0.17),MAT_ARMOR,"head",0.025)
-cone_between("Demon jaw",(0,-0.18,1.70),(0,-0.20,1.57),0.13,MAT_RED,"jaw",8,0.025)
+sphere("Demon skull",(0,-0.025,1.84),(0.285,0.255,0.325),MAT_SKIN,"head")
+sphere("Infernal face guard",(0,-0.238,1.785),(0.225,0.055,0.155),MAT_ARMOR,"head")
+sphere("Demon jaw",(0,-0.215,1.675),(0.17,0.105,0.13),MAT_RED,"jaw")
 for side in (-1,1):
     cone_between("Crown horn",(side*0.16,0.0,1.98),(side*0.29,0.02,2.35),0.105,MAT_GOLD,"head",9,0.006)
     sphere("Burning eye",(side*0.105,-0.245,1.84),(0.045,0.025,0.035),MAT_EYE,"head",10,6)
@@ -207,19 +207,70 @@ for side in (-1,1):
     sphere("Silver mane",(side*0.17,0.13,1.80),(0.14,0.16,0.28),MAT_HAIR,"head")
     cone_between("Mane lock",(side*0.18,0.16,1.82),(side*0.26,0.50,1.55),0.10,MAT_HAIR,"head",7,0.015)
 
+
+# Major-form sculpt pass: anatomical volumes and layered silhouette.
+# The armor follows the body instead of reading as a flat rectangular box.
+for side, suffix in [(-1,"L"), (1,"R")]:
+    # Pronounced pectoral and deltoid masses visible around the breastplate.
+    sphere("Sculpted pectoral "+suffix, (side*0.245,-0.205,1.49),
+           (0.245,0.155,0.205), MAT_SKIN, "chest")
+    sphere("Deltoid muscle "+suffix, (side*0.48,-0.015,1.43),
+           (0.205,0.205,0.205), MAT_SKIN, "upper_arm."+suffix)
+    # Layered curved chest armor, clavicle ridge and lower rib plates.
+    sphere("Upper chest armor lobe "+suffix, (side*0.205,-0.345,1.55),
+           (0.205,0.055,0.145), MAT_RED, "chest")
+    curve_tube("Clavicle forged ridge "+suffix,
+               [(0,-0.365,1.68),(side*0.17,-0.375,1.69),(side*0.34,-0.33,1.63)],
+               0.026, MAT_GOLD, "chest", 4)
+    for idx in range(2):
+        z = 1.27 - idx*0.105
+        sphere("Obsidian rib plate "+suffix+str(idx),
+               (side*(0.22-idx*0.025),-0.275,z),
+               (0.18,0.065,0.075), MAT_ARMOR, "spine", 20, 14)
+    # Muscular forearm silhouette under the armor.
+    sphere("Elbow joint "+suffix, (side*0.625,-0.005,1.17),
+           (0.145,0.16,0.15), MAT_RED, "forearm."+suffix)
+    # Sculpted knee and calf volumes to avoid the blocky toy-leg silhouette.
+    sphere("Calf muscle "+suffix, (side*0.23,0.005,0.29),
+           (0.145,0.17,0.20), MAT_SKIN, "shin."+suffix)
+    sphere("Layered knee shell "+suffix, (side*0.23,-0.275,0.49),
+           (0.17,0.075,0.135), MAT_ARMOR, "shin."+suffix)
+# Angular cheek planes, muzzle, brow and layered crown give the head a readable face.
+for side in (-1,1):
+    sphere("Temple armor", (side*0.205,-0.16,1.86),
+           (0.09,0.105,0.17), MAT_ARMOR, "head", 24, 16)
+    sphere("Muzzle plane", (side*0.065,-0.278,1.735),
+           (0.075,0.045,0.055), MAT_RED, "jaw", 20, 12)
+    curve_tube("Heavy demonic brow",
+               [(side*0.025,-0.292,1.91),(side*0.11,-0.305,1.935),(side*0.205,-0.265,1.89)],
+               0.035, MAT_RED, "head", 4)
+    curve_tube("Jaw edge armor",
+               [(side*0.18,-0.255,1.73),(side*0.13,-0.27,1.65),(side*0.035,-0.27,1.62)],
+               0.018, MAT_GOLD, "jaw", 3)
+# A central nose ridge and mouth slit replace the featureless mask surface.
+sphere("Nose armor ridge", (0,-0.305,1.765), (0.045,0.045,0.075), MAT_GOLD, "head", 20, 12)
+curve_tube("Mouth shadow", [(-0.075,-0.312,1.685),(0,-0.322,1.675),(0.075,-0.312,1.685)],
+           0.009, MAT_ARMOR, "jaw", 3)
+# Add a layered, tapered abdomen rather than a row of floating cubes.
+for side in (-1,1):
+    for idx,z in enumerate((1.18,1.08,0.98)):
+        sphere("Anatomical abdominal plate",
+               (side*(0.105 if idx==0 else 0.09),-0.245,z),
+               (0.105,0.075,0.075), MAT_RED if idx==0 else MAT_ARMOR, "spine", 20, 14)
+
 # Arms and gauntlets.
 for side,suffix in [(-1,"L"),(1,"R")]:
-    sphere("Demon bicep "+suffix,(side*0.48,0,1.35),(0.19,0.20,0.27),MAT_SKIN,"upper_arm."+suffix)
+    sphere("Demon bicep "+suffix,(side*0.49,0,1.34),(0.205,0.215,0.29),MAT_SKIN,"upper_arm."+suffix)
     sphere("Obsidian pauldron "+suffix,(side*0.43,-0.03,1.58),(0.27,0.25,0.18),MAT_RED,"chest")
-    sphere("Demon forearm "+suffix,(side*0.68,-0.01,1.02),(0.15,0.16,0.25),MAT_SKIN,"forearm."+suffix)
+    sphere("Demon forearm "+suffix,(side*0.68,-0.015,1.03),(0.17,0.18,0.265),MAT_SKIN,"forearm."+suffix)
     cube("War gauntlet "+suffix,(side*0.71,-0.15,0.91),(0.28,0.18,0.22),MAT_ARMOR,"forearm."+suffix,0.035)
     for claw in range(3):
         x=side*(0.63+claw*0.075)
         cone_between("Gauntlet talon "+suffix,(x,-0.20,0.86),(x,-0.28,0.73),0.035,MAT_GOLD,"hand."+suffix,6,0.004)
-    sphere("Demon thigh "+suffix,(side*0.22,0,0.65),(0.19,0.22,0.28),MAT_SKIN,"thigh."+suffix)
-    cube("Infernal greave "+suffix,(side*0.23,-0.16,0.34),(0.25,0.25,0.36),MAT_ARMOR,"shin."+suffix,0.035)
+    sphere("Demon thigh "+suffix,(side*0.22,0,0.65),(0.215,0.235,0.30),MAT_SKIN,"thigh."+suffix)
+    sphere("Infernal greave "+suffix,(side*0.23,-0.17,0.34),(0.155,0.115,0.235),MAT_ARMOR,"shin."+suffix)
     sphere("Knee plate "+suffix,(side*0.23,-0.29,0.49),(0.15,0.07,0.12),MAT_RED,"shin."+suffix)
-    cube("Clawed boot "+suffix,(side*0.23,-0.26,0.12),(0.27,0.42,0.18),MAT_ARMOR,"foot."+suffix,0.025)
+    sphere("Clawed boot "+suffix,(side*0.23,-0.25,0.12),(0.17,0.24,0.12),MAT_ARMOR,"foot."+suffix)
     cone_between("Boot spur "+suffix,(side*0.23,-0.43,0.12),(side*0.23,-0.60,0.07),0.06,MAT_GOLD,"foot."+suffix,7,0.003)
     wing_mesh(side,suffix)
     # Wing ribs.
@@ -239,7 +290,7 @@ cone_between("Tail blade",(0,1.02,0.34),(0,1.25,0.28),0.11,MAT_GOLD,"tail.tip",8
 # Hellblade, mounted to the dedicated sword bone.
 cube("Hellblade grip",(0.76,-0.06,0.91),(0.075,0.075,0.34),MAT_ARMOR,"sword",0.015)
 cube("Hellblade crossguard",(0.76,-0.06,1.09),(0.36,0.09,0.075),MAT_GOLD,"sword",0.02)
-cone_between("Molten demon sword",(0.76,-0.06,1.10),(0.76,-0.06,1.84),0.12,MAT_EMBER,"sword",6,0.004)
+cone_between("Molten demon sword",(0.76,-0.06,1.10),(0.76,-0.06,1.84),0.105,MAT_RED,"sword",8,0.012)
 cone_between("Sword spine",(0.76,-0.115,1.12),(0.76,-0.115,1.78),0.025,MAT_GOLD,"sword",5,0.003)
 
 
