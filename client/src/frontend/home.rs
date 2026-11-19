@@ -817,9 +817,7 @@ fn spawn_home(
                         "HomeOfflinePractice",
                     ),
                 ] {
-                    if action == HomeAction::BotPractice
-                        && (can_resume || career.view.match_service.is_none())
-                    {
+                    if action == HomeAction::BotPractice && can_resume {
                         continue;
                     }
                     let button = kit::spawn_button(
