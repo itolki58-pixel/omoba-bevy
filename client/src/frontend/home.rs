@@ -396,7 +396,7 @@ fn standalone_guest_available(career: &CareerClient) -> bool {
     // A standalone server has no public matchmaking service by design. It
     // accepts direct unranked joins, so do not make the Play button wait for
     // an optional career-status error string to arrive over UDP.
-    !career.view.storage_enabled && career.view.match_service.is_none()
+    career.view.match_service.is_none()
 }
 
 pub(crate) fn connection_line(session: &ClientSession) -> (String, Color) {
@@ -1662,8 +1662,7 @@ mod tests {
         let mut career = CareerClient::default();
         assert!(standalone_guest_available(&career));
         career.view.storage_enabled = true;
-        assert!(!standalone_guest_available(&career));
-        career.view.storage_enabled = false;
+        assert!(standalone_guest_available(&career));
         career.view.match_service = Some(shared::match_service::MatchServiceView::Idle);
         assert!(!standalone_guest_available(&career));
     }
