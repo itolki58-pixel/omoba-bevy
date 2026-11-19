@@ -32,12 +32,12 @@ def mat(name, color, metallic=0.0, rough=0.5, emission=None):
             strength_input.default_value = 2.0
     return m
 
-MAT_SKIN = mat("Zargat | Ashen crimson skin", (0.19, 0.035, 0.055), 0.08, 0.62)
-MAT_ARMOR = mat("Zargat | Obsidian armor", (0.025, 0.018, 0.035), 0.82, 0.28)
-MAT_RED = mat("Zargat | Infernal steel", (0.32, 0.035, 0.025), 0.68, 0.3)
-MAT_GOLD = mat("Zargat | Ancient gold", (0.72, 0.36, 0.07), 0.78, 0.25)
+MAT_SKIN = mat("Zargat | Ashen crimson skin", (0.105, 0.012, 0.022), 0.12, 0.48)
+MAT_ARMOR = mat("Zargat | Obsidian armor", (0.008, 0.009, 0.018), 0.9, 0.22)
+MAT_RED = mat("Zargat | Infernal steel", (0.22, 0.012, 0.018), 0.78, 0.24)
+MAT_GOLD = mat("Zargat | Ancient gold", (0.58, 0.29, 0.045), 0.88, 0.2)
 MAT_EMBER = mat("Zargat | Molten core", (1.0, 0.12, 0.015), 0.15, 0.22, (1.0, 0.045, 0.004))
-MAT_WING = mat("Zargat | Membrane", (0.075, 0.009, 0.025), 0.12, 0.68)
+MAT_WING = mat("Zargat | Membrane", (0.028, 0.003, 0.012), 0.18, 0.56)
 MAT_HAIR = mat("Zargat | Silver mane", (0.62, 0.64, 0.68), 0.15, 0.38)
 MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.22, 0.015), 0.05, 0.2, (1.0, 0.08, 0.002))
 
@@ -402,6 +402,102 @@ for side in (-1, 1):
     curve_tube("Hellblade edge rail", [(0.76+side*0.095,-0.12,1.18),
                (0.76+side*0.11,-0.12,1.48),(0.76+side*0.075,-0.12,1.78)],
                0.012, MAT_GOLD, "sword", 3)
+
+
+# FINAL HERO PASS — stronger silhouette, demonic facial anatomy and forged equipment.
+# Remove earlier placeholder-like facial fittings before adding the final sculpted mask.
+for obj in list(parts):
+    if obj.name.startswith(("Mouth grille", "Mask vent", "Nasal bridge", "Nose armor ridge", "Muzzle plane")):
+        parts.remove(obj)
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+# Heavier, tapered neck and torso silhouette.
+sphere("Neck tendon L",(-0.115,-0.12,1.64),(0.105,0.16,0.19),MAT_SKIN,"neck",28,20)
+sphere("Neck tendon R",(0.115,-0.12,1.64),(0.105,0.16,0.19),MAT_SKIN,"neck",28,20)
+sphere("Upper sternum armor",(0,-0.325,1.36),(0.27,0.075,0.19),MAT_ARMOR,"chest",32,20)
+cone_between("Sternum crest",(0,-0.405,1.55),(0,-0.43,1.28),0.075,MAT_GOLD,"chest",8,0.012)
+
+# Face: deep-set slanted eyes, pronounced brow, angular cheek guards and a long infernal jaw.
+for side in (-1,1):
+    suffix = "R" if side > 0 else "L"
+    sphere("Deep eye socket",(side*0.112,-0.255,1.855),(0.092,0.045,0.070),MAT_ARMOR,"head",28,18)
+    sphere("Narrow crimson eye",(side*0.112,-0.296,1.858),(0.052,0.018,0.018),MAT_EYE,"head",24,12)
+    sphere("Vertical pupil",(side*0.112,-0.313,1.858),(0.008,0.006,0.018),MAT_ARMOR,"head",12,8)
+    curve_tube("Angular brow plate",[(side*0.035,-0.30,1.925),(side*0.105,-0.315,1.945),(side*0.205,-0.275,1.905)],0.045,MAT_ARMOR,"head",4)
+    cone_between("Facial blade",(side*0.19,-0.245,1.79),(side*0.255,-0.21,1.68),0.065,MAT_RED,"head",10,0.004)
+    curve_tube("Cheek magma fissure",[(side*0.19,-0.292,1.81),(side*0.16,-0.30,1.76),(side*0.22,-0.27,1.72)],0.010,MAT_EMBER,"head",3)
+# Long plated muzzle and fanged lower jaw, no round nose button.
+sphere("Infernal muzzle",(0,-0.275,1.755),(0.13,0.095,0.075),MAT_RED,"jaw",28,18)
+sphere("Jaw chin plate",(0,-0.245,1.665),(0.15,0.10,0.085),MAT_ARMOR,"jaw",28,18)
+curve_tube("Jagged mouth opening",[(-0.12,-0.342,1.70),(-0.06,-0.36,1.685),(0,-0.365,1.69),(0.06,-0.36,1.685),(0.12,-0.342,1.70)],0.012,MAT_ARMOR,"jaw",3)
+for side in (-1,1):
+    cone_between("Upper fang",(side*0.075,-0.355,1.715),(side*0.065,-0.36,1.665),0.022,MAT_GOLD,"jaw",8,0.002)
+# Forehead crown and swept-back horn armor.
+sphere("Forehead crown plate",(0,-0.20,2.02),(0.19,0.12,0.12),MAT_ARMOR,"head",32,20)
+curve_tube("Crown center rune",[(0,-0.32,2.08),(0,-0.34,2.00),(0,-0.32,1.96)],0.018,MAT_EMBER,"head",3)
+
+# Layered, angular pauldrons and forearm plates create a heavy warlord silhouette.
+for side in (-1,1):
+    suffix="R" if side>0 else "L"
+    sphere("Massive outer pauldron",(side*0.49,-0.12,1.57),(0.29,0.24,0.22),MAT_ARMOR,"chest",32,20)
+    cone_between("Pauldron outer blade",(side*0.55,-0.08,1.68),(side*0.79,-0.04,1.92),0.105,MAT_GOLD,"chest",10,0.003)
+    cone_between("Pauldron lower blade",(side*0.55,-0.10,1.48),(side*0.72,-0.11,1.36),0.075,MAT_RED,"chest",10,0.003)
+    curve_tube("Pauldron molten border",[(side*0.31,-0.29,1.65),(side*0.48,-0.335,1.72),(side*0.66,-0.26,1.62)],0.014,MAT_EMBER,"chest",3)
+    sphere("Bracer outer plate",(side*0.70,-0.17,1.02),(0.17,0.075,0.24),MAT_ARMOR,"forearm."+suffix,28,18)
+    for j in range(3):
+        z=1.15-j*0.105
+        curve_tube("Bracer raised rib",[(side*0.60,-0.225,z),(side*0.70,-0.25,z-0.025),(side*0.80,-0.22,z-0.055)],0.018,MAT_GOLD,"forearm."+suffix,3)
+    # Additional articulated knuckle armor and hooked claws.
+    for j in range(3):
+        x=side*(0.65+j*0.07)
+        sphere("Knuckle armor",(x,-0.245,0.82),(0.035,0.03,0.035),MAT_GOLD,"hand."+suffix,16,10)
+        cone_between("Long hooked talon",(x,-0.25,0.80),(x,-0.34,0.68),0.025,MAT_ARMOR,"hand."+suffix,10,0.002)
+
+# Distinct layered abdominal cuirass and broad waist silhouette.
+for idx,z in enumerate((1.23,1.12,1.01)):
+    width=(0.19,0.17,0.14)[idx]
+    sphere("Forged abdominal segment",(0,-0.305,z),(width,0.065,0.072),MAT_ARMOR,"spine",28,16)
+    curve_tube("Abdominal hot seam",[(-width*0.72,-0.36,z),(0,-0.375,z-0.025),(width*0.72,-0.36,z)],0.009,MAT_EMBER,"spine",3)
+# Heavy waist tassets, overlapping plates over the hips.
+for side in (-1,1):
+    suffix="R" if side>0 else "L"
+    sphere("Hip tasset",(side*0.245,-0.205,0.82),(0.19,0.10,0.20),MAT_ARMOR,"pelvis",28,18)
+    cone_between("Tasset pointed edge",(side*0.28,-0.285,0.91),(side*0.34,-0.30,0.67),0.095,MAT_RED,"pelvis",8,0.006)
+    # Calf armor gets layered front plates and shin blades.
+    sphere("Greave frontal plate",(side*0.23,-0.275,0.34),(0.12,0.055,0.19),MAT_RED,"shin."+suffix,28,18)
+    curve_tube("Greave molten channel",[(side*0.23,-0.33,0.48),(side*0.23,-0.34,0.34),(side*0.23,-0.31,0.20)],0.012,MAT_EMBER,"shin."+suffix,3)
+
+# Larger, more legible infernal greatsword with a broad leaf-shaped blade and crossguard.
+# Existing narrow blade remains as a spine; these layered blade planes widen its silhouette.
+sphere("Sword guard central seal",(0.76,-0.13,1.10),(0.095,0.055,0.10),MAT_EMBER,"sword",24,16)
+cone_between("Greatsword left quillon",(0.76,-0.08,1.10),(0.53,-0.08,1.22),0.065,MAT_GOLD,"sword",8,0.012)
+cone_between("Greatsword right quillon",(0.76,-0.08,1.10),(0.99,-0.08,1.22),0.065,MAT_GOLD,"sword",8,0.012)
+# Broad blade body built as a beveled forged wedge.
+verts=[(0.76,-0.205,1.18),(0.62,-0.17,1.48),(0.66,-0.16,1.73),(0.76,-0.17,1.91),
+       (0.86,-0.16,1.73),(0.90,-0.17,1.48),(0.76,-0.205,1.18),
+       (0.76,-0.09,1.18),(0.62,-0.09,1.48),(0.66,-0.09,1.73),(0.76,-0.09,1.91),
+       (0.86,-0.09,1.73),(0.90,-0.09,1.48)]
+faces=[(0,1,2,3,4,5),(7,12,11,10,9,8),(0,7,8,1),(1,8,9,2),(2,9,10,3),(3,10,11,4),(4,11,12,5),(5,12,7,0)]
+mesh=bpy.data.meshes.new("Hellblade_Broad_Forged_Blade")
+mesh.from_pydata(verts,[],faces); mesh.materials.append(MAT_RED); mesh.update()
+blade=bpy.data.objects.new("Hellblade broad forged blade",mesh); bpy.context.collection.objects.link(blade)
+bev=blade.modifiers.new("Forged blade bevel","BEVEL"); bev.width=0.018; bev.segments=3
+bpy.context.view_layer.objects.active=blade
+bpy.ops.object.modifier_apply(modifier=bev.name)
+finish_part(blade,blade.name,MAT_RED,"sword")
+curve_tube("Blade central molten channel",[(0.76,-0.218,1.22),(0.76,-0.22,1.48),(0.76,-0.20,1.72),(0.76,-0.18,1.88)],0.022,MAT_EMBER,"sword",4)
+
+# More organic wing scallops: additional curved ribs and membrane tendons.
+for side in (-1,1):
+    suffix="R" if side>0 else "L"
+    for j in range(5):
+        t=j/4
+        curve_tube("Wing reinforced finger",[(side*(0.40+0.03*t),0.04,1.55),
+          (side*(0.68+0.08*t),0.015,1.68),(side*(0.98+0.06*t),0.035,1.78),
+          (side*(1.30-0.03*t),0.10,1.92-0.12*j)],0.014,MAT_GOLD if j in (0,4) else MAT_RED,"wing."+suffix,3)
+    curve_tube("Wing outer trailing edge",[(side*0.40,0.10,1.49),(side*0.67,0.11,1.25),
+      (side*0.91,0.12,1.08),(side*1.17,0.13,1.14),(side*1.34,0.14,1.48)],0.022,MAT_ARMOR,"wing."+suffix,4)
+
 
 # Merge the weighted pieces into a single skinned mesh, retaining material slots.
 bpy.ops.object.select_all(action="DESELECT")
