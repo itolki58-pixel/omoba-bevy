@@ -1,6 +1,15 @@
 name: Android client APK
 
 on:
+  push:
+    branches:
+      - fix/quick-matchmaking-50s
+    paths:
+      - "client/**"
+      - "shared/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/android-client.yml"
   pull_request:
     paths:
       - "client/**"
