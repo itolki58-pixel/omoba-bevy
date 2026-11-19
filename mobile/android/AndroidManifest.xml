@@ -13,7 +13,7 @@
         <activity android:name="android.app.NativeActivity" android:exported="true"
             android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|density|keyboard|navigation|uiMode"
-            android:windowSoftInputMode="adjustResize|stateAlwaysHidden">
+            android:windowSoftInputMode="adjustResize|stateUnchanged">
             <meta-data android:name="android.app.lib_name" android:value="client" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
