@@ -153,20 +153,36 @@ def cone_between(name, a, b, radius, material, bone_name, vertices=16, radius2=0
     return finish_part(o,name,material,bone_name)
 
 def wing_mesh(side, suffix):
-    # Angular bat wing membrane, attached to its own animated wing bone.
-    pts=[
-        (side*0.34,0.10,1.52),
-        (side*0.74,0.10,1.92),
-        (side*1.42,0.13,2.12),
-        (side*1.22,0.12,1.48),
-        (side*1.10,0.12,1.08),
-        (side*0.83,0.10,1.34),
-        (side*0.60,0.10,1.18),
-    ]
-    faces=[(0,1,5),(1,2,3),(1,3,5),(5,3,4),(0,5,6)]
+    # Dense, curved bat membrane with a scalloped trailing edge (not flat triangles).
+    # The surface is tessellated so lighting and the membrane normal read smoothly.
+    span_steps, chord_steps = 18, 12
+    verts, faces = [], []
+    leading = [(0.36,1.53),(0.70,1.83),(1.05,2.02),(1.42,2.13)]
+    trailing = [(0.36,1.48),(0.64,1.22),(0.91,1.05),(1.17,1.12),(1.31,1.48)]
+    def sample(profile, u):
+        q=u*(len(profile)-1); i=min(int(q),len(profile)-2); f=q-i
+        return profile[i][0]*(1-f)+profile[i+1][0]*f, profile[i][1]*(1-f)+profile[i+1][1]*f
+    for i in range(span_steps+1):
+        u=i/span_steps
+        lx,lz=sample(leading,u)
+        tx,tz=sample(trailing,min(1,u))
+        # Distinct scallops between the long wing fingers.
+        scallop=math.sin(u*math.pi*4.0)**2 * 0.055
+        for j in range(chord_steps+1):
+            v=j/chord_steps
+            x=lx*(1-v)+tx*v
+            z=lz*(1-v)+tz*v-scallop*math.sin(v*math.pi)
+            y=0.105 + 0.035*math.sin(u*math.pi)*math.sin(v*math.pi)
+            verts.append((side*x,y,z))
+    for i in range(span_steps):
+        for j in range(chord_steps):
+            p=i*(chord_steps+1)+j
+            faces.append((p,p+1,p+chord_steps+2,p+chord_steps+1))
     mesh=bpy.data.meshes.new("Zargat_Wing_"+suffix)
-    mesh.from_pydata(pts,[],faces); mesh.materials.append(MAT_WING); mesh.update()
+    mesh.from_pydata(verts,[],faces); mesh.materials.append(MAT_WING); mesh.update()
     obj=bpy.data.objects.new("Zargat_BatWing_"+suffix,mesh); bpy.context.collection.objects.link(obj)
+    for poly in mesh.polygons: poly.use_smooth=True
+    solid=obj.modifiers.new("Thin leathery membrane","SOLIDIFY"); solid.thickness=0.012
     return finish_part(obj,obj.name,MAT_WING,"wing."+suffix)
 
 # Core anatomy and plated silhouette.
