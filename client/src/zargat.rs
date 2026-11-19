@@ -2,6 +2,7 @@
 //! CC0 Crowley humanoid rig. The base rig supplies locomotion; these authored
 //! armor, horn, wing and blade meshes are attached to the replicated hero root.
 
+use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
 use crate::{net::NetworkAvatar, player::Player, sprite::PlayerVisualMode};
@@ -22,6 +23,10 @@ pub(crate) struct ZargatAssets {
 
 #[derive(Component)]
 struct ZargatVisual;
+
+/// Marks the isolated avatar-collection preview, which uses render layer 28.
+#[derive(Component)]
+pub(crate) struct ZargatPreview;
 
 #[derive(Component)]
 struct ZargatWing {
@@ -112,14 +117,17 @@ pub(crate) fn setup_zargat_assets(
 pub(crate) fn attach_zargat_visuals(
     mut commands: Commands,
     assets: Option<Res<ZargatAssets>>,
-    heroes: Query<(Entity, &NetworkAvatar), (With<Player>, Without<ZargatVisual>)>,
+    heroes: Query<
+        (Entity, Option<&NetworkAvatar>, Has<ZargatPreview>),
+        (Without<ZargatVisual>, Or<(With<Player>, With<ZargatPreview>)>),
+    >,
 ) {
     let Some(assets) = assets else {
         return;
     };
 
-    for (entity, avatar) in &heroes {
-        if avatar.0.as_deref() != Some("zargat") {
+    for (entity, avatar, is_preview) in &heroes {
+        if !is_preview && avatar.and_then(|avatar| avatar.0.as_deref()) != Some("zargat") {
             continue;
         }
 
@@ -131,7 +139,7 @@ pub(crate) fn attach_zargat_visuals(
                         position: Vec3,
                         scale: Vec3,
                         rotation: Quat| {
-                parent.spawn((
+                let mut spawned = parent.spawn((
                     Mesh3d(mesh.clone()),
                     MeshMaterial3d(material.clone()),
                     Transform {
@@ -142,6 +150,9 @@ pub(crate) fn attach_zargat_visuals(
                     Visibility::default(),
                     Name::new(format!("Zargat-{name}")),
                 ));
+                if is_preview {
+                    spawned.insert(RenderLayers::layer(28));
+                }
             };
 
             part(
@@ -213,7 +224,7 @@ pub(crate) fn attach_zargat_visuals(
                 );
 
                 let wing_rotation = Quat::from_rotation_z(side * 0.27);
-                parent.spawn((
+                let mut wing_entity = parent.spawn((
                     Mesh3d(assets.block.clone()),
                     MeshMaterial3d(assets.wing.clone()),
                     Transform {
@@ -228,6 +239,9 @@ pub(crate) fn attach_zargat_visuals(
                     },
                     Name::new("Zargat-BatWing"),
                 ));
+                if is_preview {
+                    wing_entity.insert(RenderLayers::layer(28));
+                }
                 part(
                     parent,
                     "OuterWingPanel",
