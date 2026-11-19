@@ -499,6 +499,42 @@ for side in (-1,1):
       (side*0.91,0.12,1.08),(side*1.17,0.13,1.14),(side*1.34,0.14,1.48)],0.022,MAT_ARMOR,"wing."+suffix,4)
 
 
+
+# DORSAL ORGANIC SCULPT PASS — exposed living spines, layered hide and ember fissures.
+# These forms are grown from the back and limbs; they are not metallic equipment.
+for idx, z in enumerate((1.12, 1.27, 1.42, 1.57, 1.70)):
+    height = (0.15, 0.19, 0.22, 0.18, 0.12)[idx]
+    cone_between("Dorsal living spine",
+        (0.0, 0.19, z), (0.0, 0.34 + idx*0.012, z + height),
+        0.085 if idx < 3 else 0.065, MAT_ARMOR, "spine", 10, 0.004)
+    # A narrow hot seam at the root makes the ridge read as living, split hide.
+    curve_tube("Dorsal ember fissure",
+        [(-0.035,0.255,z+0.015),(0.0,0.265,z+0.065),(0.028,0.255,z+0.11)],
+        0.010, MAT_EMBER, "spine", 3)
+
+# Organic keratin scutes overlap the shoulder and outer thighs like thickened skin.
+for side in (-1, 1):
+    suffix = "R" if side > 0 else "L"
+    for j in range(4):
+        z = 1.48 - j*0.085
+        x = side*(0.48 + j*0.018)
+        cone_between("Shoulder grown keratin scute",
+            (x,-0.245,z+0.055),(x+side*0.105,-0.225,z-0.035),
+            0.075, MAT_ARMOR, "chest", 10, 0.008)
+    for j in range(3):
+        z = 0.72 - j*0.105
+        x = side*(0.30 + j*0.018)
+        sphere("Thigh dermal scale",
+            (x,-0.245,z),(0.085,0.045,0.095),MAT_RED,"thigh."+suffix,20,14)
+    # Branching molten fissures on exposed forearm hide.
+    curve_tube("Forearm branching magma crack",
+        [(side*0.60,-0.195,1.20),(side*0.67,-0.225,1.13),
+         (side*0.63,-0.225,1.06),(side*0.72,-0.205,0.99)],
+        0.012, MAT_EMBER, "forearm."+suffix, 3)
+    # A living membrane root collar visually joins the wing to the back.
+    sphere("Wing root tendon",
+        (side*0.40,0.055,1.54),(0.17,0.13,0.16),MAT_RED,"wing."+suffix,24,16)
+
 # Merge the weighted pieces into a single skinned mesh, retaining material slots.
 bpy.ops.object.select_all(action="DESELECT")
 for obj in parts: obj.select_set(True)
