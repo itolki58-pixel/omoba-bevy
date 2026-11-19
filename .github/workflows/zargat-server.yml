@@ -34,6 +34,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: zargat-server-linux-x64
+      - name: Refresh compatibility manifest and lockfile
+        run: cargo run --quiet -p shared --example compatibility -- manifest
       - name: Build server
         run: cargo build --locked --release -p server
       - name: Upload server binary
