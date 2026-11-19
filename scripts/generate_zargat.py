@@ -41,6 +41,34 @@ MAT_WING = mat("Zargat | Membrane", (0.075, 0.009, 0.025), 0.12, 0.68)
 MAT_HAIR = mat("Zargat | Silver mane", (0.62, 0.64, 0.68), 0.15, 0.38)
 MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.22, 0.015), 0.05, 0.2, (1.0, 0.08, 0.002))
 
+
+# Layered procedural surface detail: hammered obsidian, ash skin and molten seams.
+def add_surface_detail(material, scale, bump_strength, roughness_strength=0.25):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    shader = nodes.get("Principled BSDF")
+    tex = nodes.new("ShaderNodeTexNoise")
+    tex.inputs["Scale"].default_value = scale
+    tex.inputs["Detail"].default_value = 5.0
+    tex.inputs["Roughness"].default_value = 0.72
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = bump_strength
+    bump.inputs["Distance"].default_value = 0.035
+    links.new(tex.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], shader.inputs["Normal"])
+    rough = nodes.new("ShaderNodeMapRange")
+    rough.inputs["From Min"].default_value = 0.0
+    rough.inputs["From Max"].default_value = 1.0
+    rough.inputs["To Min"].default_value = max(0.12, material.node_tree.nodes.get("Principled BSDF").inputs["Roughness"].default_value - roughness_strength)
+    rough.inputs["To Max"].default_value = min(0.9, material.node_tree.nodes.get("Principled BSDF").inputs["Roughness"].default_value + roughness_strength)
+    links.new(tex.outputs["Fac"], rough.inputs["Value"])
+    links.new(rough.outputs["Result"], shader.inputs["Roughness"])
+
+add_surface_detail(MAT_SKIN, 7.5, 0.22, 0.12)
+add_surface_detail(MAT_ARMOR, 38.0, 0.16, 0.10)
+add_surface_detail(MAT_RED, 24.0, 0.12, 0.08)
+add_surface_detail(MAT_WING, 16.0, 0.18, 0.10)
+
 # Blender-space coordinates: Z up; the demon faces -Y.
 arm_data = bpy.data.armatures.new("Zargat_Skeleton")
 arm = bpy.data.objects.new("Zargat_Rig", arm_data)
@@ -195,6 +223,69 @@ cube("Hellblade grip",(0.76,-0.06,0.91),(0.075,0.075,0.34),MAT_ARMOR,"sword",0.0
 cube("Hellblade crossguard",(0.76,-0.06,1.09),(0.36,0.09,0.075),MAT_GOLD,"sword",0.02)
 cone_between("Molten demon sword",(0.76,-0.06,1.10),(0.76,-0.06,1.84),0.12,MAT_EMBER,"sword",6,0.004)
 cone_between("Sword spine",(0.76,-0.115,1.12),(0.76,-0.115,1.78),0.025,MAT_GOLD,"sword",5,0.003)
+
+
+# Additional sculpted silhouette and layered forged armor details.
+def curve_tube(name, points, radius, material, bone_name, resolution=3):
+    curve = bpy.data.curves.new(name, "CURVE")
+    curve.dimensions = "3D"
+    curve.resolution_u = 16
+    curve.bevel_depth = radius
+    curve.bevel_resolution = resolution
+    spline = curve.splines.new("BEZIER")
+    spline.bezier_points.add(len(points)-1)
+    for bp, point in zip(spline.bezier_points, points):
+        bp.co = point
+        bp.handle_left_type = "AUTO"
+        bp.handle_right_type = "AUTO"
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    return finish_part(obj, name, material, bone_name)
+
+# Raised breastplate ridges and molten channels form a readable chest emblem.
+for side in (-1, 1):
+    curve_tube("Living magma seam", [(side*0.06,-0.352,1.58),(side*0.13,-0.365,1.48),(side*0.08,-0.37,1.37),(side*0.20,-0.35,1.29)], 0.012, MAT_EMBER, "chest")
+    curve_tube("Cuirass engraved gold fillet", [(side*0.27,-0.355,1.61),(side*0.34,-0.355,1.47),(side*0.29,-0.355,1.31)], 0.014, MAT_GOLD, "chest")
+    # Layered abdominal plates with pointed lower edges.
+    for idx, z in enumerate((1.20,1.09,0.99)):
+        x=side*(0.13 if idx==0 else 0.12)
+        cone_between("Layered abdominal plate", (x,-0.255,z+0.055),(x+side*0.055,-0.265,z-0.045),0.075,MAT_ARMOR,"spine",7,0.018)
+    # Forearm armor ridges and luminous inlays.
+    for idx in range(3):
+        z=1.06-idx*0.09
+        curve_tube("Bracer ember inlay",[(side*0.78,-0.17,z),(side*0.86,-0.18,z-0.035),(side*0.78,-0.17,z-0.07)],0.009,MAT_EMBER,"forearm."+("R" if side>0 else "L"))
+    # Knee and thigh armor layering.
+    sphere("Thigh outer plate",(side*0.31,-0.205,0.66),(0.13,0.075,0.22),MAT_RED,"thigh."+("R" if side>0 else "L"))
+    for z in (0.47,0.39,0.31):
+        curve_tube("Greave engraved line",[(side*0.12,-0.292,z),(side*0.23,-0.305,z-0.025),(side*0.34,-0.292,z)],0.009,MAT_GOLD,"shin."+("R" if side>0 else "L"))
+
+# Crown silhouette: swept-back hooked horns with a dark keratin base and gold tips.
+for side in (-1,1):
+    suffix="R" if side>0 else "L"
+    cone_between("Horn root collar",(side*0.15,0.0,1.99),(side*0.21,-0.015,2.12),0.12,MAT_ARMOR,"head",10,0.075)
+    curve_tube("Swept infernal horn",[(side*0.18,0.02,2.00),(side*0.27,0.06,2.14),(side*0.34,0.12,2.30),(side*0.30,0.16,2.43)],0.075,MAT_RED,"head",4)
+    cone_between("Horn gold tip",(side*0.30,0.16,2.37),(side*0.30,0.16,2.46),0.035,MAT_GOLD,"head",8,0.001)
+    # Additional layered shoulder plates and rivets.
+    sphere("Upper pauldron crest",(side*0.43,-0.17,1.69),(0.25,0.15,0.13),MAT_ARMOR,"chest")
+    sphere("Pauldron molten jewel",(side*0.47,-0.285,1.61),(0.045,0.025,0.055),MAT_EMBER,"chest",10,6)
+
+# Wing membrane ribs and branching veins; all follow the animated wing bones.
+for side in (-1,1):
+    suffix="R" if side>0 else "L"
+    for j in range(4):
+        t=j/4.0
+        curve_tube("Wing finger rib",[(side*(0.42+0.12*t),0.075,1.55),(side*(0.76+0.12*t),0.055,1.72),(side*(1.08+0.10*t),0.07,1.88),(side*(1.38-0.04*t),0.12,2.08-0.13*j)],0.018 if j<2 else 0.012,MAT_RED,"wing."+suffix)
+    curve_tube("Wing membrane vein",[(side*0.62,0.055,1.43),(side*0.88,0.045,1.49),(side*1.15,0.07,1.35)],0.009,MAT_EMBER,"wing."+suffix)
+
+# Barbed tail ridges and glowing segments.
+for idx,(y,z,bn) in enumerate(((0.43,0.69,"tail.01"),(0.68,0.54,"tail.02"),(0.91,0.40,"tail.03"))):
+    curve_tube("Tail molten seam",[(0.0,y-0.07,z+0.04),(0.0,y,z+0.095),(0.0,y+0.07,z+0.04)],0.012,MAT_EMBER,bn)
+    cone_between("Tail barb",(0.0,y,z+0.09),(0.0,y+0.10,z+0.19),0.045,MAT_RED,bn,7,0.002)
+
+# Blade fuller and serrated edge details.
+curve_tube("Hellblade glowing fuller",[(0.76,-0.19,1.18),(0.76,-0.19,1.42),(0.76,-0.19,1.67),(0.76,-0.19,1.82)],0.018,MAT_EMBER,"sword")
+for z in (1.28,1.43,1.58,1.73):
+    cone_between("Hellblade serration",(0.64,-0.08,z),(0.58,-0.08,z+0.06),0.035,MAT_GOLD,"sword",6,0.002)
 
 # Merge the weighted pieces into a single skinned mesh, retaining material slots.
 bpy.ops.object.select_all(action="DESELECT")
