@@ -4,6 +4,7 @@
 
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
+use std::collections::HashMap;
 
 use crate::{net::{GameStateSnapshot, NetworkAvatar, NetworkPlayerId, PlayerCosmeticAction, RemotePlayer}, player::Player, sprite::PlayerVisualMode};
 use shared::loadout::SkillId;
@@ -21,6 +22,20 @@ pub(crate) struct ZargatAssets {
     skin: Handle<StandardMaterial>,
     hair: Handle<StandardMaterial>,
 }
+
+#[derive(Component)]
+pub(crate) struct ZargatVisual;
+
+/// Rest pose for the authored body pieces. These are animated as one coherent
+/// silhouette until a dedicated skinned Zaragat model is integrated.
+#[derive(Component)]
+struct ZargatBodyPart {
+    rest: Transform,
+}
+
+/// Procedural locomotion layer for Zaragat's authored body silhouette.
+#[derive(Resource, Default)]
+struct ZargatMotionHistory(HashMap<u64, Vec3>);
 
 #[derive(Component)]
 pub(crate) struct ZargatVisual;
@@ -199,6 +214,16 @@ pub(crate) fn attach_zargat_visuals(
                     ZargatPart { owner_id, base_scale: scale },
                     Name::new(format!("Zargat-{name}")),
                 ));
+                if matches!(
+                    name,
+                    "DemonTorso" | "Cuirass" | "DemonNeck" | "DemonHead"
+                        | "InfernalPelvis" | "DemonThigh" | "Greave" | "KneeGuard"
+                        | "InfernalMask" | "DemonJaw" | "SilverHair"
+                ) {
+                    spawned.insert(ZargatBodyPart {
+                        rest: Transform { translation: position, rotation, scale },
+                    });
+                }
                 if name == "Hellblade" {
                     spawned.insert(ZargatSword { rest: rotation, last_sequence: 0, swing_age: 1.0, slot: u8::MAX });
                 }
@@ -526,7 +551,10 @@ pub(crate) fn animate_zargat_wings(
     snapshot: Res<GameStateSnapshot>,
     mut wings: Query<(&ZargatWing, &ZargatPart, &mut Transform)>,
     mut tails: Query<(&ZargatTail, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatSword>, Without<ZargatArm>)>,
-    mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>, Without<ZargatSword>, Without<ZargatArm>)>,
+    mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>, Without<ZargatSword>, Without<ZargatArm>, Without<ZargatBodyPart>)>,
+    mut body_parts: Query<(&Name, &ZargatPart, &ZargatBodyPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>, Without<ZargatSword>, Without<ZargatArm>)>,
+    roots: Query<(&NetworkPlayerId, &Transform)>,
+    mut motion_history: Local<ZargatMotionHistory>,
     mut swords: Query<(&mut ZargatSword, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>, Without<ZargatArm>)>,
     mut arms: Query<(&mut ZargatArm, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>, Without<ZargatSword>)>,
     actions: Query<(&NetworkPlayerId, &PlayerCosmeticAction)>,
@@ -591,6 +619,54 @@ pub(crate) fn animate_zargat_wings(
         };
         transform.rotation = sword.rest * Quat::from_rotation_x(swing);
         transform.scale = part.base_scale * if sovereign(part) { 1.24 } else { 1.0 };
+    }
+    let mut moving = HashMap::new();
+    for (id, root) in &roots {
+        let previous = motion_history.0.insert(id.0, root.translation);
+        let speed = previous
+            .map(|position| position.distance(root.translation) / time.delta_secs().max(0.001))
+            .unwrap_or(0.0);
+        moving.insert(id.0, speed.clamp(0.0, 8.0) / 4.5);
+    }
+    let gait = t * 10.5;
+    for (name, part, body, mut transform) in &mut body_parts {
+        let speed = part.owner_id.and_then(|owner| moving.get(&owner).copied()).unwrap_or(0.0);
+        let run = (speed / 0.22).clamp(0.0, 1.0);
+        let phase = gait + part.owner_id.unwrap_or(0) as f32 * 0.013;
+        let step = phase.sin();
+        let opposite = (phase + std::f32::consts::PI).sin();
+        let sovereign_factor = if sovereign(part) { 1.24 } else { 1.0 };
+        transform.translation = body.rest.translation;
+        transform.rotation = body.rest.rotation;
+        transform.scale = body.rest.scale * sovereign_factor;
+        match name.as_str() {
+            "Zargat-DemonTorso" | "Zargat-Cuirass" => {
+                transform.translation.y += (t * 2.2).sin() * 0.012 * (1.0 - run)
+                    + (phase * 2.0).sin().abs() * 0.035 * run;
+                transform.rotation *= Quat::from_rotation_z(step * 0.035 * run);
+            }
+            "Zargat-DemonHead" | "Zargat-DemonNeck" | "Zargat-SilverHair" => {
+                transform.rotation *= Quat::from_rotation_z(step * 0.045 * run
+                    + (t * 1.35).sin() * 0.018 * (1.0 - run));
+                transform.translation.y += (t * 2.2).sin() * 0.008 * (1.0 - run);
+            }
+            "Zargat-DemonThigh" | "Zargat-Greave" => {
+                let side = body.rest.translation.x.signum();
+                let swing = if side < 0.0 { step } else { opposite };
+                transform.translation.y += swing.abs() * 0.045 * run;
+                transform.rotation *= Quat::from_rotation_z(swing * 0.42 * run);
+            }
+            "Zargat-InfernalPelvis" => {
+                transform.translation.y += (phase * 2.0).sin().abs() * 0.025 * run;
+                transform.rotation *= Quat::from_rotation_z(step * 0.025 * run);
+            }
+            "Zargat-KneeGuard" => {
+                let side = body.rest.translation.x.signum();
+                let swing = if side < 0.0 { step } else { opposite };
+                transform.rotation *= Quat::from_rotation_z(swing * 0.30 * run);
+            }
+            _ => {}
+        }
     }
     for (name, part, mut transform) in &mut parts {
         let factor = if sovereign(part) { 1.24 } else { 1.0 };
