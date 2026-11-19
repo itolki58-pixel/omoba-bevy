@@ -319,7 +319,17 @@ print("Exported", OUT, os.path.getsize(OUT), "bytes")
 # just to show a small roster tile.
 THUMB = os.path.join(os.path.dirname(OUT), "zargat.png")
 scene = bpy.context.scene
-scene.render.engine = "BLENDER_EEVEE_NEXT"
+# Blender packages expose different Eevee identifiers across releases.
+# Select an engine supported by the installed Blender instead of assuming
+# the newer BLENDER_EEVEE_NEXT enum exists.
+engine_items = scene.render.bl_rna.properties["engine"].enum_items
+available_engines = {item.identifier for item in engine_items}
+if "BLENDER_EEVEE_NEXT" in available_engines:
+    scene.render.engine = "BLENDER_EEVEE_NEXT"
+elif "BLENDER_EEVEE" in available_engines:
+    scene.render.engine = "BLENDER_EEVEE"
+else:
+    scene.render.engine = "BLENDER_WORKBENCH"
 scene.render.resolution_x = 640
 scene.render.resolution_y = 640
 scene.render.resolution_percentage = 100
