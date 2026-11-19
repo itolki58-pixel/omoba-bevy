@@ -16,6 +16,8 @@ pub(crate) struct ZargatAssets {
     ember: Handle<StandardMaterial>,
     wing: Handle<StandardMaterial>,
     gold: Handle<StandardMaterial>,
+    skin: Handle<StandardMaterial>,
+    hair: Handle<StandardMaterial>,
 }
 
 #[derive(Component)]
@@ -90,6 +92,20 @@ pub(crate) fn setup_zargat_assets(
             0.78,
             0.27,
         ),
+        skin: material(
+            &mut materials,
+            Color::srgb(0.29, 0.105, 0.22),
+            LinearRgba::BLACK,
+            0.04,
+            0.72,
+        ),
+        hair: material(
+            &mut materials,
+            Color::srgb(0.78, 0.75, 0.69),
+            LinearRgba::BLACK,
+            0.08,
+            0.48,
+        ),
     });
 }
 
@@ -138,7 +154,36 @@ pub(crate) fn attach_zargat_visuals(
                 Quat::IDENTITY,
             );
 
+            // Exposed violet musculature and dark bracers make the silhouette
+            // read as a powerful demon rather than a fully armored human.
             for side in [-1.0_f32, 1.0] {
+                part(
+                    parent,
+                    "Bicep",
+                    &assets.sphere,
+                    &assets.skin,
+                    Vec3::new(side * 0.66, 1.03, 0.10),
+                    Vec3::new(0.29, 0.38, 0.30),
+                    Quat::from_rotation_z(-side * 0.12),
+                );
+                part(
+                    parent,
+                    "Forearm",
+                    &assets.sphere,
+                    &assets.skin,
+                    Vec3::new(side * 0.72, 0.70, 0.17),
+                    Vec3::new(0.23, 0.39, 0.24),
+                    Quat::from_rotation_z(side * 0.10),
+                );
+                part(
+                    parent,
+                    "Bracer",
+                    &assets.block,
+                    &assets.armor,
+                    Vec3::new(side * 0.72, 0.54, 0.25),
+                    Vec3::new(0.30, 0.25, 0.28),
+                    Quat::from_rotation_z(side * 0.10),
+                );
                 part(
                     parent,
                     "Pauldron",
@@ -185,6 +230,15 @@ pub(crate) fn attach_zargat_visuals(
                 ));
                 part(
                     parent,
+                    "OuterWingPanel",
+                    &assets.block,
+                    &assets.wing,
+                    Vec3::new(side * 1.27, 1.31, -0.25),
+                    Vec3::new(0.66, 0.085, 0.36),
+                    Quat::from_rotation_z(side * 0.48),
+                );
+                part(
+                    parent,
                     "WingTip",
                     &assets.cone,
                     &assets.armor_edge,
@@ -208,6 +262,30 @@ pub(crate) fn attach_zargat_visuals(
                 }
             }
 
+            // Long pale hair, swept backward in separate low-poly locks.
+            for (side, length) in [(-1.0_f32, 0.56), (1.0_f32, 0.62), (0.0_f32, 0.72)] {
+                part(
+                    parent,
+                    "SilverHair",
+                    &assets.block,
+                    &assets.hair,
+                    Vec3::new(side * 0.18, 1.70, -0.18),
+                    Vec3::new(0.16, length, 0.18),
+                    Quat::from_rotation_z(-side * 0.24),
+                );
+            }
+            for side in [-1.0_f32, 1.0] {
+                part(
+                    parent,
+                    "BurningEye",
+                    &assets.sphere,
+                    &assets.ember,
+                    Vec3::new(side * 0.12, 1.63, 0.43),
+                    Vec3::splat(0.065),
+                    Quat::IDENTITY,
+                );
+            }
+
             part(
                 parent,
                 "InfernalHeart",
@@ -217,6 +295,28 @@ pub(crate) fn attach_zargat_visuals(
                 Vec3::new(0.19, 0.22, 0.11),
                 Quat::IDENTITY,
             );
+            // Gold skull clasp at the waist, echoing the reference armor.
+            part(
+                parent,
+                "SkullBelt",
+                &assets.sphere,
+                &assets.gold,
+                Vec3::new(0.0, 0.61, 0.31),
+                Vec3::new(0.25, 0.22, 0.12),
+                Quat::IDENTITY,
+            );
+            for side in [-1.0_f32, 1.0] {
+                part(
+                    parent,
+                    "BeltHorn",
+                    &assets.cone,
+                    &assets.gold,
+                    Vec3::new(side * 0.15, 0.72, 0.36),
+                    Vec3::new(0.08, 0.23, 0.08),
+                    Quat::from_rotation_z(-side * 0.45),
+                );
+            }
+
             let sword_rotation = Quat::from_rotation_z(-0.16);
             part(
                 parent,
@@ -224,7 +324,7 @@ pub(crate) fn attach_zargat_visuals(
                 &assets.block,
                 &assets.ember,
                 Vec3::new(0.72, 0.98, 0.36),
-                Vec3::new(0.17, 0.96, 0.095),
+                Vec3::new(0.25, 0.96, 0.095),
                 sword_rotation,
             );
             part(
