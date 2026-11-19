@@ -44,3 +44,26 @@ jobs:
           name: omoba-zargat-server-linux-x64
           path: target/release/server
           if-no-files-found: error
+
+  windows-x64:
+    name: Windows x64 server
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: zargat-server-windows-x64
+      - name: Refresh compatibility manifest and lockfile
+        run: cargo run --quiet -p shared --example compatibility -- manifest
+      - name: Build server
+        run: cargo build --locked --release -p server
+      - name: Upload server binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: omoba-zargat-server-windows-x64
+          path: target/release/server.exe
+          if-no-files-found: error
