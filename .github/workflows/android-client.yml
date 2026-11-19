@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - fix/quick-matchmaking-50s
+      - zargat-high-detail-preview
     paths:
       - "client/**"
       - "shared/**"
@@ -17,6 +18,7 @@ on:
       - "client/**"
       - "shared/**"
       - "scripts/release.py"
+      - "scripts/generate_zargat.py"
       - "mobile/android/**"
       - "Cargo.toml"
       - "Cargo.lock"
