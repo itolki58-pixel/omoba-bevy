@@ -112,6 +112,19 @@ impl ServerRuntime {
                     }
                 }
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock => break,
+                // On Windows, recv_from can surface WSAECONNRESET after a prior
+                // send_to reached a UDP peer whose socket has since closed. The
+                // ICMP Port Unreachable applies to that datagram only; it must
+                // not be treated as a fatal failure of the listening server.
+                Err(error) if error.kind() == io::ErrorKind::ConnectionReset => {
+                    let now = self.clock.now();
+                    if let Some(suppressed) = self.udp_reset_diagnostic.record(now) {
+                        eprintln!(
+                            "Ignoring transient UDP peer reset (ICMP Port Unreachable): {error}; suppressed {suppressed} similar events"
+                        );
+                    }
+                    continue;
+                }
                 Err(error) => {
                     eprintln!("Socket receive error: {error}");
                     break;
