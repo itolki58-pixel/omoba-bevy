@@ -351,16 +351,18 @@ fn sync_preview_model(
             Name::new("AvatarPreviewPivot"),
         ))
         .id();
-    let model = commands
-        .spawn((
-            WorldAssetRoot(scene),
-            Transform::default(),
-            Visibility::Visible,
-            RenderLayers::layer(PREVIEW_LAYER),
-            NormalizeModelScale::for_player_model(),
-            Name::new(format!("AvatarPreviewModel-{slug}")),
-        ))
-        .id();
+    let mut model_commands = commands.spawn((
+        WorldAssetRoot(scene),
+        Transform::default(),
+        Visibility::Visible,
+        RenderLayers::layer(PREVIEW_LAYER),
+        NormalizeModelScale::for_player_model(),
+        Name::new(format!("AvatarPreviewModel-{slug}")),
+    ));
+    if slug == "zargat" {
+        model_commands.insert(crate::zargat::ZargatPreview);
+    }
+    let model = model_commands.id();
     if let Some(gltf) = gltf.clone() {
         commands.entity(model).insert(ModelScaleSource {
             gltf,
