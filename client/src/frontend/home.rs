@@ -168,7 +168,7 @@ fn spawn_home_backdrop(mut commands: Commands, platform: Res<crate::ui::UiPlatfo
                 },
                 BackgroundGradient::from(LinearGradient::to_bottom(vec![
                     ColorStop::percent(
-                        theme::perceptual(color::SCRIM_LIVING).with_alpha(0.65),
+                        Color::srgba(0.018, 0.028, 0.11, 0.78),
                         0.0,
                     ),
                     ColorStop::percent(Color::NONE, 100.0),
