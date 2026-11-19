@@ -125,10 +125,11 @@ def finish_part(obj, name, material, bone_name):
     parts.append(obj)
     return obj
 
-def sphere(name, loc, scale, material, bone_name, segments=12, rings=8):
+def sphere(name, loc, scale, material, bone_name, segments=32, rings=24):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=1, location=loc)
     o = bpy.context.object
     o.scale = scale
+    for poly in o.data.polygons: poly.use_smooth = True
     return finish_part(o, name, material, bone_name)
 
 def cube(name, loc, scale, material, bone_name, bevel=0.0):
@@ -136,18 +137,19 @@ def cube(name, loc, scale, material, bone_name, bevel=0.0):
     o = bpy.context.object
     o.scale = scale
     if bevel:
-        mod=o.modifiers.new("Forged edges","BEVEL"); mod.width=bevel; mod.segments=1
+        mod=o.modifiers.new("Forged edges","BEVEL"); mod.width=bevel; mod.segments=3
         bpy.context.view_layer.objects.active=o
         bpy.ops.object.modifier_apply(modifier=mod.name)
     return finish_part(o, name, material, bone_name)
 
-def cone_between(name, a, b, radius, material, bone_name, vertices=8, radius2=0.0):
+def cone_between(name, a, b, radius, material, bone_name, vertices=16, radius2=0.0):
     a,b=Vector(a),Vector(b)
     direction=b-a
     bpy.ops.mesh.primitive_cone_add(vertices=vertices, radius1=radius, radius2=radius2, depth=direction.length, location=(a+b)*0.5)
     o=bpy.context.object
     o.rotation_mode="QUATERNION"
     o.rotation_quaternion=Vector((0,0,1)).rotation_difference(direction)
+    for poly in o.data.polygons: poly.use_smooth = True
     return finish_part(o,name,material,bone_name)
 
 def wing_mesh(side, suffix):
@@ -291,6 +293,48 @@ for idx,(y,z,bn) in enumerate(((0.43,0.69,"tail.01"),(0.68,0.54,"tail.02"),(0.91
 curve_tube("Hellblade glowing fuller",[(0.76,-0.19,1.18),(0.76,-0.19,1.42),(0.76,-0.19,1.67),(0.76,-0.19,1.82)],0.018,MAT_EMBER,"sword")
 for z in (1.28,1.43,1.58,1.73):
     cone_between("Hellblade serration",(0.64,-0.08,z),(0.58,-0.08,z+0.06),0.035,MAT_GOLD,"sword",6,0.002)
+
+
+# Fine sculpt pass: facial planes, layered crown, armor fasteners and claw anatomy.
+# These details are separate weighted meshes so the same rig drives the complete hero.
+for side in (-1, 1):
+    suffix = "R" if side > 0 else "L"
+    # Brow ridges and cheek guards frame the glowing eyes.
+    curve_tube("Infernal brow ridge", [(side*0.035,-0.258,1.91),(side*0.11,-0.278,1.925),(side*0.19,-0.245,1.89)], 0.026, MAT_ARMOR, "head", 4)
+    sphere("Demon cheekbone", (side*0.16,-0.205,1.75), (0.085,0.065,0.105), MAT_RED, "head", 20, 14)
+    cone_between("Cheek blade", (side*0.18,-0.245,1.75), (side*0.28,-0.22,1.68), 0.055, MAT_GOLD, "head", 12, 0.004)
+    # Layered shoulder scales and gold rivets.
+    for j in range(3):
+        z = 1.57 - j*0.075
+        cone_between("Pauldron overlapping scale", (side*(0.34+j*0.035),-0.245,z+0.045),
+                     (side*(0.52+j*0.025),-0.22,z-0.035), 0.075, MAT_ARMOR, "chest", 12, 0.018)
+    for x in (0.38, 0.49):
+        sphere("Gold armor rivet", (side*x,-0.30,1.58), (0.018,0.012,0.018), MAT_GOLD, "chest", 16, 12)
+    # Individual hooked finger talons give the gauntlets a more articulated silhouette.
+    for j in range(3):
+        x = side*(0.65+j*0.065)
+        cone_between("Finger claw root", (x,-0.20,0.82), (x,-0.24,0.75), 0.027, MAT_RED, "hand."+suffix, 12, 0.014)
+        curve_tube("Curved obsidian claw", [(x,-0.24,0.76),(x,-0.29,0.72),(x,-0.32,0.66)],
+                   0.018, MAT_GOLD, "hand."+suffix, 3)
+    # Wing spars and small membrane attachment joints.
+    for j in range(4):
+        x = side*(0.62+j*0.17)
+        sphere("Wing knuckle", (x,0.065,1.56+j*0.07), (0.035,0.035,0.04), MAT_GOLD, "wing."+suffix, 16, 12)
+
+# Central facial mask, layered throat gorget and engraved armor studs.
+sphere("Nasal bridge", (0,-0.258,1.79), (0.055,0.045,0.105), MAT_RED, "head", 20, 14)
+cube("Mouth grille", (0,-0.267,1.675), (0.19,0.045,0.055), MAT_GOLD, "jaw", 0.012)
+for x in (-0.055, 0, 0.055):
+    cube("Mask vent", (x,-0.294,1.675), (0.012,0.012,0.042), MAT_ARMOR, "jaw", 0.004)
+for z in (1.62, 1.56, 1.50):
+    curve_tube("Throat gorget edge", [(-0.19,-0.20,z),(0,-0.29,z-0.025),(0.19,-0.20,z)],
+               0.018, MAT_GOLD, "chest", 3)
+# Additional blade bevel-like edge rails and pommel ornament.
+sphere("Hellblade pommel", (0.76,-0.06,0.72), (0.075,0.07,0.075), MAT_GOLD, "sword", 20, 14)
+for side in (-1, 1):
+    curve_tube("Hellblade edge rail", [(0.76+side*0.095,-0.12,1.18),
+               (0.76+side*0.11,-0.12,1.48),(0.76+side*0.075,-0.12,1.78)],
+               0.012, MAT_GOLD, "sword", 3)
 
 # Merge the weighted pieces into a single skinned mesh, retaining material slots.
 bpy.ops.object.select_all(action="DESELECT")
