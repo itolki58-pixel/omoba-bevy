@@ -488,7 +488,7 @@ pub(crate) fn animate_zargat_wings(
     time: Res<Time>,
     snapshot: Res<GameStateSnapshot>,
     mut wings: Query<(&ZargatWing, &ZargatPart, &mut Transform)>,
-    mut tails: Query<(&ZargatTail, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatSword>)>,
+    mut tails: Query<(&ZargatTail, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatSword>, Without<ZargatArm>)>,
     mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>, Without<ZargatSword>, Without<ZargatArm>)>,
     mut swords: Query<(&mut ZargatSword, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>, Without<ZargatArm>)>,
     mut arms: Query<(&mut ZargatArm, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>, Without<ZargatSword>)>,
@@ -529,7 +529,7 @@ pub(crate) fn animate_zargat_wings(
             1 => if arm.forearm { -0.82 } else { -0.56 }, // Hellblood
             2 => if arm.forearm { 0.72 } else { 0.48 }, // Infernal Charge
             3 => if arm.forearm { -0.62 } else { -0.42 }, // Hell Sovereign
-            _ => 0.0,
+            _ => if arm.forearm { 0.62 } else { 0.38 }, // basic attack
         };
         let idle = (t * 1.9 + arm.side * 0.7).sin() * 0.025;
         transform.rotation = arm.rest * Quat::from_rotation_z(arm.side * (idle + pose * envelope));
@@ -550,7 +550,7 @@ pub(crate) fn animate_zargat_wings(
             0 => -1.12 * envelope,
             2 => 0.55 * envelope,
             3 => -0.72 * envelope,
-            _ => 0.0,
+            _ => -0.90 * envelope, // basic attack
         };
         transform.rotation = sword.rest * Quat::from_rotation_x(swing);
         transform.scale = part.base_scale * if sovereign(part) { 1.24 } else { 1.0 };
