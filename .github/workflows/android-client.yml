@@ -65,6 +65,16 @@ jobs:
           rm -f client/assets/avatars/zargat.glb
           blender --background --python scripts/generate_zargat.py
           test -s client/assets/avatars/zargat.glb
+          test -s client/assets/avatars/zargat.png
+          python3 - <<'PY'
+          import struct
+          from pathlib import Path
+          data = Path("client/assets/avatars/zargat.png").read_bytes()
+          assert data[:8] == bytes([137, 80, 78, 71, 13, 10, 26, 10]), "Invalid Zargat portrait PNG"
+          width, height = struct.unpack_from(">II", data, 16)
+          assert width >= 512 and height >= 512, f"Portrait is too small: {width}x{height}"
+          print(f"Validated Zargat portrait: {width}x{height}")
+          PY
           python3 - <<'PY'
           import json, struct
           from pathlib import Path
