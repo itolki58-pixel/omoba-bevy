@@ -5,7 +5,7 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
-use crate::{net::{GameStateSnapshot, NetworkAvatar, NetworkPlayerId, RemotePlayer}, player::Player, sprite::PlayerVisualMode};
+use crate::{net::{GameStateSnapshot, NetworkAvatar, NetworkPlayerId, PlayerCosmeticAction, RemotePlayer}, player::Player, sprite::PlayerVisualMode};
 use shared::loadout::SkillId;
 
 #[derive(Resource)]
@@ -40,6 +40,9 @@ struct ZargatWing {
 
 #[derive(Component)]
 struct ZargatTail { rest: Quat, phase: f32, side: f32 }
+
+#[derive(Component)]
+struct ZargatSword { rest: Quat, last_sequence: u64, swing_age: f32 }
 
 pub(crate) fn setup_zargat_assets(
     mut commands: Commands,
@@ -159,6 +162,9 @@ pub(crate) fn attach_zargat_visuals(
                     ZargatPart { owner_id, base_scale: scale },
                     Name::new(format!("Zargat-{name}")),
                 ));
+                if name == "Hellblade" {
+                    spawned.insert(ZargatSword { rest: rotation, last_sequence: 0, swing_age: 1.0 });
+                }
                 if is_preview {
                     spawned.insert(RenderLayers::layer(28));
                 }
@@ -427,7 +433,9 @@ pub(crate) fn animate_zargat_wings(
     snapshot: Res<GameStateSnapshot>,
     mut wings: Query<(&ZargatWing, &ZargatPart, &mut Transform)>,
     mut tails: Query<(&ZargatTail, &ZargatPart, &mut Transform), Without<ZargatWing>>,
-    mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>)>,
+    mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>, Without<ZargatSword>)>,
+    mut swords: Query<(&mut ZargatSword, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>)>,
+    actions: Query<(&NetworkPlayerId, &PlayerCosmeticAction)>,
 ) {
     let t = time.elapsed_secs();
     let sovereign = |part: &ZargatPart| part.owner_id.is_some_and(|owner| {
@@ -447,6 +455,19 @@ pub(crate) fn animate_zargat_wings(
         let factor = if sovereign(part) { 1.25 } else { 1.0 };
         transform.scale = part.base_scale * factor;
         transform.rotation = tail.rest * Quat::from_rotation_y((t * 1.8 + tail.phase).sin() * 0.18 * tail.side);
+    }
+    for (mut sword, part, mut transform) in &mut swords {
+        if let Some((_, action)) = part.owner_id.and_then(|owner| actions.iter().find(|(id, _)| id.0 == owner)) {
+            if action.sequence != sword.last_sequence {
+                sword.last_sequence = action.sequence;
+                sword.swing_age = 0.0;
+            }
+        }
+        sword.swing_age += time.delta_secs();
+        let progress = (sword.swing_age / 0.36).clamp(0.0, 1.0);
+        let swing = if progress < 1.0 { -(progress * std::f32::consts::PI).sin() * 1.05 } else { 0.0 };
+        transform.rotation = sword.rest * Quat::from_rotation_x(swing);
+        transform.scale = part.base_scale * if sovereign(part) { 1.24 } else { 1.0 };
     }
     for (name, part, mut transform) in &mut parts {
         let factor = if sovereign(part) { 1.24 } else { 1.0 };
