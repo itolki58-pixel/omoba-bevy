@@ -47,6 +47,14 @@ fn chat_allowed(joined: bool, state: &GameState) -> bool {
     joined && matches!(state, GameState::Running | GameState::Victory { .. })
 }
 
+/// Android can temporarily report the game window as unfocused while the IME
+/// switches input methods (for example, when Gboard opens its language picker).
+/// Keep an active phone chat alive through that focus hand-off; the IME owns
+/// the temporary focus, not a request to close the in-game composer.
+fn chat_focus_loss_closes(phone: bool, chat_open: bool, focused: bool) -> bool {
+    !focused && !(phone && chat_open)
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct Hold {
     id: u64,
@@ -749,7 +757,10 @@ fn input(
         return;
     };
     let admitted = chat_allowed(world.session.join_confirmed(), &world.snapshot.state);
-    if !admitted || !window.focused || (world.mobile.enabled && !world.mobile.landscape) {
+    if !admitted
+        || chat_focus_loss_closes(world.mobile.enabled, social.chat_open, window.focused)
+        || (world.mobile.enabled && !world.mobile.landscape)
+    {
         if social.namespace.is_some() && !world.session.is_connected() {
             social.clear();
         }
@@ -3087,6 +3098,15 @@ mod tests {
         assert!(social.pending.is_none());
         assert!(social.draft.is_empty());
     }
+    #[test]
+    fn android_ime_focus_handoff_does_not_close_an_open_chat() {
+        assert!(!chat_focus_loss_closes(true, true, false));
+        assert!(!chat_focus_loss_closes(true, true, true));
+        assert!(chat_focus_loss_closes(true, false, false));
+        assert!(chat_focus_loss_closes(false, true, false));
+        assert!(!chat_focus_loss_closes(false, true, true));
+    }
+
     #[test]
     fn chat_ime_commits_once_and_closed_frame_blocks_gameplay_orders() {
         use bevy::input::ButtonState;
