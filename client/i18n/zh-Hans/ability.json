@@ -134,5 +134,13 @@
   "ability.dagger_backstab.name": "背刺",
   "ability.dagger_backstab.desc": "从背后攻击敌方英雄造成 2.5x 伤害。如果命中并使英雄损失生命且仍存活，有 2% 几率使其只剩 1 点生命。",
   "ability.dagger_lethal_blow.name": "终结一击",
-  "ability.dagger_lethal_blow.desc": "强力的近距离短刀攻击，从背后命中敌方英雄造成 1.5x 伤害。"
+  "ability.dagger_lethal_blow.desc": "强力的近距离短刀攻击，从背后命中敌方英雄造成 1.5x 伤害。",
+  "ability.zargat_rift_cleave.name": "Hell Rift Cleave",
+  "ability.zargat_rift_cleave.desc": "A molten greatsword strike sends a fracture and infernal spike forward.",
+  "ability.zargat_hellblood.name": "Hellblood Breath",
+  "ability.zargat_hellblood.desc": "Breathes hellfire ahead, burning and weakening enemies.",
+  "ability.zargat_infernal_charge.name": "Infernal Charge",
+  "ability.zargat_infernal_charge.desc": "Charges forward; a terrain impact launches nearby enemies.",
+  "ability.zargat_hell_sovereign.name": "Hell Sovereign",
+  "ability.zargat_hell_sovereign.desc": "Awakens the demon within and sends an infernal colossus into battle."
 }
