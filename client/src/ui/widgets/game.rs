@@ -1332,6 +1332,7 @@ pub(crate) fn class_icon(class: shared::HeroClass) -> Icon {
         HeroClass::Veilstalker | HeroClass::Adventurer => Icon::ClassWarden,
         HeroClass::Emberveil | HeroClass::Orbitwright => Icon::ClassMage,
         HeroClass::Chainkeeper | HeroClass::Frostguard => Icon::ClassCleric,
+        HeroClass::Zargat => Icon::ClassWarrior,
     }
 }
 
