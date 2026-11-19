@@ -5,7 +5,8 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
-use crate::{net::{NetworkAvatar, RemotePlayer}, player::Player, sprite::PlayerVisualMode};
+use crate::{net::{GameStateSnapshot, NetworkAvatar, NetworkPlayerId, RemotePlayer}, player::Player, sprite::PlayerVisualMode};
+use shared::loadout::SkillId;
 
 #[derive(Resource)]
 pub(crate) struct ZargatAssets {
@@ -23,6 +24,9 @@ pub(crate) struct ZargatAssets {
 
 #[derive(Component)]
 struct ZargatVisual;
+
+#[derive(Component)]
+struct ZargatPart { owner_id: Option<u64>, base_scale: Vec3 }
 
 /// Marks the isolated avatar-collection preview, which uses render layer 28.
 #[derive(Component)]
@@ -121,7 +125,7 @@ pub(crate) fn attach_zargat_visuals(
     mut commands: Commands,
     assets: Option<Res<ZargatAssets>>,
     heroes: Query<
-        (Entity, Option<&NetworkAvatar>, Has<ZargatPreview>),
+        (Entity, Option<&NetworkAvatar>, Option<&NetworkPlayerId>, Has<ZargatPreview>),
         (Without<ZargatVisual>, Or<(With<Player>, With<RemotePlayer>, With<ZargatPreview>)>),
     >,
 ) {
@@ -129,7 +133,8 @@ pub(crate) fn attach_zargat_visuals(
         return;
     };
 
-    for (entity, avatar, is_preview) in &heroes {
+    for (entity, avatar, player_id, is_preview) in &heroes {
+        let owner_id = player_id.map(|id| id.0);
         if !is_preview && avatar.and_then(|avatar| avatar.0.as_deref()) != Some("zargat") {
             continue;
         }
@@ -151,6 +156,7 @@ pub(crate) fn attach_zargat_visuals(
                         scale,
                     },
                     Visibility::default(),
+                    ZargatPart { owner_id, base_scale: scale },
                     Name::new(format!("Zargat-{name}")),
                 ));
                 if is_preview {
@@ -240,6 +246,7 @@ pub(crate) fn attach_zargat_visuals(
                         rest: wing_rotation,
                         side,
                     },
+                    ZargatPart { owner_id, base_scale: Vec3::new(0.92, 0.11, 0.48) },
                     Name::new("Zargat-BatWing"),
                 ));
                 if is_preview {
@@ -296,6 +303,7 @@ pub(crate) fn attach_zargat_visuals(
                     Transform { translation: Vec3::new(0.0, 0.48 - index * 0.10, -0.42 - index * 0.19), rotation: rest, scale: if segment == 3 { Vec3::new(0.13, 0.34, 0.13) } else { Vec3::splat(0.16 - index * 0.018) } },
                     Visibility::default(),
                     ZargatTail { rest, phase: index * 0.65, side: if segment % 2 == 0 { 1.0 } else { -1.0 } },
+                    ZargatPart { owner_id, base_scale: if segment == 3 { Vec3::new(0.13, 0.34, 0.13) } else { Vec3::splat(0.16 - index * 0.018) } },
                     Name::new(format!("Zargat-Tail-{segment}")),
                 ));
                 if is_preview { tail.insert(RenderLayers::layer(28)); }
@@ -416,26 +424,38 @@ pub(crate) fn attach_zargat_visuals(
 
 pub(crate) fn animate_zargat_wings(
     time: Res<Time>,
-    mut wings: Query<(&ZargatWing, &mut Transform)>,
-    mut tails: Query<(&ZargatTail, &mut Transform), Without<ZargatWing>>,
-    mut parts: Query<(&Name, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>)>,
+    snapshot: Res<GameStateSnapshot>,
+    mut wings: Query<(&ZargatWing, &ZargatPart, &mut Transform)>,
+    mut tails: Query<(&ZargatTail, &ZargatPart, &mut Transform), Without<ZargatWing>>,
+    mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>)>,
 ) {
     let t = time.elapsed_secs();
-    let wave = (t * 2.2).sin() * 0.14;
-    for (wing, mut transform) in &mut wings {
+    let sovereign = |part: &ZargatPart| part.owner_id.is_some_and(|owner| {
+        snapshot.skill_effects.iter().any(|effect| {
+            effect.owner_id == owner
+                && effect.skill == SkillId::ZargatHellSovereign
+                && effect.remaining_secs > 0.0
+        })
+    });
+    for (wing, part, mut transform) in &mut wings {
+        let factor = if sovereign(part) { 1.42 } else { 1.0 };
+        let wave = (t * 2.2).sin() * if factor > 1.0 { 0.24 } else { 0.14 };
+        transform.scale = part.base_scale * factor;
         transform.rotation = wing.rest * Quat::from_rotation_z(wing.side * wave);
     }
-    for (tail, mut transform) in &mut tails {
+    for (tail, part, mut transform) in &mut tails {
+        let factor = if sovereign(part) { 1.25 } else { 1.0 };
+        transform.scale = part.base_scale * factor;
         transform.rotation = tail.rest * Quat::from_rotation_y((t * 1.8 + tail.phase).sin() * 0.18 * tail.side);
     }
-    for (name, mut transform) in &mut parts {
-        let label = name.as_str();
-        if label == "Zargat-InfernalHeart" {
-            let pulse = 1.0 + (t * 4.4).sin() * 0.10;
-            transform.scale = Vec3::new(0.19, 0.22, 0.11) * pulse;
-        } else if label == "Zargat-BurningEye" || label == "Zargat-BackEmber" {
-            let pulse = 1.0 + (t * 5.2).sin() * 0.12;
-            transform.scale = Vec3::splat(0.065 * pulse);
-        }
+    for (name, part, mut transform) in &mut parts {
+        let factor = if sovereign(part) { 1.24 } else { 1.0 };
+        transform.scale = part.base_scale * factor;
+        let pulse = if name.as_str() == "Zargat-InfernalHeart" {
+            1.0 + (t * 4.4).sin() * if factor > 1.0 { 0.20 } else { 0.10 }
+        } else if name.as_str() == "Zargat-BurningEye" || name.as_str() == "Zargat-BackEmber" {
+            1.0 + (t * 5.2).sin() * if factor > 1.0 { 0.25 } else { 0.12 }
+        } else { 1.0 };
+        transform.scale *= pulse;
     }
 }
