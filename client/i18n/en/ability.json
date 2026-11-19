@@ -134,5 +134,13 @@
   "ability.dagger_backstab.name": "Backstab",
   "ability.dagger_backstab.desc": "Strike for 2.5x damage from behind an enemy hero. A rear hit that wounds a surviving hero has a 2% chance to leave 1 HP.",
   "ability.dagger_lethal_blow.name": "Lethal Blow",
-  "ability.dagger_lethal_blow.desc": "A heavy close-range dagger strike; 1.5x damage from behind an enemy hero."
+  "ability.dagger_lethal_blow.desc": "A heavy close-range dagger strike; 1.5x damage from behind an enemy hero.",
+  "ability.zargat_rift_cleave.name": "Hell Rift Cleave",
+  "ability.zargat_rift_cleave.desc": "A molten greatsword strike sends a fracture and an infernal spike forward.",
+  "ability.zargat_hellblood.name": "Hellblood Breath",
+  "ability.zargat_hellblood.desc": "Breathes hellfire ahead, burning and weakening enemies.",
+  "ability.zargat_infernal_charge.name": "Infernal Charge",
+  "ability.zargat_infernal_charge.desc": "Charges forward; a terrain impact launches nearby enemies.",
+  "ability.zargat_hell_sovereign.name": "Hell Sovereign",
+  "ability.zargat_hell_sovereign.desc": "Awakens the demon within and sends an infernal colossus into battle."
 }

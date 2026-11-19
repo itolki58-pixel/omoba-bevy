@@ -10,7 +10,7 @@ use crate::{AbilityDefinition, HeroClass, MAX_ABILITY_RANK, SkillSlot, Targeting
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
-pub const CATALOG_REVISION: &str = "standard-kits-7";
+pub const CATALOG_REVISION: &str = "standard-kits-8";
 pub const RECIPE_SCHEMA_VERSION: u16 = 1;
 pub const MAX_ACTIVE_EFFECTS: usize = 128;
 pub const MAX_EFFECTS_PER_OWNER: usize = 16;
@@ -31,6 +31,7 @@ pub enum CoreId {
     Chainkeeper,
     Frostguard,
     Adventurer,
+    Zargat,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -84,9 +85,13 @@ pub enum SkillId {
     DaggerBluff,
     DaggerBackstab,
     DaggerLethalBlow,
+    ZargatRiftCleave,
+    ZargatHellblood,
+    ZargatInfernalCharge,
+    ZargatHellSovereign,
 }
 impl SkillId {
-    pub const ALL: [Self; 48] = [
+    pub const ALL: [Self; 52] = [
         Self::DawnBind,
         Self::DawnBarrier,
         Self::DawnField,
@@ -135,6 +140,10 @@ impl SkillId {
         Self::DaggerBluff,
         Self::DaggerBackstab,
         Self::DaggerLethalBlow,
+        Self::ZargatRiftCleave,
+        Self::ZargatHellblood,
+        Self::ZargatInfernalCharge,
+        Self::ZargatHellSovereign,
     ];
     pub const fn id(self) -> &'static str {
         match self {
@@ -186,6 +195,10 @@ impl SkillId {
             Self::DaggerBluff => "dagger_bluff",
             Self::DaggerBackstab => "dagger_backstab",
             Self::DaggerLethalBlow => "dagger_lethal_blow",
+            Self::ZargatRiftCleave => "zargat_rift_cleave",
+            Self::ZargatHellblood => "zargat_hellblood",
+            Self::ZargatInfernalCharge => "zargat_infernal_charge",
+            Self::ZargatHellSovereign => "zargat_hell_sovereign",
         }
     }
     pub fn from_id(id: &str) -> Option<Self> {
@@ -301,6 +314,7 @@ impl CoreId {
             Self::Chainkeeper => HeroClass::Chainkeeper,
             Self::Frostguard => HeroClass::Frostguard,
             Self::Adventurer => HeroClass::Adventurer,
+            Self::Zargat => HeroClass::Zargat,
         }
     }
     pub const fn attack_profile(self) -> AttackProfileId {
@@ -317,10 +331,15 @@ impl CoreId {
             Self::Chainkeeper => AttackProfileId::LightBolt,
             Self::Frostguard => AttackProfileId::Melee,
             Self::Adventurer => AttackProfileId::Melee,
+            Self::Zargat => AttackProfileId::Melee,
         }
     }
     pub fn preset(self) -> BuildRecipe {
         let (passive, skills) = match self {
+            Self::Zargat => (
+                PassiveId::Tempered,
+                [SkillId::ZargatRiftCleave, SkillId::ZargatHellblood, SkillId::ZargatInfernalCharge, SkillId::ZargatHellSovereign],
+            ),
             Self::Cinderforge => (
                 PassiveId::Tempered,
                 [
@@ -535,6 +554,7 @@ pub fn preset_for_class(class: HeroClass) -> Option<ResolvedLoadout> {
         HeroClass::Chainkeeper => CoreId::Chainkeeper,
         HeroClass::Frostguard => CoreId::Frostguard,
         HeroClass::Adventurer => CoreId::Adventurer,
+        HeroClass::Zargat => CoreId::Zargat,
 
         _ => return None,
     };

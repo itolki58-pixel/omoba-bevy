@@ -134,5 +134,13 @@
   "ability.dagger_backstab.name": "Удар в спину",
   "ability.dagger_backstab.desc": "Удар в спину вражескому герою наносит урон ×2,5. Если он ранил героя, но не убил, с шансом 2% у цели остаётся 1 HP.",
   "ability.dagger_lethal_blow.name": "Роковой выпад",
-  "ability.dagger_lethal_blow.desc": "Мощный удар кинжалом в ближнем бою. Урон вражескому герою со спины ×1,5."
+  "ability.dagger_lethal_blow.desc": "Мощный удар кинжалом в ближнем бою. Урон вражескому герою со спины ×1,5.",
+  "ability.zargat_rift_cleave.name": "Раскол Пекла",
+  "ability.zargat_rift_cleave.desc": "Рубит землю раскалённым мечом: разлом проходит вперёд и поднимает огненный шип.",
+  "ability.zargat_hellblood.name": "Кровь Пекла",
+  "ability.zargat_hellblood.desc": "Выдыхает поток адского пламени перед собой, обжигая и ослабляя врагов.",
+  "ability.zargat_infernal_charge.name": "Рывок Преисподней",
+  "ability.zargat_infernal_charge.desc": "Заргат бросается вперёд; удар о препятствие подбрасывает врагов вокруг.",
+  "ability.zargat_hell_sovereign.name": "Повелитель Пекла",
+  "ability.zargat_hell_sovereign.desc": "Пробуждает демоническую сущность и направляет адского колосса в бой."
 }

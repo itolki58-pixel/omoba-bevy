@@ -6,14 +6,14 @@
       "display_name": "Warrior",
       "tagline": "Close-range bruiser: heavy hits, self-sustain",
       "role": "solo",
-      "base_hp": 220.0,
+      "base_hp": 220,
       "growth": {
         "basic_damage_cap": 1.8,
         "attack_rate_cap": 1.6
       },
       "basic_attack": {
-        "range": 4.0,
-        "damage": 12.0,
+        "range": 4,
+        "damage": 12,
         "cooldown_secs": 0.9
       },
       "projectile_style": "crescent",
@@ -23,40 +23,40 @@
           "name": "Shield Bash",
           "description": "Slams the selected enemy at close range.",
           "targeting": "unit_target",
-          "mana_cost": 10.0,
-          "cooldown_secs": 2.0,
-          "cast_range": 12.0,
-          "projectile_damage": 24.0
+          "mana_cost": 10,
+          "cooldown_secs": 2,
+          "cast_range": 12,
+          "projectile_damage": 24
         },
         {
           "id": "battle_rally",
           "name": "Battle Rally",
           "description": "Steels yourself, restoring health.",
           "targeting": "self_target",
-          "mana_cost": 18.0,
-          "cooldown_secs": 6.0,
-          "cast_range": 0.0,
-          "self_heal": 20.0
+          "mana_cost": 18,
+          "cooldown_secs": 6,
+          "cast_range": 0,
+          "self_heal": 20
         },
         {
           "id": "heroic_strike",
           "name": "Heroic Strike",
           "description": "A crushing blow with very short reach.",
           "targeting": "unit_target",
-          "mana_cost": 22.0,
+          "mana_cost": 22,
           "cooldown_secs": 2.8,
-          "cast_range": 10.0,
-          "projectile_damage": 38.0
+          "cast_range": 10,
+          "projectile_damage": 38
         },
         {
           "id": "rampage",
           "name": "Rampage",
           "description": "Devastating close-range finisher.",
           "targeting": "unit_target",
-          "mana_cost": 40.0,
-          "cooldown_secs": 14.0,
-          "cast_range": 14.0,
-          "projectile_damage": 60.0
+          "mana_cost": 40,
+          "cooldown_secs": 14,
+          "cast_range": 14,
+          "projectile_damage": 60
         }
       ],
       "recommended_items": [
@@ -83,14 +83,14 @@
       "display_name": "Mage",
       "tagline": "Long-range nuker: big damage, mana engine",
       "role": "mid",
-      "base_hp": 180.0,
+      "base_hp": 180,
       "growth": {
         "basic_damage_cap": 1.6,
         "attack_rate_cap": 1.5
       },
       "basic_attack": {
-        "range": 14.0,
-        "damage": 8.0,
+        "range": 14,
+        "damage": 8,
         "cooldown_secs": 1.1
       },
       "projectile_style": "arcane",
@@ -100,40 +100,40 @@
           "name": "Arc Bolt",
           "description": "Homing bolt toward a selected enemy.",
           "targeting": "unit_target",
-          "mana_cost": 22.0,
+          "mana_cost": 22,
           "cooldown_secs": 2.2,
-          "cast_range": 30.0,
-          "projectile_damage": 18.0
+          "cast_range": 30,
+          "projectile_damage": 18
         },
         {
           "id": "mana_surge",
           "name": "Mana Surge",
           "description": "Restores mana instantly; no target required.",
           "targeting": "self_target",
-          "mana_cost": 0.0,
-          "cooldown_secs": 8.0,
-          "cast_range": 0.0,
-          "self_mana_restore": 35.0
+          "mana_cost": 0,
+          "cooldown_secs": 8,
+          "cast_range": 0,
+          "self_mana_restore": 35
         },
         {
           "id": "frost_lance",
           "name": "Frost Lance",
           "description": "Ice shard with strong impact damage.",
           "targeting": "unit_target",
-          "mana_cost": 28.0,
-          "cooldown_secs": 3.0,
-          "cast_range": 26.0,
-          "projectile_damage": 34.0
+          "mana_cost": 28,
+          "cooldown_secs": 3,
+          "cast_range": 26,
+          "projectile_damage": 34
         },
         {
           "id": "pyroblast",
           "name": "Pyroblast",
           "description": "Massive fireball with the longest reach in the mage kit.",
           "targeting": "unit_target",
-          "mana_cost": 50.0,
-          "cooldown_secs": 16.0,
-          "cast_range": 32.0,
-          "projectile_damage": 72.0
+          "mana_cost": 50,
+          "cooldown_secs": 16,
+          "cast_range": 32,
+          "projectile_damage": 72
         }
       ],
       "recommended_items": [
@@ -160,14 +160,14 @@
       "display_name": "Ranger",
       "tagline": "Fast skirmisher: rapid shots, longest reach",
       "role": "carry",
-      "base_hp": 185.0,
+      "base_hp": 185,
       "growth": {
         "basic_damage_cap": 1.85,
         "attack_rate_cap": 1.8
       },
       "basic_attack": {
-        "range": 16.0,
-        "damage": 10.0,
+        "range": 16,
+        "damage": 10,
         "cooldown_secs": 0.85
       },
       "projectile_style": "arrow",
@@ -177,40 +177,40 @@
           "name": "Quick Shot",
           "description": "Very fast arrow with modest damage.",
           "targeting": "unit_target",
-          "mana_cost": 14.0,
+          "mana_cost": 14,
           "cooldown_secs": 1.8,
-          "cast_range": 24.0,
-          "projectile_damage": 14.0
+          "cast_range": 24,
+          "projectile_damage": 14
         },
         {
           "id": "field_dressing",
           "name": "Field Dressing",
           "description": "Patches wounds on the move.",
           "targeting": "self_target",
-          "mana_cost": 16.0,
-          "cooldown_secs": 5.0,
-          "cast_range": 0.0,
-          "self_heal": 14.0
+          "mana_cost": 16,
+          "cooldown_secs": 5,
+          "cast_range": 0,
+          "self_heal": 14
         },
         {
           "id": "piercing_arrow",
           "name": "Piercing Arrow",
           "description": "Heavy arrow with extended reach.",
           "targeting": "unit_target",
-          "mana_cost": 24.0,
-          "cooldown_secs": 2.0,
-          "cast_range": 34.0,
-          "projectile_damage": 30.0
+          "mana_cost": 24,
+          "cooldown_secs": 2,
+          "cast_range": 34,
+          "projectile_damage": 30
         },
         {
           "id": "longshot",
           "name": "Longshot",
           "description": "Sniper shot with the longest reach in the ranger kit.",
           "targeting": "unit_target",
-          "mana_cost": 36.0,
-          "cooldown_secs": 12.0,
-          "cast_range": 40.0,
-          "projectile_damage": 48.0
+          "mana_cost": 36,
+          "cooldown_secs": 12,
+          "cast_range": 40,
+          "projectile_damage": 48
         }
       ],
       "recommended_items": [
@@ -237,15 +237,15 @@
       "display_name": "Cleric",
       "tagline": "Support: modest damage, strong heals",
       "role": "support",
-      "base_hp": 200.0,
+      "base_hp": 200,
       "growth": {
         "basic_damage_cap": 1.5,
         "attack_rate_cap": 1.55
       },
       "basic_attack": {
-        "range": 12.0,
-        "damage": 8.0,
-        "cooldown_secs": 1.0
+        "range": 12,
+        "damage": 8,
+        "cooldown_secs": 1
       },
       "projectile_style": "holy",
       "abilities": [
@@ -254,40 +254,40 @@
           "name": "Smite",
           "description": "Radiant bolt against a selected enemy.",
           "targeting": "unit_target",
-          "mana_cost": 12.0,
-          "cooldown_secs": 2.0,
-          "cast_range": 22.0,
-          "projectile_damage": 16.0
+          "mana_cost": 12,
+          "cooldown_secs": 2,
+          "cast_range": 22,
+          "projectile_damage": 16
         },
         {
           "id": "renew",
           "name": "Renew",
           "description": "Mends the caster's wounds.",
           "targeting": "self_target",
-          "mana_cost": 20.0,
-          "cooldown_secs": 4.0,
-          "cast_range": 0.0,
-          "self_heal": 26.0
+          "mana_cost": 20,
+          "cooldown_secs": 4,
+          "cast_range": 0,
+          "self_heal": 26
         },
         {
           "id": "divine_favor",
           "name": "Divine Favor",
           "description": "Channels faith into mana.",
           "targeting": "self_target",
-          "mana_cost": 0.0,
-          "cooldown_secs": 9.0,
-          "cast_range": 0.0,
-          "self_mana_restore": 24.0
+          "mana_cost": 0,
+          "cooldown_secs": 9,
+          "cast_range": 0,
+          "self_mana_restore": 24
         },
         {
           "id": "guardians_blessing",
           "name": "Guardian's Blessing",
           "description": "Major self-restoration; the strongest heal in the game.",
           "targeting": "self_target",
-          "mana_cost": 30.0,
-          "cooldown_secs": 18.0,
-          "cast_range": 0.0,
-          "self_heal": 60.0
+          "mana_cost": 30,
+          "cooldown_secs": 18,
+          "cast_range": 0,
+          "self_heal": 60
         }
       ],
       "recommended_items": [
@@ -314,14 +314,14 @@
       "display_name": "Warden",
       "tagline": "Jungler: fast camp clears, bonus forest gold",
       "role": "jungle",
-      "base_hp": 210.0,
+      "base_hp": 210,
       "growth": {
         "basic_damage_cap": 1.75,
         "attack_rate_cap": 1.65
       },
       "basic_attack": {
-        "range": 5.0,
-        "damage": 11.0,
+        "range": 5,
+        "damage": 11,
         "cooldown_secs": 0.85
       },
       "projectile_style": "claw",
@@ -331,40 +331,40 @@
           "name": "Feral Swipe",
           "description": "Rakes the selected enemy at close range.",
           "targeting": "unit_target",
-          "mana_cost": 12.0,
+          "mana_cost": 12,
           "cooldown_secs": 2.2,
-          "cast_range": 12.0,
-          "projectile_damage": 22.0
+          "cast_range": 12,
+          "projectile_damage": 22
         },
         {
           "id": "barkskin",
           "name": "Barkskin",
           "description": "Hardens like old wood and mends wounds between camps.",
           "targeting": "self_target",
-          "mana_cost": 16.0,
-          "cooldown_secs": 6.0,
-          "cast_range": 0.0,
-          "self_heal": 18.0
+          "mana_cost": 16,
+          "cooldown_secs": 6,
+          "cast_range": 0,
+          "self_heal": 18
         },
         {
           "id": "hunters_mark",
           "name": "Hunter's Mark",
           "description": "Thrown spear that pins prey at medium range.",
           "targeting": "unit_target",
-          "mana_cost": 22.0,
-          "cooldown_secs": 4.0,
-          "cast_range": 20.0,
-          "projectile_damage": 28.0
+          "mana_cost": 22,
+          "cooldown_secs": 4,
+          "cast_range": 20,
+          "projectile_damage": 28
         },
         {
           "id": "primal_maul",
           "name": "Primal Maul",
           "description": "Savage finisher for monsters and heroes caught out of lane.",
           "targeting": "unit_target",
-          "mana_cost": 40.0,
-          "cooldown_secs": 14.0,
-          "cast_range": 14.0,
-          "projectile_damage": 56.0
+          "mana_cost": 40,
+          "cooldown_secs": 14,
+          "cast_range": 14,
+          "projectile_damage": 56
         }
       ],
       "recommended_items": [
@@ -876,6 +876,47 @@
         "focus_charm",
         "arcane_focus",
         "aether_crown"
+      ]
+    },
+    {
+      "id": "zargat",
+      "display_name": "Заргат",
+      "tagline": "Древний демон-танк: огненная кровь, тяжёлый меч и превращение в Повелителя Пекла",
+      "role": "solo",
+      "base_hp": 285,
+      "growth": {
+        "basic_damage_cap": 1.65,
+        "attack_rate_cap": 1.45
+      },
+      "basic_attack": {
+        "range": 4.5,
+        "damage": 17,
+        "cooldown_secs": 1.15
+      },
+      "projectile_style": "crescent",
+      "skills": [
+        "zargat_rift_cleave",
+        "zargat_hellblood",
+        "zargat_infernal_charge",
+        "zargat_hell_sovereign"
+      ],
+      "recommended_items": [
+        "vitality_gem",
+        "bulwark",
+        "bloodreaver",
+        "guardian_crest",
+        "vampiric_fang",
+        "ember_blade",
+        "windrunner_boots",
+        "trail_boots",
+        "tempest_blade",
+        "duelist_edge",
+        "focus_charm",
+        "crit_shard",
+        "siphon_stone",
+        "arcane_focus",
+        "aether_crown",
+        "swift_grip"
       ]
     }
   ]

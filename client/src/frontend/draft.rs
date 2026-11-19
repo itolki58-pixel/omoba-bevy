@@ -95,6 +95,7 @@ impl Choice {
             self.role = class.primary_role();
         }
         self.hero_class = class;
+        if class == HeroClass::Zargat { self.avatar = Some("zargat".into()); }
     }
 }
 impl From<&DraftPlayer> for Choice {

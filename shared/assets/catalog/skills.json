@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": "standard-kits-7",
+  "revision": "standard-kits-8",
   "skills": [
     {
       "id": "dawn_bind",
@@ -181,7 +181,7 @@
       "mana_cost": 18,
       "cooldown_secs": 9,
       "cast_range": 15,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -201,7 +201,7 @@
       "mana_cost": 24,
       "cooldown_secs": 12,
       "cast_range": 7,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -221,7 +221,7 @@
       "mana_cost": 24,
       "cooldown_secs": 14,
       "cast_range": 10,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -241,7 +241,7 @@
       "mana_cost": 45,
       "cooldown_secs": 48,
       "cast_range": 28,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -261,7 +261,7 @@
       "mana_cost": 16,
       "cooldown_secs": 7,
       "cast_range": 5,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -281,7 +281,7 @@
       "mana_cost": 20,
       "cooldown_secs": 15,
       "cast_range": 10,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -301,7 +301,7 @@
       "mana_cost": 18,
       "cooldown_secs": 11,
       "cast_range": 0,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -321,7 +321,7 @@
       "mana_cost": 40,
       "cooldown_secs": 45,
       "cast_range": 10,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -342,7 +342,7 @@
       "recast_mana_cost": 25,
       "cooldown_secs": 9,
       "cast_range": 18,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -363,7 +363,7 @@
       "recast_mana_cost": 25,
       "cooldown_secs": 12,
       "cast_range": 9,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -384,7 +384,7 @@
       "recast_mana_cost": 25,
       "cooldown_secs": 10,
       "cast_range": 0,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -404,7 +404,7 @@
       "mana_cost": 0,
       "cooldown_secs": 40,
       "cast_range": 5,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -424,7 +424,7 @@
       "mana_cost": 18,
       "cooldown_secs": 7,
       "cast_range": 13,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -444,7 +444,7 @@
       "mana_cost": 18,
       "cooldown_secs": 13,
       "cast_range": 15,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -464,7 +464,7 @@
       "mana_cost": 20,
       "cooldown_secs": 9,
       "cast_range": 5,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -484,7 +484,7 @@
       "mana_cost": 45,
       "cooldown_secs": 48,
       "cast_range": 8,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -504,7 +504,7 @@
       "mana_cost": 20,
       "cooldown_secs": 8,
       "cast_range": 17,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -524,7 +524,7 @@
       "mana_cost": 18,
       "cooldown_secs": 10,
       "cast_range": 9,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -544,7 +544,7 @@
       "mana_cost": 24,
       "cooldown_secs": 12,
       "cast_range": 18,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -564,7 +564,7 @@
       "mana_cost": 40,
       "cooldown_secs": 42,
       "cast_range": 7,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -584,7 +584,7 @@
       "mana_cost": 16,
       "cooldown_secs": 5,
       "cast_range": 15,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -604,7 +604,7 @@
       "mana_cost": 24,
       "cooldown_secs": 10,
       "cast_range": 0,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -624,7 +624,7 @@
       "mana_cost": 20,
       "cooldown_secs": 10,
       "cast_range": 15,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -644,7 +644,7 @@
       "mana_cost": 45,
       "cooldown_secs": 45,
       "cast_range": 0,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -664,7 +664,7 @@
       "mana_cost": 14,
       "cooldown_secs": 6,
       "cast_range": 22,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -684,7 +684,7 @@
       "mana_cost": 18,
       "cooldown_secs": 11,
       "cast_range": 20,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -704,7 +704,7 @@
       "mana_cost": 25,
       "cooldown_secs": 15,
       "cast_range": 7,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -744,7 +744,7 @@
       "mana_cost": 22,
       "cooldown_secs": 13,
       "cast_range": 18,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -764,7 +764,7 @@
       "mana_cost": 24,
       "cooldown_secs": 16,
       "cast_range": 13,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -784,7 +784,7 @@
       "mana_cost": 20,
       "cooldown_secs": 10,
       "cast_range": 6,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -804,7 +804,7 @@
       "mana_cost": 45,
       "cooldown_secs": 45,
       "cast_range": 0,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "magic",
       "effect": {
         "kind": "technique",
@@ -824,7 +824,7 @@
       "mana_cost": 18,
       "cooldown_secs": 8,
       "cast_range": 18,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -844,7 +844,7 @@
       "mana_cost": 20,
       "cooldown_secs": 12,
       "cast_range": 10,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -864,7 +864,7 @@
       "mana_cost": 24,
       "cooldown_secs": 14,
       "cast_range": 8,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -884,7 +884,7 @@
       "mana_cost": 45,
       "cooldown_secs": 45,
       "cast_range": 20,
-      "windup_secs": 0.0,
+      "windup_secs": 0,
       "damage_type": "physical",
       "effect": {
         "kind": "technique",
@@ -973,6 +973,86 @@
         "radius": 1.4,
         "duration_secs": 0.5,
         "speed": 0
+      }
+    },
+    {
+      "id": "zargat_rift_cleave",
+      "slot": "q",
+      "name": "Hell Rift Cleave",
+      "description": "A molten greatsword strike sends a fracture and an infernal spike forward.",
+      "targeting": "direction",
+      "mana_cost": 18,
+      "cooldown_secs": 8,
+      "cast_range": 16,
+      "windup_secs": 0,
+      "damage_type": "magic",
+      "effect": {
+        "kind": "technique",
+        "action": "terrain_line",
+        "damage": 28,
+        "radius": 1.1,
+        "duration_secs": 5,
+        "speed": 22
+      }
+    },
+    {
+      "id": "zargat_hellblood",
+      "slot": "w",
+      "name": "Hellblood Breath",
+      "description": "Breathes hellfire ahead, burning and weakening enemies.",
+      "targeting": "direction",
+      "mana_cost": 24,
+      "cooldown_secs": 12,
+      "cast_range": 8,
+      "windup_secs": 0,
+      "damage_type": "magic",
+      "effect": {
+        "kind": "technique",
+        "action": "cone_brittle",
+        "damage": 40,
+        "radius": 3.2,
+        "duration_secs": 1.2,
+        "speed": 0
+      }
+    },
+    {
+      "id": "zargat_infernal_charge",
+      "slot": "e",
+      "name": "Infernal Charge",
+      "description": "Charges forward; a terrain impact launches nearby enemies.",
+      "targeting": "direction",
+      "mana_cost": 24,
+      "cooldown_secs": 14,
+      "cast_range": 12,
+      "windup_secs": 0,
+      "damage_type": "magic",
+      "effect": {
+        "kind": "technique",
+        "action": "collision_charge",
+        "damage": 36,
+        "radius": 3.2,
+        "duration_secs": 1,
+        "speed": 26
+      }
+    },
+    {
+      "id": "zargat_hell_sovereign",
+      "slot": "r",
+      "name": "Hell Sovereign",
+      "description": "Awakens the demon within and sends an infernal colossus into battle.",
+      "targeting": "direction",
+      "mana_cost": 50,
+      "cooldown_secs": 48,
+      "cast_range": 30,
+      "windup_secs": 0.55,
+      "damage_type": "magic",
+      "effect": {
+        "kind": "technique",
+        "action": "returning_colossus",
+        "damage": 82,
+        "radius": 2.8,
+        "duration_secs": 5.5,
+        "speed": 14
       }
     }
   ]

@@ -221,6 +221,7 @@ fn class_keys(class: HeroClass) -> (&'static str, &'static str) {
         HeroClass::Chainkeeper => ("hero.chainkeeper.name", "hero.chainkeeper.tagline"),
         HeroClass::Frostguard => ("hero.frostguard.name", "hero.frostguard.tagline"),
         HeroClass::Adventurer => ("hero.adventurer.name", "hero.adventurer.tagline"),
+        HeroClass::Zargat => ("hero.zargat.name", "hero.zargat.tagline"),
     }
 }
 
@@ -1561,6 +1562,7 @@ fn team_select_ui_system(
             }
             HeroSelectAction::Class(class) => {
                 selection.hero_class = *class;
+                if *class == HeroClass::Zargat { selection.avatar = Some("zargat".into()); }
                 selection_changed = true;
             }
             HeroSelectAction::Avatar(slug) => {
