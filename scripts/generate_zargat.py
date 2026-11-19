@@ -208,6 +208,27 @@ for side in (-1,1):
     cone_between("Mane lock",(side*0.18,0.16,1.82),(side*0.26,0.50,1.55),0.10,MAT_HAIR,"head",7,0.015)
 
 
+def curve_tube(name, points, radius, material, bone_name, resolution=3):
+    curve = bpy.data.curves.new(name, "CURVE")
+    curve.dimensions = "3D"
+    curve.resolution_u = 16
+    curve.bevel_depth = radius
+    curve.bevel_resolution = resolution
+    spline = curve.splines.new("BEZIER")
+    spline.bezier_points.add(len(points)-1)
+    for bp, point in zip(spline.bezier_points, points):
+        bp.co = point
+        bp.handle_left_type = "AUTO"
+        bp.handle_right_type = "AUTO"
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.convert(target="MESH")
+    obj = bpy.context.object
+    return finish_part(obj, name, material, bone_name)
+
 # Major-form sculpt pass: anatomical volumes and layered silhouette.
 # The armor follows the body instead of reading as a flat rectangular box.
 for side, suffix in [(-1,"L"), (1,"R")]:
@@ -295,27 +316,6 @@ cone_between("Sword spine",(0.76,-0.115,1.12),(0.76,-0.115,1.78),0.025,MAT_GOLD,
 
 
 # Additional sculpted silhouette and layered forged armor details.
-def curve_tube(name, points, radius, material, bone_name, resolution=3):
-    curve = bpy.data.curves.new(name, "CURVE")
-    curve.dimensions = "3D"
-    curve.resolution_u = 16
-    curve.bevel_depth = radius
-    curve.bevel_resolution = resolution
-    spline = curve.splines.new("BEZIER")
-    spline.bezier_points.add(len(points)-1)
-    for bp, point in zip(spline.bezier_points, points):
-        bp.co = point
-        bp.handle_left_type = "AUTO"
-        bp.handle_right_type = "AUTO"
-    obj = bpy.data.objects.new(name, curve)
-    bpy.context.collection.objects.link(obj)
-    bpy.ops.object.select_all(action="DESELECT")
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(True)
-    bpy.ops.object.convert(target="MESH")
-    obj = bpy.context.object
-    return finish_part(obj, name, material, bone_name)
-
 # Raised breastplate ridges and molten channels form a readable chest emblem.
 for side in (-1, 1):
     curve_tube("Living magma seam", [(side*0.06,-0.352,1.58),(side*0.13,-0.365,1.48),(side*0.08,-0.37,1.37),(side*0.20,-0.35,1.29)], 0.012, MAT_EMBER, "chest")
