@@ -313,3 +313,62 @@ bpy.ops.export_scene.gltf(
 if not os.path.isfile(OUT) or os.path.getsize(OUT) < 20000:
     raise RuntimeError("Zargat GLB export failed or produced an unexpectedly small file")
 print("Exported", OUT, os.path.getsize(OUT), "bytes")
+
+# Produce the hero-select portrait from the exact shipped model. The portrait
+# is rendered separately so the game never needs to render a live 3D preview
+# just to show a small roster tile.
+THUMB = os.path.join(os.path.dirname(OUT), "zargat.png")
+scene = bpy.context.scene
+scene.render.engine = "BLENDER_EEVEE_NEXT"
+scene.render.resolution_x = 640
+scene.render.resolution_y = 640
+scene.render.resolution_percentage = 100
+scene.render.image_settings.file_format = "PNG"
+scene.render.image_settings.color_mode = "RGBA"
+scene.render.film_transparent = False
+scene.render.filepath = THUMB
+scene.view_settings.view_transform = "AgX"
+scene.world.color = (0.012, 0.018, 0.032)
+
+# Dark infernal studio backdrop.
+bpy.ops.mesh.primitive_plane_add(size=30, location=(0, 2.0, 1.2),
+                                 rotation=(math.radians(90), 0, 0))
+backdrop = bpy.context.object
+backdrop.name = "Zargat portrait backdrop"
+backdrop_mat = bpy.data.materials.new("Zargat | Midnight studio")
+backdrop_mat.diffuse_color = (0.012, 0.022, 0.038, 1)
+backdrop_mat.use_nodes = True
+backdrop_bsdf = backdrop_mat.node_tree.nodes.get("Principled BSDF")
+backdrop_bsdf.inputs["Base Color"].default_value = (0.012, 0.022, 0.038, 1)
+backdrop_bsdf.inputs["Roughness"].default_value = 1.0
+backdrop.data.materials.append(backdrop_mat)
+
+def area_light(name, location, energy, color, size):
+    data = bpy.data.lights.new(name, "AREA")
+    data.energy = energy
+    data.color = color
+    data.shape = "DISK"
+    data.size = size
+    obj = bpy.data.objects.new(name, data)
+    scene.collection.objects.link(obj)
+    obj.location = location
+    obj.rotation_euler = (Vector((0, 0, 1.25)) - obj.location).to_track_quat("-Z", "Y").to_euler()
+    return obj
+
+area_light("Zargat portrait | warm key", (-3.8, -4.5, 5.2), 950, (1.0, 0.42, 0.20), 4.0)
+area_light("Zargat portrait | cool fill", (4.2, -3.0, 3.0), 700, (0.22, 0.48, 1.0), 3.5)
+area_light("Zargat portrait | ember rim", (0.0, 1.0, 4.4), 1200, (1.0, 0.12, 0.035), 2.5)
+
+camera_data = bpy.data.cameras.new("Zargat portrait camera")
+camera = bpy.data.objects.new("Zargat portrait camera", camera_data)
+scene.collection.objects.link(camera)
+camera.location = (3.0, -7.5, 2.55)
+camera.rotation_euler = (Vector((0, 0, 1.22)) - camera.location).to_track_quat("-Z", "Y").to_euler()
+camera_data.type = "ORTHO"
+camera_data.ortho_scale = 3.8
+scene.camera = camera
+scene.render.filepath = THUMB
+bpy.ops.render.render(write_still=True)
+if not os.path.isfile(THUMB) or os.path.getsize(THUMB) < 10000:
+    raise RuntimeError("Zargat portrait render failed or produced an unexpectedly small image")
+print("Rendered hero-select portrait", THUMB, os.path.getsize(THUMB), "bytes")
