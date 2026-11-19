@@ -326,7 +326,11 @@ impl CareerIdentity {
             .map_err(|_| tr("identity.switch.preserve_failed_unchanged"))?;
         match private_create(&backup_path) {
             Ok(mut file) => {
-                if file.write_all(&backup_bytes).and_then(|_| file.sync_all()).is_err() {
+                if file
+                    .write_all(&backup_bytes)
+                    .and_then(|_| file.sync_all())
+                    .is_err()
+                {
                     let _ = fs::remove_file(&backup_path);
                     return Err(tr("identity.switch.preserve_failed_unchanged").into());
                 }
