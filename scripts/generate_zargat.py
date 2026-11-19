@@ -32,17 +32,17 @@ def mat(name, color, metallic=0.0, rough=0.5, emission=None):
             strength_input.default_value = 2.0
     return m
 
-MAT_SKIN = mat("Zargat | Ashen crimson skin", (0.105, 0.012, 0.022), 0.12, 0.48)
-MAT_ARMOR = mat("Zargat | Obsidian armor", (0.008, 0.009, 0.018), 0.9, 0.22)
-MAT_RED = mat("Zargat | Infernal steel", (0.22, 0.012, 0.018), 0.78, 0.24)
-MAT_GOLD = mat("Zargat | Ancient gold", (0.58, 0.29, 0.045), 0.88, 0.2)
+MAT_SKIN = mat("Zargat | Living infernal hide", (0.24, 0.018, 0.035), 0.02, 0.42)
+MAT_ARMOR = mat("Zargat | Black keratin and hardened hide", (0.018, 0.006, 0.012), 0.02, 0.38)
+MAT_RED = mat("Zargat | Raised crimson dermis", (0.34, 0.025, 0.038), 0.01, 0.36)
+MAT_GOLD = mat("Zargat | Bone, horn and talon", (0.20, 0.105, 0.075), 0.0, 0.48)
 MAT_EMBER = mat("Zargat | Molten core", (1.0, 0.12, 0.015), 0.15, 0.22, (1.0, 0.045, 0.004))
 MAT_WING = mat("Zargat | Membrane", (0.028, 0.003, 0.012), 0.18, 0.56)
 MAT_HAIR = mat("Zargat | Silver mane", (0.62, 0.64, 0.68), 0.15, 0.38)
 MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.22, 0.015), 0.05, 0.2, (1.0, 0.08, 0.002))
 
 
-# Layered procedural surface detail: hammered obsidian, ash skin and molten seams.
+# Layered procedural surface detail: living scaled hide, keratin ridges and molten fissures.
 def add_surface_detail(material, scale, bump_strength, roughness_strength=0.25):
     nodes = material.node_tree.nodes
     links = material.node_tree.links
@@ -64,9 +64,9 @@ def add_surface_detail(material, scale, bump_strength, roughness_strength=0.25):
     links.new(tex.outputs["Fac"], rough.inputs["Value"])
     links.new(rough.outputs["Result"], shader.inputs["Roughness"])
 
-add_surface_detail(MAT_SKIN, 7.5, 0.22, 0.12)
-add_surface_detail(MAT_ARMOR, 38.0, 0.16, 0.10)
-add_surface_detail(MAT_RED, 24.0, 0.12, 0.08)
+add_surface_detail(MAT_SKIN, 13.0, 0.34, 0.18)
+add_surface_detail(MAT_ARMOR, 22.0, 0.28, 0.14)
+add_surface_detail(MAT_RED, 17.0, 0.30, 0.16)
 add_surface_detail(MAT_WING, 16.0, 0.18, 0.10)
 
 # Blender-space coordinates: Z up; the demon faces -Y.
@@ -185,20 +185,20 @@ def wing_mesh(side, suffix):
     solid=obj.modifiers.new("Thin leathery membrane","SOLIDIFY"); solid.thickness=0.012
     return finish_part(obj,obj.name,MAT_WING,"wing."+suffix)
 
-# Core anatomy and plated silhouette.
+# Core anatomy and living demonic silhouette — skin is the dominant visible material.
 sphere("Infernal torso",(0,0,1.28),(0.46,0.31,0.48),MAT_SKIN,"spine")
 sphere("Broad chest",(0,-0.005,1.49),(0.61,0.34,0.36),MAT_SKIN,"chest")
-sphere("Obsidian breastplate",(0,-0.285,1.45),(0.47,0.105,0.30),MAT_ARMOR,"chest")
+sphere("Living chest hide",(0,-0.285,1.45),(0.47,0.105,0.30),MAT_SKIN,"chest")
 sphere("Molten heart",(0,-0.386,1.45),(0.105,0.025,0.12),MAT_EMBER,"chest")
 for z in (1.30,1.42,1.54):
     for side in (-1,1):
         cone_between("Cuirass molten rune",(side*0.10,-0.36,z),(side*0.17,-0.36,z+0.07),0.025,MAT_GOLD,"chest",6)
-sphere("Infernal pelvis",(0,0,0.86),(0.34,0.24,0.22),MAT_ARMOR,"pelvis")
+sphere("Infernal pelvic hide",(0,0,0.86),(0.34,0.24,0.22),MAT_SKIN,"pelvis")
 cube("Skull belt",(0,-0.24,0.86),(0.24,0.055,0.16),MAT_GOLD,"pelvis",0.025)
 
 # Head, horns, mane, eyes and jaw.
 sphere("Demon skull",(0,-0.025,1.84),(0.285,0.255,0.325),MAT_SKIN,"head")
-sphere("Infernal face guard",(0,-0.238,1.785),(0.225,0.055,0.155),MAT_ARMOR,"head")
+sphere("Infernal facial hide",(0,-0.238,1.785),(0.225,0.055,0.155),MAT_SKIN,"head")
 sphere("Demon jaw",(0,-0.215,1.675),(0.17,0.105,0.13),MAT_RED,"jaw")
 for side in (-1,1):
     cone_between("Crown horn",(side*0.16,0.0,1.98),(side*0.29,0.02,2.35),0.105,MAT_GOLD,"head",9,0.006)
@@ -229,7 +229,7 @@ def curve_tube(name, points, radius, material, bone_name, resolution=3):
     obj = bpy.context.object
     return finish_part(obj, name, material, bone_name)
 
-# Major-form sculpt pass: anatomical volumes and layered silhouette.
+# Major-form sculpt pass: anatomical volumes and living hide silhouette.
 # The armor follows the body instead of reading as a flat rectangular box.
 for side, suffix in [(-1,"L"), (1,"R")]:
     # Pronounced pectoral and deltoid masses visible around the breastplate.
@@ -284,12 +284,12 @@ for side,suffix in [(-1,"L"),(1,"R")]:
     sphere("Demon bicep "+suffix,(side*0.49,0,1.34),(0.205,0.215,0.29),MAT_SKIN,"upper_arm."+suffix)
     sphere("Obsidian pauldron "+suffix,(side*0.43,-0.03,1.58),(0.27,0.25,0.18),MAT_RED,"chest")
     sphere("Demon forearm "+suffix,(side*0.68,-0.015,1.03),(0.17,0.18,0.265),MAT_SKIN,"forearm."+suffix)
-    cube("War gauntlet "+suffix,(side*0.71,-0.15,0.91),(0.28,0.18,0.22),MAT_ARMOR,"forearm."+suffix,0.035)
+    sphere("Hardened wrist hide "+suffix,(side*0.71,-0.15,0.91),(0.16,0.13,0.18),MAT_SKIN,"forearm."+suffix)
     for claw in range(3):
         x=side*(0.63+claw*0.075)
         cone_between("Gauntlet talon "+suffix,(x,-0.20,0.86),(x,-0.28,0.73),0.035,MAT_GOLD,"hand."+suffix,6,0.004)
     sphere("Demon thigh "+suffix,(side*0.22,0,0.65),(0.215,0.235,0.30),MAT_SKIN,"thigh."+suffix)
-    sphere("Infernal greave "+suffix,(side*0.23,-0.17,0.34),(0.155,0.115,0.235),MAT_ARMOR,"shin."+suffix)
+    sphere("Infernal calf hide "+suffix,(side*0.23,-0.17,0.34),(0.155,0.115,0.235),MAT_SKIN,"shin."+suffix)
     sphere("Knee plate "+suffix,(side*0.23,-0.29,0.49),(0.15,0.07,0.12),MAT_RED,"shin."+suffix)
     sphere("Clawed boot "+suffix,(side*0.23,-0.25,0.12),(0.17,0.24,0.12),MAT_ARMOR,"foot."+suffix)
     cone_between("Boot spur "+suffix,(side*0.23,-0.43,0.12),(side*0.23,-0.60,0.07),0.06,MAT_GOLD,"foot."+suffix,7,0.003)
@@ -414,7 +414,7 @@ for obj in list(parts):
 # Heavier, tapered neck and torso silhouette.
 sphere("Neck tendon L",(-0.115,-0.12,1.64),(0.105,0.16,0.19),MAT_SKIN,"neck",28,20)
 sphere("Neck tendon R",(0.115,-0.12,1.64),(0.105,0.16,0.19),MAT_SKIN,"neck",28,20)
-sphere("Upper sternum armor",(0,-0.325,1.36),(0.27,0.075,0.19),MAT_ARMOR,"chest",32,20)
+sphere("Sternum muscle",(0,-0.325,1.36),(0.27,0.075,0.19),MAT_SKIN,"chest",32,20)
 cone_between("Sternum crest",(0,-0.405,1.55),(0,-0.43,1.28),0.075,MAT_GOLD,"chest",8,0.012)
 
 # Face: deep-set slanted eyes, pronounced brow, angular cheek guards and a long infernal jaw.
@@ -436,10 +436,10 @@ for side in (-1,1):
 sphere("Forehead crown plate",(0,-0.20,2.02),(0.19,0.12,0.12),MAT_ARMOR,"head",32,20)
 curve_tube("Crown center rune",[(0,-0.32,2.08),(0,-0.34,2.00),(0,-0.32,1.96)],0.018,MAT_EMBER,"head",3)
 
-# Layered, angular pauldrons and forearm plates create a heavy warlord silhouette.
+# Muscular shoulders and keratin ridges create a living demon silhouette.
 for side in (-1,1):
     suffix="R" if side>0 else "L"
-    sphere("Massive outer pauldron",(side*0.49,-0.12,1.57),(0.29,0.24,0.22),MAT_ARMOR,"chest",32,20)
+    sphere("Massive shoulder muscle",(side*0.49,-0.12,1.57),(0.29,0.24,0.22),MAT_SKIN,"chest",32,20)
     cone_between("Pauldron outer blade",(side*0.55,-0.08,1.68),(side*0.79,-0.04,1.92),0.105,MAT_GOLD,"chest",10,0.003)
     cone_between("Pauldron lower blade",(side*0.55,-0.10,1.48),(side*0.72,-0.11,1.36),0.075,MAT_RED,"chest",10,0.003)
     curve_tube("Pauldron molten border",[(side*0.31,-0.29,1.65),(side*0.48,-0.335,1.72),(side*0.66,-0.26,1.62)],0.014,MAT_EMBER,"chest",3)
@@ -461,7 +461,7 @@ for idx,z in enumerate((1.23,1.12,1.01)):
 # Heavy waist tassets, overlapping plates over the hips.
 for side in (-1,1):
     suffix="R" if side>0 else "L"
-    sphere("Hip tasset",(side*0.245,-0.205,0.82),(0.19,0.10,0.20),MAT_ARMOR,"pelvis",28,18)
+    sphere("Hip muscle ridge",(side*0.245,-0.205,0.82),(0.19,0.10,0.20),MAT_SKIN,"pelvis",28,18)
     cone_between("Tasset pointed edge",(side*0.28,-0.285,0.91),(side*0.34,-0.30,0.67),0.095,MAT_RED,"pelvis",8,0.006)
     # Calf armor gets layered front plates and shin blades.
     sphere("Greave frontal plate",(side*0.23,-0.275,0.34),(0.12,0.055,0.19),MAT_RED,"shin."+suffix,28,18)
