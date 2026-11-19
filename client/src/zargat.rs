@@ -42,7 +42,18 @@ struct ZargatWing {
 struct ZargatTail { rest: Quat, phase: f32, side: f32 }
 
 #[derive(Component)]
-struct ZargatSword { rest: Quat, last_sequence: u64, swing_age: f32 }
+struct ZargatSword { rest: Quat, last_sequence: u64, swing_age: f32, slot: u8 }
+
+/// Procedural shoulder and forearm motion layered over the Crowley locomotion rig.
+#[derive(Component)]
+struct ZargatArm {
+    rest: Quat,
+    side: f32,
+    forearm: bool,
+    last_sequence: u64,
+    swing_age: f32,
+    slot: u8,
+}
 
 pub(crate) fn setup_zargat_assets(
     mut commands: Commands,
@@ -163,7 +174,17 @@ pub(crate) fn attach_zargat_visuals(
                     Name::new(format!("Zargat-{name}")),
                 ));
                 if name == "Hellblade" {
-                    spawned.insert(ZargatSword { rest: rotation, last_sequence: 0, swing_age: 1.0 });
+                    spawned.insert(ZargatSword { rest: rotation, last_sequence: 0, swing_age: 1.0, slot: u8::MAX });
+                }
+                if matches!(name, "Bicep" | "Forearm" | "Bracer") {
+                    spawned.insert(ZargatArm {
+                        rest: rotation,
+                        side: position.x.signum(),
+                        forearm: name != "Bicep",
+                        last_sequence: 0,
+                        swing_age: 1.0,
+                        slot: u8::MAX,
+                    });
                 }
                 if is_preview {
                     spawned.insert(RenderLayers::layer(28));
@@ -227,6 +248,26 @@ pub(crate) fn attach_zargat_visuals(
                     Vec3::new(side * 0.56, 1.39, 0.34),
                     Vec3::splat(0.095),
                     Quat::IDENTITY,
+                );
+                // Layered shoulder spikes and articulated claw tips make the
+                // silhouette read as a plated demon rather than a recolored human.
+                part(
+                    parent,
+                    "ShoulderSpike",
+                    &assets.cone,
+                    &assets.gold,
+                    Vec3::new(side * 0.70, 1.48, -0.02),
+                    Vec3::new(0.16, 0.42, 0.16),
+                    Quat::from_rotation_z(-side * 0.85),
+                );
+                part(
+                    parent,
+                    "GauntletClaw",
+                    &assets.cone,
+                    &assets.armor_edge,
+                    Vec3::new(side * 0.76, 0.46, 0.39),
+                    Vec3::new(0.075, 0.28, 0.075),
+                    Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
                 );
                 part(
                     parent,
@@ -353,6 +394,21 @@ pub(crate) fn attach_zargat_visuals(
                 Vec3::new(0.19, 0.22, 0.11),
                 Quat::IDENTITY,
             );
+            // Three raised molten seams run down the breastplate.
+            for rib in 0..3 {
+                let y = 1.24 - rib as f32 * 0.17;
+                for side in [-1.0_f32, 1.0] {
+                    part(
+                        parent,
+                        "MoltenCuirassSeam",
+                        &assets.block,
+                        &assets.gold,
+                        Vec3::new(side * (0.12 + rib as f32 * 0.025), y, 0.425),
+                        Vec3::new(0.035, 0.13, 0.025),
+                        Quat::from_rotation_z(side * 0.18),
+                    );
+                }
+            }
             // Gold skull clasp at the waist, echoing the reference armor.
             part(
                 parent,
@@ -433,8 +489,9 @@ pub(crate) fn animate_zargat_wings(
     snapshot: Res<GameStateSnapshot>,
     mut wings: Query<(&ZargatWing, &ZargatPart, &mut Transform)>,
     mut tails: Query<(&ZargatTail, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatSword>)>,
-    mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>, Without<ZargatSword>)>,
-    mut swords: Query<(&mut ZargatSword, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>)>,
+    mut parts: Query<(&Name, &ZargatPart, &mut Transform), (Without<ZargatTail>, Without<ZargatWing>, Without<ZargatSword>, Without<ZargatArm>)>,
+    mut swords: Query<(&mut ZargatSword, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>, Without<ZargatArm>)>,
+    mut arms: Query<(&mut ZargatArm, &ZargatPart, &mut Transform), (Without<ZargatWing>, Without<ZargatTail>, Without<ZargatSword>)>,
     actions: Query<(&NetworkPlayerId, &PlayerCosmeticAction)>,
 ) {
     let t = time.elapsed_secs();
@@ -456,16 +513,45 @@ pub(crate) fn animate_zargat_wings(
         transform.scale = part.base_scale * factor;
         transform.rotation = tail.rest * Quat::from_rotation_y((t * 1.8 + tail.phase).sin() * 0.18 * tail.side);
     }
+    for (mut arm, part, mut transform) in &mut arms {
+        if let Some((_, action)) = part.owner_id.and_then(|owner| actions.iter().find(|(id, _)| id.0 == owner)) {
+            if action.sequence != arm.last_sequence {
+                arm.last_sequence = action.sequence;
+                arm.slot = action.slot;
+                arm.swing_age = 0.0;
+            }
+        }
+        arm.swing_age += time.delta_secs();
+        let progress = (arm.swing_age / 0.62).clamp(0.0, 1.0);
+        let envelope = if progress < 1.0 { (progress * std::f32::consts::PI).sin() } else { 0.0 };
+        let pose = match arm.slot {
+            0 => if arm.forearm { 1.05 } else { 0.72 }, // Rift Cleave
+            1 => if arm.forearm { -0.82 } else { -0.56 }, // Hellblood
+            2 => if arm.forearm { 0.72 } else { 0.48 }, // Infernal Charge
+            3 => if arm.forearm { -0.62 } else { -0.42 }, // Hell Sovereign
+            _ => 0.0,
+        };
+        let idle = (t * 1.9 + arm.side * 0.7).sin() * 0.025;
+        transform.rotation = arm.rest * Quat::from_rotation_z(arm.side * (idle + pose * envelope));
+        transform.scale = part.base_scale * if sovereign(part) { 1.24 } else { 1.0 };
+    }
     for (mut sword, part, mut transform) in &mut swords {
         if let Some((_, action)) = part.owner_id.and_then(|owner| actions.iter().find(|(id, _)| id.0 == owner)) {
             if action.sequence != sword.last_sequence {
                 sword.last_sequence = action.sequence;
+                sword.slot = action.slot;
                 sword.swing_age = 0.0;
             }
         }
         sword.swing_age += time.delta_secs();
-        let progress = (sword.swing_age / 0.36).clamp(0.0, 1.0);
-        let swing = if progress < 1.0 { -(progress * std::f32::consts::PI).sin() * 1.05 } else { 0.0 };
+        let progress = (sword.swing_age / 0.42).clamp(0.0, 1.0);
+        let envelope = if progress < 1.0 { (progress * std::f32::consts::PI).sin() } else { 0.0 };
+        let swing = match sword.slot {
+            0 => -1.12 * envelope,
+            2 => 0.55 * envelope,
+            3 => -0.72 * envelope,
+            _ => 0.0,
+        };
         transform.rotation = sword.rest * Quat::from_rotation_x(swing);
         transform.scale = part.base_scale * if sovereign(part) { 1.24 } else { 1.0 };
     }
