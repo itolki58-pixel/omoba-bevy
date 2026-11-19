@@ -334,6 +334,65 @@ def death_pose(f):
     setrot("wing.R",0,0,-0.5*u)
 make_action("Death", [1,10,20,31], death_pose)
 
+def hit_pose(f):
+    reset_pose()
+    u=(f-1)/12
+    recoil=math.sin(u*math.pi)
+    setrot("spine",0,0,-0.20*recoil)
+    setrot("chest",0,0,-0.16*recoil)
+    setrot("head",0,0,0.16*recoil)
+    setrot("upper_arm.L",0,0,0.22*recoil)
+    setrot("upper_arm.R",0,0,-0.22*recoil)
+    setrot("wing.L",0,0,0.20*recoil)
+    setrot("wing.R",0,0,-0.20*recoil)
+make_action("Hit", [1,4,8,13], hit_pose)
+
+def turn_left_pose(f):
+    reset_pose()
+    u=(f-1)/16
+    weight=math.sin(u*math.pi)
+    setrot("pelvis",0,0,0.28*weight)
+    setrot("spine",0,0,0.42*weight)
+    setrot("chest",0,0,0.22*weight)
+    setrot("head",0,0,0.18*weight)
+    setrot("tail.02",0,0,-0.22*weight)
+    setrot("tail.03",0,0,-0.30*weight)
+make_action("TurnLeft", [1,5,9,13,17], turn_left_pose)
+
+def turn_right_pose(f):
+    turn_left_pose(f)
+    for name in ("pelvis", "spine", "chest", "head", "tail.02", "tail.03"):
+        pb=arm.pose.bones.get(name)
+        if pb:
+            pb.rotation_euler.z *= -1
+make_action("TurnRight", [1,5,9,13,17], turn_right_pose)
+
+def stop_pose(f):
+    reset_pose()
+    u=(f-1)/10
+    settle=math.sin(u*math.pi)
+    setrot("spine",0,0,-0.08*settle)
+    setrot("chest",0.04*settle,0,0)
+    setrot("upper_arm.L",0,0,0.08*settle)
+    setrot("upper_arm.R",0,0,-0.08*settle)
+    setrot("tail.02",0,0,0.16*settle)
+    setrot("tail.03",0,0,0.22*settle)
+make_action("Stop", [1,4,7,11], stop_pose)
+
+def ultimate_pose(f):
+    reset_pose()
+    u=(f-1)/30
+    rise=math.sin(min(1.0,u)*math.pi*0.5)
+    setrot("spine",0,0,-0.18*rise)
+    setrot("chest",-0.10*rise,0,0)
+    setrot("upper_arm.L",0,0,0.95*rise)
+    setrot("upper_arm.R",0,0,-0.95*rise)
+    setrot("wing.L",0,0,0.72*rise)
+    setrot("wing.R",0,0,-0.72*rise)
+    setrot("head",0,0,-0.20*rise)
+    setrot("tail.03",0,0,0.24*rise)
+make_action("Ultimate", [1,8,16,24,31], ultimate_pose)
+
 bpy.context.scene.frame_set(1)
 bpy.ops.object.select_all(action="DESELECT")
 arm.select_set(True); body.select_set(True)
