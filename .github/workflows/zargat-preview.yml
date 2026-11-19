@@ -2,6 +2,12 @@ name: Zargat model preview
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - zargat-high-detail-preview
+    paths:
+      - 'scripts/generate_zargat.py'
+      - '.github/workflows/zargat-preview.yml'
 
 permissions:
   contents: read
