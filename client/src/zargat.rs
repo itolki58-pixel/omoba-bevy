@@ -25,6 +25,32 @@ pub(crate) struct ZargatAssets {
 #[derive(Component)]
 pub(crate) struct ZargatVisual;
 
+/// Marks original source-model mesh nodes after they are hidden for Zaragat.
+#[derive(Component)]
+struct ZargatBaseHidden;
+
+/// Hide the source avatar meshes while retaining the replicated movement root.
+pub(crate) fn hide_zargat_base_meshes(
+    mut commands: Commands,
+    roots: Query<&Children, With<ZargatVisual>>,
+    nodes: Query<(Option<&Children>, Option<&Mesh3d>, Has<ZargatPart>, Has<ZargatBaseHidden>)>,
+) {
+    for children in &roots {
+        let mut pending: Vec<Entity> = children.iter().collect();
+        while let Some(entity) = pending.pop() {
+            let Ok((children, mesh, is_zargat_part, already_hidden)) = nodes.get(entity) else {
+                continue;
+            };
+            if let Some(children) = children {
+                pending.extend(children.iter());
+            }
+            if mesh.is_some() && !is_zargat_part && !already_hidden {
+                commands.entity(entity).insert((Visibility::Hidden, ZargatBaseHidden));
+            }
+        }
+    }
+}
+
 #[derive(Component)]
 pub(crate) struct ZargatPart { owner_id: Option<u64>, base_scale: Vec3 }
 
@@ -200,6 +226,17 @@ pub(crate) fn attach_zargat_visuals(
                 Vec3::new(0.78, 0.72, 0.19),
                 Quat::IDENTITY,
             );
+
+            // Zaragat's own body silhouette, independent of Crowley's visible mesh.
+            part(parent, "DemonTorso", &assets.sphere, &assets.skin, Vec3::new(0.0, 1.02, 0.02), Vec3::new(0.62, 0.73, 0.38), Quat::IDENTITY);
+            part(parent, "DemonNeck", &assets.sphere, &assets.skin, Vec3::new(0.0, 1.52, 0.08), Vec3::new(0.25, 0.27, 0.25), Quat::IDENTITY);
+            part(parent, "DemonHead", &assets.sphere, &assets.skin, Vec3::new(0.0, 1.72, 0.04), Vec3::new(0.34, 0.39, 0.31), Quat::IDENTITY);
+            part(parent, "InfernalMask", &assets.block, &assets.armor, Vec3::new(0.0, 1.61, 0.31), Vec3::new(0.39, 0.24, 0.12), Quat::IDENTITY);
+            part(parent, "DemonJaw", &assets.cone, &assets.armor_edge, Vec3::new(0.0, 1.49, 0.30), Vec3::new(0.20, 0.25, 0.17), Quat::from_rotation_x(std::f32::consts::PI));
+            part(parent, "InfernalPelvis", &assets.sphere, &assets.armor, Vec3::new(0.0, 0.57, 0.02), Vec3::new(0.43, 0.31, 0.34), Quat::IDENTITY);
+            for side in [-1.0_f32, 1.0] {
+                part(parent, "DemonThigh", &assets.sphere, &assets.skin, Vec3::new(side * 0.25, 0.39, 0.02), Vec3::new(0.25, 0.43, 0.27), Quat::from_rotation_z(-side * 0.05));
+            }
 
             // Exposed violet musculature and dark bracers make the silhouette
             // read as a powerful demon rather than a fully armored human.
