@@ -270,8 +270,7 @@ pub(in crate::net) fn run_udp_client(
         .peer_addr()
         .map(|address| !is_private_or_local_endpoint(address))
         .unwrap_or(false);
-    let mut public_transport =
-        public_transport::PublicClientTransport::new(probe_public_transport);
+    let mut public_transport = public_transport::PublicClientTransport::new(probe_public_transport);
     let mut assembler = SnapshotAssembler::default();
     let mut recv_buf = vec![0_u8; SERVER_DATAGRAM_RECEIVE_CAPACITY];
     let mut last_heartbeat_at = Instant::now();
