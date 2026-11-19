@@ -240,6 +240,10 @@ def curve_tube(name, points, radius, material, bone_name, resolution=3):
         bp.handle_right_type = "AUTO"
     obj = bpy.data.objects.new(name, curve)
     bpy.context.collection.objects.link(obj)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.convert(target="MESH")
+    obj = bpy.context.object
     return finish_part(obj, name, material, bone_name)
 
 # Raised breastplate ridges and molten channels form a readable chest emblem.
