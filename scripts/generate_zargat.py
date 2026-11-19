@@ -523,6 +523,8 @@ def make_action(name, frames, pose_fn):
         pose_fn(frame)
         for pb in arm.pose.bones:
             pb.keyframe_insert(data_path="rotation_euler",frame=frame,group=pb.name)
+            if pb.name == "pelvis":
+                pb.keyframe_insert(data_path="location",frame=frame,group=pb.name)
     arm.animation_data.action=None
     track=arm.animation_data.nla_tracks.new()
     track.name=name
@@ -536,10 +538,16 @@ def setrot(name, x=0, y=0, z=0):
         pb.rotation_mode="XYZ"
         pb.rotation_euler=(x,y,z)
 
+def setloc(name, x=0, y=0, z=0):
+    pb=arm.pose.bones.get(name)
+    if pb:
+        pb.location=(x,y,z)
+
 def reset_pose():
     for pb in arm.pose.bones:
         pb.rotation_mode="XYZ"
         pb.rotation_euler=(0,0,0)
+        pb.location=(0,0,0)
 
 def idle_pose(f):
     reset_pose()
@@ -570,55 +578,106 @@ make_action("Idle", [1,16,31], idle_pose)
 def run_pose(f):
     reset_pose()
     phase=(f-1)/20*2*math.pi
-    setrot("thigh.L",0,0,0.58*math.sin(phase))
-    setrot("thigh.R",0,0,0.58*math.sin(phase+math.pi))
-    setrot("shin.L",0,0,max(0,-math.sin(phase))*0.65)
-    setrot("shin.R",0,0,max(0,-math.sin(phase+math.pi))*0.65)
-    setrot("upper_arm.L",0,0,-0.48*math.sin(phase))
-    setrot("upper_arm.R",0,0,-0.48*math.sin(phase+math.pi))
-    setrot("forearm.L",0,0,0.18*max(0,math.sin(phase)))
-    setrot("forearm.R",0,0,0.18*max(0,math.sin(phase+math.pi)))
-    setrot("foot.L",0,0,0.08*math.sin(phase+math.pi))
-    setrot("foot.R",0,0,0.08*math.sin(phase))
-    setrot("wing.L",0,0,0.24*math.sin(phase*2))
-    setrot("wing.R",0,0,-0.24*math.sin(phase*2))
+    left=math.sin(phase)
+    right=math.sin(phase+math.pi)
+    # Alternating stride, bent-knee recovery and a counter-swinging upper body.
+    setrot("thigh.L",0,0,0.66*left)
+    setrot("thigh.R",0,0,0.66*right)
+    setrot("shin.L",0,0,max(0,-left)*0.82)
+    setrot("shin.R",0,0,max(0,-right)*0.82)
+    setrot("foot.L",0,0,-0.16*max(0,left))
+    setrot("foot.R",0,0,-0.16*max(0,right))
+    setrot("upper_arm.L",0,0,-0.54*left)
+    setrot("upper_arm.R",0,0,-0.54*right)
+    setrot("forearm.L",0,0,0.22*max(0,left))
+    setrot("forearm.R",0,0,0.22*max(0,right))
+    setrot("pelvis",0,0,0.045*math.sin(phase))
+    setrot("spine",0.075*math.sin(phase*2),0, -0.035*math.sin(phase))
+    setrot("chest",-0.035*math.sin(phase*2),0,0.025*math.sin(phase))
+    setrot("head",0,0,-0.018*math.sin(phase))
+    setloc("pelvis",0,0,0.045*(1-math.cos(phase*2)))
+    setrot("wing.L",0,0,0.25*math.sin(phase*2))
+    setrot("wing.R",0,0,-0.25*math.sin(phase*2))
     setrot("tail.01",0.12*math.sin(phase+0.4),0,0)
     setrot("tail.02",0.18*math.sin(phase+0.8),0,0)
     setrot("tail.03",0.22*math.sin(phase+1.2),0,0)
-    setrot("tail.tip",0.25*math.sin(phase+1.6),0,0)
-    setrot("spine",0.06*math.sin(phase*2),0,0)
+    setrot("tail.tip",0.27*math.sin(phase+1.6),0,0)
 make_action("Run", [1,6,11,16,21], run_pose)
 
 def walk_pose(f):
     reset_pose()
     phase=(f-1)/24*2*math.pi
-    setrot("thigh.L",0,0,0.38*math.sin(phase))
-    setrot("thigh.R",0,0,0.38*math.sin(phase+math.pi))
-    setrot("shin.L",0,0,max(0,-math.sin(phase))*0.42)
-    setrot("shin.R",0,0,max(0,-math.sin(phase+math.pi))*0.42)
-    setrot("upper_arm.L",0,0,-0.26*math.sin(phase))
-    setrot("upper_arm.R",0,0,-0.26*math.sin(phase+math.pi))
-    setrot("chest",0.025*math.sin(phase*2),0,0)
-    setrot("wing.L",0,0,0.10*math.sin(phase))
-    setrot("wing.R",0,0,-0.10*math.sin(phase))
-    setrot("tail.02",0.10*math.sin(phase+0.5),0,0)
+    left=math.sin(phase)
+    right=math.sin(phase+math.pi)
+    setrot("thigh.L",0,0,0.43*left)
+    setrot("thigh.R",0,0,0.43*right)
+    setrot("shin.L",0,0,max(0,-left)*0.50)
+    setrot("shin.R",0,0,max(0,-right)*0.50)
+    setrot("foot.L",0,0,-0.10*max(0,left))
+    setrot("foot.R",0,0,-0.10*max(0,right))
+    setrot("upper_arm.L",0,0,-0.32*left)
+    setrot("upper_arm.R",0,0,-0.32*right)
+    setrot("forearm.L",0,0,0.10*max(0,left))
+    setrot("forearm.R",0,0,0.10*max(0,right))
+    setrot("pelvis",0,0,0.035*math.sin(phase))
+    setrot("spine",0.035*math.sin(phase*2),0,-0.025*math.sin(phase))
+    setrot("chest",-0.018*math.sin(phase*2),0,0.02*math.sin(phase))
+    setrot("head",0,0,-0.012*math.sin(phase))
+    setloc("pelvis",0,0,0.025*(1-math.cos(phase*2)))
+    setrot("wing.L",0,0,0.12*math.sin(phase))
+    setrot("wing.R",0,0,-0.12*math.sin(phase))
+    setrot("tail.01",0.06*math.sin(phase+0.3),0,0)
+    setrot("tail.02",0.10*math.sin(phase+0.6),0,0)
     setrot("tail.03",0.14*math.sin(phase+1.0),0,0)
+    setrot("tail.tip",0.18*math.sin(phase+1.4),0,0)
 make_action("Walk", [1,7,13,19,25], walk_pose)
 
 def attack_pose(f):
     reset_pose()
-    u=(f-1)/18
-    swing=math.sin(u*math.pi)
-    setrot("upper_arm.R",0,0,-1.15*swing)
-    setrot("forearm.R",0,0,-0.55*swing)
-    setrot("sword",0,0,-0.85*swing)
-    setrot("chest",0,0,0.20*swing)
-    setrot("wing.L",0,0,0.18*swing)
-    setrot("wing.R",0,0,-0.18*swing)
-    setrot("tail.02",0,0.14*swing)
-    setrot("tail.03",0,0,0.20*swing)
-    setrot("head",0,0,-0.08*swing)
-make_action("Attack", [1,7,13,19], attack_pose)
+    # Four readable phases: anticipation, committed slash, follow-through, recovery.
+    u=(f-1)/26.0
+    if u < 0.28:
+        p=math.sin((u/0.28)*math.pi*0.5)
+        setrot("pelvis",0,0,-0.22*p)
+        setrot("spine",0.10*p,0,-0.32*p)
+        setrot("chest",0.16*p,0,-0.42*p)
+        setrot("upper_arm.R",0,0,-1.18*p)
+        setrot("forearm.R",0,0,-0.72*p)
+        setrot("sword",0,0,-0.95*p)
+        setrot("upper_arm.L",0,0,0.28*p)
+        setrot("wing.L",0,0,0.16*p)
+        setrot("wing.R",0,0,-0.16*p)
+        setrot("tail.02",0,0,0.12*p)
+        setrot("tail.03",0,0,0.20*p)
+    elif u < 0.62:
+        p=math.sin(((u-0.28)/0.34)*math.pi*0.5)
+        setrot("pelvis",0,0,-0.22+0.62*p)
+        setrot("spine",-0.12*p,0,0.30*p)
+        setrot("chest",-0.18*p,0,0.62*p)
+        setrot("upper_arm.R",0,0,-1.18+1.78*p)
+        setrot("forearm.R",0,0,-0.72+1.20*p)
+        setrot("sword",0,0,-0.95+1.65*p)
+        setrot("upper_arm.L",0,0,0.28-0.48*p)
+        setrot("wing.L",0,0,0.16+0.14*p)
+        setrot("wing.R",0,0,-0.16-0.14*p)
+        setrot("tail.02",0,0,0.12+0.16*p)
+        setrot("tail.03",0,0,0.20+0.20*p)
+        setrot("head",0,0,-0.10*p)
+    else:
+        p=1.0-(u-0.62)/0.38
+        setrot("pelvis",0,0,0.40*p)
+        setrot("spine",0,0,0.30*p)
+        setrot("chest",0,0,0.62*p)
+        setrot("upper_arm.R",0,0,0.60*p)
+        setrot("forearm.R",0,0,0.48*p)
+        setrot("sword",0,0,0.70*p)
+        setrot("upper_arm.L",0,0,-0.20*p)
+        setrot("wing.L",0,0,0.30*p)
+        setrot("wing.R",0,0,-0.30*p)
+        setrot("tail.02",0,0,0.28*p)
+        setrot("tail.03",0,0,0.40*p)
+        setrot("head",0,0,-0.10*p)
+make_action("Attack", [1,4,8,12,17,22,27], attack_pose)
 
 def cast_pose(f):
     reset_pose()
