@@ -510,6 +510,9 @@ body.parent=arm
 body["character_id"]="zargat"
 body["rig_type"]="independent_modular_armature"
 
+# Global hero scale: add the requested final 5% (19% previous increase + 5% = 24% total target).
+arm.scale = (1.05, 1.05, 1.05)
+
 # Authored animation clips, each stored as a named NLA strip for glTF export.
 def make_action(name, frames, pose_fn):
     action=bpy.data.actions.new(name)
