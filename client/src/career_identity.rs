@@ -322,8 +322,15 @@ impl CareerIdentity {
         let backup = directory.join("saved-devices");
         fs::create_dir_all(&backup).map_err(|_| tr("identity.switch.preserve_failed"))?;
         let backup_path = backup.join(format!("{old_public}.json"));
-        match fs::hard_link(directory.join(KEY_FILE), &backup_path) {
-            Ok(()) => {}
+        let backup_bytes = fs::read(directory.join(KEY_FILE))
+            .map_err(|_| tr("identity.switch.preserve_failed_unchanged"))?;
+        match private_create(&backup_path) {
+            Ok(mut file) => {
+                if file.write_all(&backup_bytes).and_then(|_| file.sync_all()).is_err() {
+                    let _ = fs::remove_file(&backup_path);
+                    return Err(tr("identity.switch.preserve_failed_unchanged").into());
+                }
+            }
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
                 if read_key(&backup_path)?.verifying_key() != existing.verifying_key() {
                     return Err(tr("identity.switch.backup_mismatch").into());
