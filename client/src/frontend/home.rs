@@ -393,13 +393,10 @@ pub fn last_match_line(result: &shared::career::MatchResult, profile_id: Option<
 /// with its local practice bots. An unavailable or not-yet-loaded career view is
 /// not enough to enable this path.
 fn standalone_guest_available(career: &CareerClient) -> bool {
-    !career.view.storage_enabled
-        && career.view.match_service.is_none()
-        && career
-            .view
-            .error
-            .as_deref()
-            .is_some_and(|message| message.starts_with("Career storage is not configured on this server."))
+    // A standalone server has no public matchmaking service by design. It
+    // accepts direct unranked joins, so do not make the Play button wait for
+    // an optional career-status error string to arrive over UDP.
+    !career.view.storage_enabled && career.view.match_service.is_none()
 }
 
 pub(crate) fn connection_line(session: &ClientSession) -> (String, Color) {
@@ -1658,6 +1655,17 @@ mod tests {
                 Val::Px(if size.y < 600.0 { 96.0 } else { 160.0 } / scale)
             );
         }
+    }
+
+    #[test]
+    fn standalone_guest_play_does_not_wait_for_a_career_error_packet() {
+        let mut career = CareerClient::default();
+        assert!(standalone_guest_available(&career));
+        career.view.storage_enabled = true;
+        assert!(!standalone_guest_available(&career));
+        career.view.storage_enabled = false;
+        career.view.match_service = Some(shared::match_service::MatchServiceView::Idle);
+        assert!(!standalone_guest_available(&career));
     }
 
     #[test]
