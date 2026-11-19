@@ -89,7 +89,7 @@ jobs:
           assert doc.get("meshes"), "Zaragat GLB has no meshes"
           assert doc.get("skins"), "Zaragat GLB has no independent armature/skin"
           names = [a.get("name", "") for a in doc.get("animations", [])]
-          required = {"Idle", "Run", "Walk", "Attack", "Cast", "Death"}
+          required = {"Idle", "Run", "Walk", "Attack", "Cast", "Death", "Hit", "TurnLeft", "TurnRight", "Stop", "Ultimate"}
           missing = required - set(names)
           assert not missing, f"Missing Zaragat animation clips: {sorted(missing)}"
           node_names = {node.get("name", "") for node in doc.get("nodes", [])}
