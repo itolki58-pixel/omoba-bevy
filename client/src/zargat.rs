@@ -5,7 +5,7 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
-use crate::{net::NetworkAvatar, player::Player, sprite::PlayerVisualMode};
+use crate::{net::{NetworkAvatar, RemotePlayer}, player::Player, sprite::PlayerVisualMode};
 
 #[derive(Resource)]
 pub(crate) struct ZargatAssets {
@@ -32,6 +32,22 @@ pub(crate) struct ZargatPreview;
 struct ZargatWing {
     rest: Quat,
     side: f32,
+}
+
+/// Installs the authored infernal overlay on every replicated Zargat model.
+pub(crate) struct ZargatPlugin;
+
+impl Plugin for ZargatPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, setup_zargat_assets)
+            .add_systems(
+                PostUpdate,
+                (attach_zargat_visuals, animate_zargat_wings)
+                    .chain()
+                    .before(bevy::transform::TransformSystems::Propagate)
+                    .run_if(crate::sprite::in_models3d()),
+            );
+    }
 }
 
 pub(crate) fn setup_zargat_assets(
@@ -119,7 +135,7 @@ pub(crate) fn attach_zargat_visuals(
     assets: Option<Res<ZargatAssets>>,
     heroes: Query<
         (Entity, Option<&NetworkAvatar>, Has<ZargatPreview>),
-        (Without<ZargatVisual>, Or<(With<Player>, With<ZargatPreview>)>),
+        (Without<ZargatVisual>, Or<(With<Player>, With<RemotePlayer>, With<ZargatPreview>)>),
     >,
 ) {
     let Some(assets) = assets else {
