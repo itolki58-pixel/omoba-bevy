@@ -37,9 +37,6 @@ struct ZargatBodyPart {
 #[derive(Resource, Default)]
 struct ZargatMotionHistory(HashMap<u64, Vec3>);
 
-#[derive(Component)]
-pub(crate) struct ZargatVisual;
-
 /// Marks original source-model mesh nodes after they are hidden for Zaragat.
 #[derive(Component)]
 pub(crate) struct ZargatBaseHidden;
