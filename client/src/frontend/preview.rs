@@ -362,6 +362,9 @@ fn sync_preview_model(
     if slug == "zargat" {
         model_commands.insert(crate::zargat::ZargatPreview);
     }
+    if slug == "zargat" {
+        model_commands.insert(crate::zargat::ZargatPreview);
+    }
     let model = model_commands.id();
     if let Some(gltf) = gltf.clone() {
         commands.entity(model).insert(ModelScaleSource {

@@ -34,6 +34,9 @@ struct ZargatWing {
     side: f32,
 }
 
+#[derive(Component)]
+struct ZargatTail { rest: Quat, phase: f32, side: f32 }
+
 pub(crate) fn setup_zargat_assets(
     mut commands: Commands,
     mode: Res<PlayerVisualMode>,
@@ -276,6 +279,33 @@ pub(crate) fn attach_zargat_visuals(
                 }
             }
 
+            // Heavy infernal greaves and knee plates give the silhouette a tank-like base.
+            for side in [-1.0_f32, 1.0] {
+                part(parent, "Greave", &assets.block, &assets.armor, Vec3::new(side * 0.25, 0.25, 0.12), Vec3::new(0.30, 0.48, 0.34), Quat::from_rotation_z(-side * 0.05));
+                part(parent, "KneeGuard", &assets.sphere, &assets.armor_edge, Vec3::new(side * 0.25, 0.47, 0.30), Vec3::new(0.24, 0.20, 0.16), Quat::IDENTITY);
+                part(parent, "BootSpur", &assets.cone, &assets.gold, Vec3::new(side * 0.25, 0.10, 0.34), Vec3::new(0.10, 0.28, 0.10), Quat::from_rotation_x(std::f32::consts::FRAC_PI_2));
+            }
+
+            // Segmented tail: it follows the moving hero and sways independently.
+            for segment in 0..4 {
+                let index = segment as f32;
+                let rest = Quat::from_rotation_x(0.18 + index * 0.08);
+                let mut tail = parent.spawn((
+                    Mesh3d(if segment == 3 { assets.cone.clone() } else { assets.sphere.clone() }),
+                    MeshMaterial3d(if segment == 3 { assets.armor_edge.clone() } else { assets.wing.clone() }),
+                    Transform { translation: Vec3::new(0.0, 0.48 - index * 0.10, -0.42 - index * 0.19), rotation: rest, scale: if segment == 3 { Vec3::new(0.13, 0.34, 0.13) } else { Vec3::splat(0.16 - index * 0.018) } },
+                    Visibility::default(),
+                    ZargatTail { rest, phase: index * 0.65, side: if segment % 2 == 0 { 1.0 } else { -1.0 } },
+                    Name::new(format!("Zargat-Tail-{segment}")),
+                ));
+                if is_preview { tail.insert(RenderLayers::layer(28)); }
+            }
+
+            // A crown of short back-spines makes the wing roots read as part of the armor.
+            for spine in 0..3 {
+                part(parent, "BackSpine", &assets.cone, &assets.gold, Vec3::new(0.0, 1.42 - spine as f32 * 0.22, -0.48), Vec3::new(0.12, 0.34, 0.12), Quat::from_rotation_x(-0.8));
+            }
+
             // Long pale hair, swept backward in separate low-poly locks.
             for (side, length) in [(-1.0_f32, 0.56), (1.0_f32, 0.62), (0.0_f32, 0.72)] {
                 part(
@@ -387,9 +417,25 @@ pub(crate) fn attach_zargat_visuals(
 pub(crate) fn animate_zargat_wings(
     time: Res<Time>,
     mut wings: Query<(&ZargatWing, &mut Transform)>,
+    mut tails: Query<(&ZargatTail, &mut Transform), Without<ZargatWing>>,
+    mut parts: Query<(&Name, &mut Transform), Without<ZargatTail>>,
 ) {
-    let wave = (time.elapsed_secs() * 2.2).sin() * 0.075;
+    let t = time.elapsed_secs();
+    let wave = (t * 2.2).sin() * 0.14;
     for (wing, mut transform) in &mut wings {
         transform.rotation = wing.rest * Quat::from_rotation_z(wing.side * wave);
+    }
+    for (tail, mut transform) in &mut tails {
+        transform.rotation = tail.rest * Quat::from_rotation_y((t * 1.8 + tail.phase).sin() * 0.18 * tail.side);
+    }
+    for (name, mut transform) in &mut parts {
+        let label = name.as_str();
+        if label == "Zargat-InfernalHeart" {
+            let pulse = 1.0 + (t * 4.4).sin() * 0.10;
+            transform.scale = Vec3::new(0.19, 0.22, 0.11) * pulse;
+        } else if label == "Zargat-BurningEye" || label == "Zargat-BackEmber" {
+            let pulse = 1.0 + (t * 5.2).sin() * 0.12;
+            transform.scale = Vec3::splat(0.065 * pulse);
+        }
     }
 }
