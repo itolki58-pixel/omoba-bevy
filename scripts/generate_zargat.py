@@ -32,14 +32,14 @@ def mat(name, color, metallic=0.0, rough=0.5, emission=None):
             strength_input.default_value = 2.0
     return m
 
-MAT_SKIN = mat("Zargat | Living infernal hide", (0.24, 0.018, 0.035), 0.02, 0.42)
-MAT_ARMOR = mat("Zargat | Deep crimson keratin and callused hide", (0.075, 0.006, 0.018), 0.0, 0.56)
-MAT_RED = mat("Zargat | Raised crimson dermis", (0.34, 0.025, 0.038), 0.01, 0.36)
-MAT_GOLD = mat("Zargat | Aged bone, horn and talon", (0.16, 0.075, 0.055), 0.0, 0.62)
-MAT_EMBER = mat("Zargat | Molten core", (1.0, 0.12, 0.015), 0.15, 0.22, (1.0, 0.045, 0.004))
-MAT_WING = mat("Zargat | Membrane", (0.028, 0.003, 0.012), 0.18, 0.56)
-MAT_HAIR = mat("Zargat | Silver mane", (0.62, 0.64, 0.68), 0.15, 0.38)
-MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.22, 0.015), 0.05, 0.2, (1.0, 0.08, 0.002))
+MAT_SKIN = mat("Zargat | Living infernal hide", (0.29, 0.012, 0.026), 0.0, 0.48)
+MAT_ARMOR = mat("Zargat | Blackened living keratin", (0.035, 0.003, 0.009), 0.0, 0.68)
+MAT_RED = mat("Zargat | Raised crimson dermis", (0.39, 0.018, 0.028), 0.0, 0.44)
+MAT_GOLD = mat("Zargat | Dark horn and hardened keratin", (0.075, 0.012, 0.018), 0.0, 0.72)
+MAT_EMBER = mat("Zargat | Molten core", (1.0, 0.12, 0.015), 0.0, 0.24, (1.0, 0.045, 0.004))
+MAT_WING = mat("Zargat | Living leathery membrane", (0.018, 0.0015, 0.006), 0.0, 0.72)
+MAT_HAIR = mat("Zargat | Charred mane", (0.105, 0.025, 0.03), 0.0, 0.68)
+MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.22, 0.015), 0.0, 0.2, (1.0, 0.08, 0.002))
 
 
 # Layered procedural surface detail: living scaled hide, keratin ridges and molten fissures.
@@ -315,31 +315,31 @@ cone_between("Molten demon sword",(0.76,-0.06,1.10),(0.76,-0.06,1.84),0.105,MAT_
 cone_between("Sword spine",(0.76,-0.115,1.12),(0.76,-0.115,1.78),0.025,MAT_GOLD,"sword",5,0.003)
 
 
-# Additional sculpted silhouette and layered forged armor details.
+# Additional sculpted silhouette and layered living keratin details.
 # Raised breastplate ridges and molten channels form a readable chest emblem.
 for side in (-1, 1):
     curve_tube("Living magma seam", [(side*0.06,-0.352,1.58),(side*0.13,-0.365,1.48),(side*0.08,-0.37,1.37),(side*0.20,-0.35,1.29)], 0.012, MAT_EMBER, "chest")
     curve_tube("Cuirass engraved gold fillet", [(side*0.27,-0.355,1.61),(side*0.34,-0.355,1.47),(side*0.29,-0.355,1.31)], 0.014, MAT_GOLD, "chest")
-    # Layered abdominal plates with pointed lower edges.
+    # Layered abdominal keratin ridges with pointed lower edges.
     for idx, z in enumerate((1.20,1.09,0.99)):
         x=side*(0.13 if idx==0 else 0.12)
         cone_between("Layered abdominal plate", (x,-0.255,z+0.055),(x+side*0.055,-0.265,z-0.045),0.075,MAT_RED,"spine",7,0.018)
-    # Forearm armor ridges and luminous inlays.
+    # Forearm tendon ridges and luminous magma inlays.
     for idx in range(3):
         z=1.06-idx*0.09
         curve_tube("Bracer ember inlay",[(side*0.78,-0.17,z),(side*0.86,-0.18,z-0.035),(side*0.78,-0.17,z-0.07)],0.009,MAT_EMBER,"forearm."+("R" if side>0 else "L"))
-    # Knee and thigh armor layering.
+    # Knee and thigh hardened-skin layering.
     sphere("Thigh outer plate",(side*0.31,-0.205,0.66),(0.13,0.075,0.22),MAT_RED,"thigh."+("R" if side>0 else "L"))
     for z in (0.47,0.39,0.31):
         curve_tube("Greave engraved line",[(side*0.12,-0.292,z),(side*0.23,-0.305,z-0.025),(side*0.34,-0.292,z)],0.009,MAT_GOLD,"shin."+("R" if side>0 else "L"))
 
-# Crown silhouette: swept-back hooked horns with a dark keratin base and gold tips.
+# Crown silhouette: swept-back hooked horns with dark living keratin tips.
 for side in (-1,1):
     suffix="R" if side>0 else "L"
     cone_between("Horn root collar",(side*0.15,0.0,1.99),(side*0.21,-0.015,2.12),0.12,MAT_RED,"head",10,0.075)
     curve_tube("Swept infernal horn",[(side*0.18,0.02,2.00),(side*0.27,0.06,2.14),(side*0.34,0.12,2.30),(side*0.30,0.16,2.43)],0.075,MAT_RED,"head",4)
     cone_between("Horn gold tip",(side*0.30,0.16,2.37),(side*0.30,0.16,2.46),0.035,MAT_GOLD,"head",8,0.001)
-    # Additional layered shoulder plates and rivets.
+    # Additional overlapping dermal ridges and hardened skin nodules.
     sphere("Upper pauldron crest",(side*0.43,-0.17,1.69),(0.25,0.15,0.13),MAT_RED,"chest")
     sphere("Pauldron molten jewel",(side*0.47,-0.285,1.61),(0.045,0.025,0.055),MAT_EMBER,"chest",10,6)
 
@@ -388,7 +388,7 @@ for side in (-1, 1):
         x = side*(0.62+j*0.17)
         sphere("Wing knuckle", (x,0.065,1.56+j*0.07), (0.035,0.035,0.04), MAT_GOLD, "wing."+suffix, 16, 12)
 
-# Central facial mask, layered throat gorget and engraved armor studs.
+# Central facial planes, layered throat ridges and hardened-skin nodules.
 sphere("Nasal bridge", (0,-0.258,1.79), (0.055,0.045,0.105), MAT_RED, "head", 20, 14)
 curve_tube("Infernal lip ridge", [(-0.10,-0.29,1.69),(0,-0.31,1.68),(0.10,-0.29,1.69)], 0.018, MAT_RED, "jaw", 3)
 for x in (-0.055, 0, 0.055):
@@ -411,7 +411,7 @@ for obj in list(parts):
         parts.remove(obj)
         bpy.data.objects.remove(obj, do_unlink=True)
 
-# Heavier, tapered neck and torso silhouette.
+# Heavier, tapered neck and torso silhouette with continuous living-hide forms.
 sphere("Neck tendon L",(-0.115,-0.12,1.64),(0.105,0.16,0.19),MAT_SKIN,"neck",28,20)
 sphere("Neck tendon R",(0.115,-0.12,1.64),(0.105,0.16,0.19),MAT_SKIN,"neck",28,20)
 sphere("Sternum muscle",(0,-0.325,1.36),(0.27,0.075,0.19),MAT_SKIN,"chest",32,20)
@@ -436,7 +436,7 @@ for side in (-1,1):
 sphere("Forehead crown plate",(0,-0.20,2.02),(0.19,0.12,0.12),MAT_RED,"head",32,20)
 curve_tube("Crown center rune",[(0,-0.32,2.08),(0,-0.34,2.00),(0,-0.32,1.96)],0.018,MAT_EMBER,"head",3)
 
-# Muscular shoulders and keratin ridges create a living demon silhouette.
+# Muscular shoulders and organic keratin ridges create a living demon silhouette.
 for side in (-1,1):
     suffix="R" if side>0 else "L"
     sphere("Massive shoulder muscle",(side*0.49,-0.12,1.57),(0.29,0.24,0.22),MAT_SKIN,"chest",32,20)
@@ -453,7 +453,7 @@ for side in (-1,1):
         sphere("Knuckle armor",(x,-0.245,0.82),(0.035,0.03,0.035),MAT_GOLD,"hand."+suffix,16,10)
         cone_between("Long hooked talon",(x,-0.25,0.80),(x,-0.34,0.68),0.025,MAT_ARMOR,"hand."+suffix,10,0.002)
 
-# Distinct layered abdominal cuirass and broad waist silhouette.
+# Distinct layered abdominal dermal ridges and broad waist silhouette.
 for idx,z in enumerate((1.23,1.12,1.01)):
     width=(0.19,0.17,0.14)[idx]
     sphere("Forged abdominal segment",(0,-0.305,z),(width,0.065,0.072),MAT_RED,"spine",28,16)
@@ -467,7 +467,7 @@ for side in (-1,1):
     sphere("Greave frontal plate",(side*0.23,-0.275,0.34),(0.12,0.055,0.19),MAT_RED,"shin."+suffix,28,18)
     curve_tube("Greave molten channel",[(side*0.23,-0.33,0.48),(side*0.23,-0.34,0.34),(side*0.23,-0.31,0.20)],0.012,MAT_EMBER,"shin."+suffix,3)
 
-# Larger, more legible infernal greatsword with a broad leaf-shaped blade and crossguard.
+# Larger infernal greatsword with a broad leaf-shaped blade and crossguard.
 # Existing narrow blade remains as a spine; these layered blade planes widen its silhouette.
 sphere("Sword guard central seal",(0.76,-0.13,1.10),(0.095,0.055,0.10),MAT_EMBER,"sword",24,16)
 cone_between("Greatsword left quillon",(0.76,-0.08,1.10),(0.53,-0.08,1.22),0.065,MAT_GOLD,"sword",8,0.012)
