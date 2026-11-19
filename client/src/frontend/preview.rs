@@ -359,12 +359,6 @@ fn sync_preview_model(
         NormalizeModelScale::for_player_model(),
         Name::new(format!("AvatarPreviewModel-{slug}")),
     ));
-    if slug == "zargat" {
-        model_commands.insert(crate::zargat::ZargatPreview);
-    }
-    if slug == "zargat" {
-        model_commands.insert(crate::zargat::ZargatPreview);
-    }
     let model = model_commands.id();
     if let Some(gltf) = gltf.clone() {
         commands.entity(model).insert(ModelScaleSource {
