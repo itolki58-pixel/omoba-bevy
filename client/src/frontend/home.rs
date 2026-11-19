@@ -387,6 +387,21 @@ pub fn last_match_line(result: &shared::career::MatchResult, profile_id: Option<
 }
 
 /// Shared status line: the home header and the picker header both use it.
+/// A storage-disabled standalone host explicitly advertises unranked guest play.
+/// This is the only safe case where Home may bypass the public lobby/profile gate:
+/// the standalone server accepts direct Join packets and fills the remaining seats
+/// with its local practice bots. An unavailable or not-yet-loaded career view is
+/// not enough to enable this path.
+fn standalone_guest_available(career: &CareerClient) -> bool {
+    !career.view.storage_enabled
+        && career.view.match_service.is_none()
+        && career
+            .view
+            .error
+            .as_deref()
+            .is_some_and(|message| message.starts_with("Career storage is not configured on this server."))
+}
+
 pub(crate) fn connection_line(session: &ClientSession) -> (String, Color) {
     if let Some(issue) = session.compatibility_issue {
         let key = if issue == shared::compatibility::CompatibilityIssue::Unavailable {
@@ -471,6 +486,7 @@ fn spawn_home(
     );
     let (status, status_color) = connection_line(&session);
     let profile = career.view.profile.clone();
+    let standalone_guest = standalone_guest_available(&career);
     let last_match = career
         .view
         .last_result
@@ -766,8 +782,9 @@ fn spawn_home(
                 if !can_resume
                     && !searching
                     && (!matches!(session.state(), ClientConnectionState::Connected)
-                        || career.view.match_service.is_none()
-                        || career.view.profile.is_none())
+                        || (!standalone_guest
+                            && (career.view.match_service.is_none()
+                                || career.view.profile.is_none())))
                 {
                     column.commands().entity(play).insert(Pressable {
                         disabled: true,
@@ -1244,9 +1261,12 @@ fn home_actions(
                     continue;
                 }
 
-                if career.view.match_service.is_none() || career.view.profile.is_none() {
-                    // Standalone servers and guest sessions cannot use public matchmaking.
-                    // Never bypass the queue and drop the player directly into a match.
+                if !standalone_guest_available(&career)
+                    && (career.view.match_service.is_none() || career.view.profile.is_none())
+                {
+                    // Public matchmaking requires an authenticated profile. The sole
+                    // exception is an explicitly advertised storage-disabled standalone
+                    // host, which runs an unranked local match with server-filled bots.
                     continue;
                 }
                 matchmaking.preference = shared::match_service::MatchPreference::Quick;
