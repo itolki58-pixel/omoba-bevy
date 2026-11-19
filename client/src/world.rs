@@ -232,6 +232,7 @@ impl Plugin for SetupPlugin {
             Update,
             (
                 crate::zargat::attach_zargat_visuals,
+                crate::zargat::hide_zargat_base_meshes,
                 crate::zargat::animate_zargat_wings,
             )
                 .chain()
