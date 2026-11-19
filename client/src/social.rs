@@ -1047,11 +1047,17 @@ fn chat_keyboard(
             if !window.ime_enabled {
                 window.ime_enabled = true;
             }
+            if !social.ime_owned {
+                // NativeActivity's implicit IME toggle is unreliable on modern
+                // Android. Use android-activity's fixed explicit request as well.
+                crate::platform::set_soft_keyboard_visible(true);
+            }
             social.ime_owned = true;
         } else if social.ime_owned {
             if window.ime_enabled {
                 window.ime_enabled = false;
             }
+            crate::platform::set_soft_keyboard_visible(false);
             social.ime_owned = false;
         }
     }
