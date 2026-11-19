@@ -136,13 +136,13 @@
       "thumbnail": "orion.png"
     },
     {
-      "author": "Polygonal-Mind",
-      "collection": "100Avatars R3 / OMOBA Original",
+      "author": "OMOBA",
+      "collection": "OMOBA Original",
       "display_name": "Заргат",
       "license": "CC0",
       "slug": "zargat",
-      "source_url": "https://arweave.net/U5J00CQ4NHUkXH7rrM4DTt4Oi3JqkTXKzC2z4oX67qs",
-      "thumbnail": "crowley.jpg"
+      "source_url": "",
+      "thumbnail": null
     }
   ]
 }
