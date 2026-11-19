@@ -27,7 +27,7 @@ pub(crate) struct ZargatVisual;
 
 /// Marks original source-model mesh nodes after they are hidden for Zaragat.
 #[derive(Component)]
-struct ZargatBaseHidden;
+pub(crate) struct ZargatBaseHidden;
 
 /// Hide the source avatar meshes while retaining the replicated movement root.
 pub(crate) fn hide_zargat_base_meshes(
