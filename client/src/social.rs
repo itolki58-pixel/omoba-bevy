@@ -534,7 +534,7 @@ impl SocialClient {
     pub(crate) fn qa_send_chat(&mut self, out: &mut MessageWriter<NetworkCommand>) {
         self.chat_open = true;
         self.opened_frame = true;
-        self.draft = "QA: Привет 小明 — ready for practice!".into(); // i18n-allow: QA harness draft
+        self.draft = "QA: Привет Игрок — ready for practice!".into(); // i18n-allow: QA harness draft
         self.send_chat(out);
     }
     #[cfg(feature = "qa")]
@@ -2455,7 +2455,7 @@ mod tests {
             assert_eq!(typing.top, reading.top);
             assert_eq!(typing.width, reading.width);
         }
-        let preview = composer_preview("Привет 小明, this is a long draft", "中文", 128.0);
+        let preview = composer_preview("Привет Игрок, this is a long draft", "中文", 128.0);
         assert!(preview.starts_with('…'));
         assert!(preview.ends_with("中文 |"));
     }
@@ -2624,7 +2624,7 @@ mod tests {
 
     #[test]
     fn chat_bubble_preview_includes_nickname_and_bounds_wide_text() {
-        assert_eq!(chat_bubble_preview("小明", "hello"), "小明: hello");
+        assert_eq!(chat_bubble_preview("Игрок", "hello"), "Игрок: hello");
         let preview = chat_bubble_preview("很长的昵称名字测试", "世界你好".repeat(40).as_str());
         assert!(preview.contains(": ") && preview.ends_with('…'));
         assert!(
@@ -2931,7 +2931,7 @@ mod tests {
         SocialEvent {
             id,
             player_id: 7,
-            nickname: "小明".into(),
+            nickname: "Игрок".into(),
             team: shared::social::SocialTeam::Green,
             age_ms: 0,
             kind,
@@ -3126,18 +3126,18 @@ mod tests {
             .id();
         app.world_mut().write_message(Ime::Commit {
             window,
-            value: "Привет 小明".into(),
+            value: "Привет Игрок".into(),
         });
         app.world_mut().write_message(KeyboardInput {
             window,
             key_code: KeyCode::KeyA,
-            logical_key: Key::Character("Привет 小明".into()),
-            text: Some("Привет 小明".into()),
+            logical_key: Key::Character("Привет Игрок".into()),
+            text: Some("Привет Игрок".into()),
             state: ButtonState::Pressed,
             repeat: false,
         });
         app.update();
-        assert_eq!(app.world().resource::<SocialClient>().draft, "Привет 小明");
+        assert_eq!(app.world().resource::<SocialClient>().draft, "Привет Игрок");
         assert!(app.world().get::<Window>(window).unwrap().ime_enabled);
         app.world_mut().resource_mut::<SocialClient>().close();
         app.update();
@@ -3145,7 +3145,7 @@ mod tests {
         assert!(!app.world().get::<Window>(window).unwrap().ime_enabled);
         let mut value = "a".repeat(160);
         let before = value.clone();
-        assert!(append_chat(&mut value, "小").is_err());
+        assert!(append_chat(&mut value, "я").is_err());
         assert_eq!(value, before);
     }
     #[test]
