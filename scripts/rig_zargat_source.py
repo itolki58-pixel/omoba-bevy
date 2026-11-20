@@ -73,61 +73,106 @@ zmin,zmax=min(v.z for v in verts),max(v.z for v in verts)
 width=max(0.2,xmax-xmin); depth=max(0.2,ymax-ymin)
 cx=(xmin+xmax)*0.5; cy=(ymin+ymax)*0.5
 
-ad = bpy.data.armatures.new("Zargat_Armature")
-rig = bpy.data.objects.new("Zargat_Rig", ad)
+# Build the user's DemonKnight bone layout in mesh-local coordinates.
+# The armature object stays at the origin: this avoids the double X/Y offset
+# present in the pasted script's armature_add(location=(center_x, center_y, 0)).
+verts = [v.co.copy() for v in body.data.vertices]
+xmin,xmax=min(v.x for v in verts),max(v.x for v in verts)
+ymin,ymax=min(v.y for v in verts),max(v.y for v in verts)
+zmin,zmax=min(v.z for v in verts),max(v.z for v in verts)
+height=max(0.01,zmax-zmin)
+center_x=(xmin+xmax)*0.5
+center_y=(ymin+ymax)*0.5
+def z_at(t):
+    return zmin + height*t
+
+ad=bpy.data.armatures.new("DemonKnight_Armature")
+rig=bpy.data.objects.new("DemonKnight_Rig",ad)
 bpy.context.collection.objects.link(rig)
-bpy.context.view_layer.objects.active=rig; rig.select_set(True)
+rig.location=(0,0,0); rig.rotation_euler=(0,0,0); rig.scale=(1,1,1)
+bpy.context.view_layer.objects.active=rig
+rig.select_set(True)
 bpy.ops.object.mode_set(mode="EDIT")
 eb={}
-def add(name, head, tail, parent=None):
-    b=ad.edit_bones.new(name); b.head=head; b.tail=tail
-    if parent: b.parent=eb[parent]
-    eb[name]=b
-# Human-like skeleton with separate wing and tail controls.
-add("root",(cx,cy,0),(cx,cy,.22))
-add("pelvis",(cx,cy,.78),(cx,cy,1.02),"root")
-add("spine",(cx,cy,1.02),(cx,cy,1.38),"pelvis")
-add("chest",(cx,cy,1.38),(cx,cy,1.62),"spine")
-add("neck",(cx,cy,1.62),(cx,cy,1.78),"chest")
-add("head",(cx,cy,1.78),(cx,cy,2.08),"neck")
-add("jaw",(cx,cy-.05,1.78),(cx,cy-.08,1.68),"head")
-for s,suf in [(-1,"L"),(1,"R")]:
-    x=cx+s*width*.20
-    add("upper_arm."+suf,(x,cy,1.52),(cx+s*width*.39,cy,1.20),"chest")
-    add("forearm."+suf,(cx+s*width*.39,cy,1.20),(cx+s*width*.43,cy,.91),"upper_arm."+suf)
-    add("hand."+suf,(cx+s*width*.43,cy,.91),(cx+s*width*.44,cy,.76),"forearm."+suf)
-    for n in range(1,4):
-        xx=cx+s*width*(.40+n*.018)
-        add(f"finger.{n}.{suf}",(xx,cy-.025,.78),(xx,cy-.08,.69),"hand."+suf)
-    add("thigh."+suf,(cx+s*width*.12,cy,.86),(cx+s*width*.14,cy,.49),"pelvis")
-    add("shin."+suf,(cx+s*width*.14,cy,.49),(cx+s*width*.14,cy,.14),"thigh."+suf)
-    add("foot."+suf,(cx+s*width*.14,cy,.14),(cx+s*width*.14,cy-.20,.07),"shin."+suf)
-    add("wing."+suf,(cx+s*width*.18,cy+.02,1.55),(cx+s*width*.52,cy+.04,1.90),"chest")
-add("tail.01",(cx,cy+.08,.85),(cx,cy+depth*.16,.72),"pelvis")
-add("tail.02",(cx,cy+depth*.16,.72),(cx,cy+depth*.30,.58),"tail.01")
-add("tail.03",(cx,cy+depth*.30,.58),(cx,cy+depth*.43,.45),"tail.02")
-add("tail.tip",(cx,cy+depth*.43,.45),(cx,cy+depth*.50,.38),"tail.03")
-add("sword",(cx+width*.42,cy,.88),(cx+width*.44,cy,1.48),"hand.R")
+def add(name,head,tail,parent=None,connect=False):
+    bone=ad.edit_bones.new(name)
+    bone.head=Vector(head); bone.tail=Vector(tail)
+    if parent:
+        bone.parent=eb[parent]
+        bone.use_connect=connect
+    eb[name]=bone
+add("Root",(center_x,center_y,zmin),(center_x,center_y,zmin+height*.08))
+pelvis=add("Pelvis",(center_x,center_y,z_at(.50)),(center_x,center_y,z_at(.56)),"Root")
+spine1=add("Spine_01",pelvis.tail,(center_x,center_y,z_at(.65)),"Pelvis",True)
+spine2=add("Spine_02",spine1.tail,(center_x,center_y,z_at(.76)),"Spine_01",True)
+neck=add("Neck",spine2.tail,(center_x,center_y,z_at(.83)),"Spine_02",True)
+add("Head",neck.tail,(center_x,center_y,z_at(.96)),"Neck",True)
+for side,sign in [("L",1.0),("R",-1.0)]:
+    hip=add(f"Thigh_{side}",(center_x+sign*height*.08,center_y,z_at(.50)),
+            (center_x+sign*height*.09,center_y,z_at(.27)),"Pelvis")
+    shin=add(f"Shin_{side}",hip.tail,
+             (center_x+sign*height*.09,center_y-height*.02,z_at(.07)),f"Thigh_{side}",True)
+    add(f"Foot_{side}",shin.tail,
+        (center_x+sign*height*.09,center_y-height*.11,z_at(.01)),f"Shin_{side}",True)
+    clav=add(f"Clavicle_{side}",(center_x+sign*height*.04,center_y,z_at(.75)),
+             (center_x+sign*height*.14,center_y,z_at(.74)),"Spine_02")
+    upper=add(f"UpperArm_{side}",clav.tail,
+              (center_x+sign*height*.28,center_y,z_at(.57)),f"Clavicle_{side}",True)
+    fore=add(f"Forearm_{side}",upper.tail,
+             (center_x+sign*height*.36,center_y-height*.05,z_at(.41)),f"UpperArm_{side}",True)
+    add(f"Hand_{side}",fore.tail,
+        (center_x+sign*height*.40,center_y-height*.09,z_at(.34)),f"Forearm_{side}",True)
+tail_prev="Pelvis"
+tail_steps=[(.48,.12),(.43,.26),(.36,.40),(.28,.52)]
+for idx,(zt,yd) in enumerate(tail_steps,1):
+    head=(center_x,center_y+height*.04,z_at(.50)) if idx==1 else eb[tail_prev].tail
+    name=f"Tail_{idx:02d}"
+    add(name,head,(center_x,center_y+height*yd,z_at(zt)),tail_prev,idx>1)
+    tail_prev=name
+for side,sign in [("L",1.0),("R",-1.0)]:
+    root=add(f"Wing_Root_{side}",(center_x+sign*height*.07,center_y+height*.03,z_at(.73)),
+             (center_x+sign*height*.35,center_y+height*.06,z_at(.86)),"Spine_02")
+    mid=add(f"Wing_Mid_{side}",root.tail,
+            (center_x+sign*height*.62,center_y+height*.08,z_at(.78)),f"Wing_Root_{side}",True)
+    add(f"Wing_Tip_{side}",mid.tail,
+        (center_x+sign*height*.78,center_y+height*.10,z_at(.64)),f"Wing_Mid_{side}",True)
 bpy.ops.object.mode_set(mode="OBJECT")
 
-# Spatial skinning: blend the two closest anatomical control points. The
-# original fused surface/materials remain intact; no procedural replacement.
-bone_points={name:Vector((b.head_local+b.tail_local)*.5) for name,b in ad.bones.items()}
-groups={name:body.vertex_groups.new(name=name) for name in bone_points}
-for i,v in enumerate(body.data.vertices):
-    p=v.co
-    # Keep torso/helmet vertices anchored to their nearest central controls;
-    # limb and wing vertices naturally select their nearest limb controls.
-    ranked=sorted(((p-bp).length,name) for name,bp in bone_points.items())
-    chosen=ranked[:2]
-    d0=max(chosen[0][0],.0001); d1=max(chosen[1][0],.0001)
-    w0=d1/(d0+d1); w1=d0/(d0+d1)
-    groups[chosen[0][1]].add([i],w0,"REPLACE")
-    groups[chosen[1][1]].add([i],w1,"REPLACE")
-mod=body.modifiers.new("Zargat skeletal deformation","ARMATURE"); mod.object=rig
-body.parent=rig
-body["character_id"]="zargat"; body["source_asset"]="demon knight 3d model.glb"
-rig.show_in_front=True; ad.display_type="OCTAHEDRAL"
+# Try Blender's automatic heat-based weights first. If the fused source mesh
+# cannot be solved by Blender, fall back to smooth nearest-bone weights.
+bpy.ops.object.select_all(action="DESELECT")
+body.select_set(True); rig.select_set(True)
+bpy.context.view_layer.objects.active=rig
+auto_ok=False
+try:
+    bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+    auto_ok=bool(body.parent==rig and len(body.vertex_groups)>0)
+except Exception as exc:
+    print("Automatic weights unavailable; using fallback:",exc)
+if not auto_ok:
+    for mod in list(body.modifiers):
+        if mod.type=="ARMATURE": body.modifiers.remove(mod)
+    body.parent=None
+    for group in list(body.vertex_groups):
+        body.vertex_groups.remove(group)
+    bone_points={name:(bone.head_local+bone.tail_local)*.5 for name,bone in ad.bones.items()}
+    groups={name:body.vertex_groups.new(name=name) for name in bone_points}
+    for i,v in enumerate(body.data.vertices):
+        ranked=sorted(((v.co-p).length,name) for name,p in bone_points.items())
+        first,second=ranked[:2]
+        d0=max(first[0],.0001); d1=max(second[0],.0001)
+        groups[first[1]].add([i],d1/(d0+d1),"REPLACE")
+        groups[second[1]].add([i],d0/(d0+d1),"REPLACE")
+    body.parent=rig
+    mod=body.modifiers.new("DemonKnight_Armature","ARMATURE")
+    mod.object=rig
+# Ensure the armature modifier is present and points at the new rig.
+if not any(m.type=="ARMATURE" and m.object==rig for m in body.modifiers):
+    mod=body.modifiers.new("DemonKnight_Armature","ARMATURE"); mod.object=rig
+body["character_id"]="zargat"
+body["rig_source"]="DemonKnight custom bone layout"
+rig.show_in_front=True
+ad.display_type="OCTAHEDRAL"
 
 def reset():
     for p in rig.pose.bones:
@@ -141,17 +186,17 @@ def clip(name, frames, fn):
         bpy.context.scene.frame_set(f); reset(); fn(f)
         for p in rig.pose.bones:
             p.keyframe_insert(data_path="rotation_euler",frame=f,group=p.name)
-            if p.name=="pelvis": p.keyframe_insert(data_path="location",frame=f,group=p.name)
+            if p.name=="Pelvis": p.keyframe_insert(data_path="location",frame=f,group=p.name)
     rig.animation_data.action=None
     track=rig.animation_data.nla_tracks.new(); track.name=name
     strip=track.strips.new(name,frames[0],act); strip.name=name; strip.blend_type="REPLACE"
 def idle(f):
     t=(f-1)/30*math.tau
-    rot("spine",.025*math.sin(t)); rot("chest",.025*math.sin(t+.4),.025*math.sin(t/2))
-    rot("head",.025*math.sin(t+.8))
+    rot("Spine_01",.025*math.sin(t)); rot("Spine_02",.025*math.sin(t+.4),.025*math.sin(t/2))
+    rot("Head",.025*math.sin(t+.8))
     for suf,s in [("L",1),("R",-1)]:
         rot("wing."+suf,s*.10*math.sin(t/2))
-    for n,k in [("tail.01",.08),("tail.02",.12),("tail.03",.16),("tail.tip",.18)]:
+    for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.18)]:
         rot(n,k*math.sin(t+.6))
 def locomotion(f,amount):
     t=(f-1)/24*math.tau
@@ -159,36 +204,36 @@ def locomotion(f,amount):
         a=math.sin(t+phase)
         rot("thigh."+suf,.55*amount*a); rot("shin."+suf,.45*amount*max(0,-a))
         rot("upper_arm."+suf,-.30*amount*a)
-    rot("spine",.04*amount*math.sin(2*t)); rot("chest",.025*amount*math.sin(2*t+1))
+    rot("Spine_01",.04*amount*math.sin(2*t)); rot("Spine_02",.025*amount*math.sin(2*t+1))
     for suf,s in [("L",1),("R",-1)]: rot("wing."+suf,s*.12*amount*math.sin(2*t))
-    for n,k in [("tail.01",.08),("tail.02",.12),("tail.03",.16),("tail.tip",.20)]:
+    for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.20)]:
         rot(n,k*math.sin(t+.5))
 def attack(f):
     t=(f-1)/26
     power=math.sin(min(1,max(0,t))*math.pi)
-    rot("spine",-.22*power); rot("chest",-.35*power)
-    rot("upper_arm.R",-.9*power); rot("forearm.R",-.7*power); rot("sword",-.8*power)
-    rot("wing.L",.2*power); rot("wing.R",-.2*power)
+    rot("Spine_01",-.22*power); rot("Spine_02",-.35*power)
+    rot("UpperArm_R",-.9*power); rot("Forearm_R",-.7*power); rot("sword",-.8*power)
+    rot("Wing_Root_L",.2*power); rot("Wing_Root_R",-.2*power)
 def cast(f):
     p=math.sin((f-1)/24*math.pi)
-    rot("upper_arm.L",.65*p); rot("upper_arm.R",-.65*p)
-    rot("wing.L",.35*p); rot("wing.R",-.35*p)
+    rot("UpperArm_L",.65*p); rot("UpperArm_R",-.65*p)
+    rot("Wing_Root_L",.35*p); rot("Wing_Root_R",-.35*p)
 def death(f):
     p=(f-1)/30
-    rot("spine",.65*p); rot("head",-.3*p); rot("wing.L",.45*p); rot("wing.R",-.45*p)
+    rot("Spine_01",.65*p); rot("Head",-.3*p); rot("Wing_Root_L",.45*p); rot("Wing_Root_R",-.45*p)
 def hit(f):
     p=math.sin((f-1)/12*math.pi)
-    rot("spine",-.2*p); rot("chest",-.15*p); rot("head",.12*p)
+    rot("Spine_01",-.2*p); rot("Spine_02",-.15*p); rot("Head",.12*p)
 def turn(f,sign):
     p=math.sin((f-1)/16*math.pi)
-    rot("pelvis",sign*.24*p); rot("spine",sign*.35*p); rot("head",sign*.12*p)
+    rot("Pelvis",sign*.24*p); rot("Spine_01",sign*.35*p); rot("Head",sign*.12*p)
 def stop(f):
     p=math.sin((f-1)/10*math.pi)
-    rot("spine",-.08*p); rot("tail.02",.14*p); rot("tail.03",.18*p)
+    rot("Spine_01",-.08*p); rot("Tail_02",.14*p); rot("Tail_03",.18*p)
 def ultimate(f):
     p=math.sin((f-1)/30*math.pi/2)
-    rot("upper_arm.L",.8*p); rot("upper_arm.R",-.8*p)
-    rot("wing.L",.7*p); rot("wing.R",-.7*p); rot("chest",-.1*p)
+    rot("UpperArm_L",.8*p); rot("UpperArm_R",-.8*p)
+    rot("Wing_Root_L",.7*p); rot("Wing_Root_R",-.7*p); rot("Spine_02",-.1*p)
 clip("Idle",[1,16,31],idle)
 clip("Run",[1,6,11,16,21],lambda f:locomotion(f,1.0))
 clip("Walk",[1,7,13,19,25],lambda f:locomotion(f,.65))
