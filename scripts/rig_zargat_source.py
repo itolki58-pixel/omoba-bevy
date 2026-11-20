@@ -37,6 +37,22 @@ for v in body.data.vertices:
     v.co.z += 1.175
 body.data.update()
 
+# Keep the supplied painted skin and reduce mobile GPU memory pressure.
+# 2K is enough for the in-match camera while avoiding oversized source textures.
+for image in bpy.data.images:
+    if image.source != "FILE" or not image.has_data:
+        continue
+    width, height = map(int, image.size)
+    if width <= 0 or height <= 0:
+        continue
+    largest = max(width, height)
+    if largest > 2048:
+        factor = 2048.0 / largest
+        image.scale(max(1, round(width * factor)), max(1, round(height * factor)))
+    image.file_format = "JPEG"
+    image.pack()
+    print("Zargat texture prepared:", image.name, tuple(map(int, image.size)), image.file_format)
+
 # Keep the supplied painted base-colour texture intact. The source atlas already
 # contains the red plates and dark forged-metal regions; multiplying it by a
 # luminance-derived red/orange tint flattened every surface into plastic.
