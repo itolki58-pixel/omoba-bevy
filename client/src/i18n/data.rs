@@ -88,7 +88,7 @@ pub(crate) fn item_short(item: ItemId) -> &'static str {
     lookup_composed("item.", item.id(), ".short").unwrap_or_else(|| item_name(item))
 }
 
-/// A draft role (`Solo`).
+/// A fixed gameplay position (`EXP`).
 pub(crate) fn role(role: Role) -> &'static str {
     tr(match role {
         Role::Solo => "role.solo",

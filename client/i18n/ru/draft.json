@@ -5,8 +5,8 @@
   "draft.notice.verification_failed": "Проверка аватара не удалась. Ваш выбранный герой не изменён.",
   "draft.warning.same_avatar": "Союзник выбрал такой же аватар · обсудите выбор перед подтверждением.",
   "draft.warning.same_role": "{count} игроков планируют {role} · согласуйте линии.",
-  "draft.warning.one_class": "У всей команды один класс · попробуйте разнообразить состав.",
-  "draft.warning.default": "Роли описывают ваш план; класс определяет ваши способности.",
+  "draft.warning.one_class": "В команде выбран один и тот же герой.",
+  "draft.warning.default": "Герой определяет способности и оружие; позиция определяет вашу линию.",
   "draft.roster.you": " · ВЫ",
   "draft.roster.bot": " · БОТ",
   "draft.roster.class_role": "{hero} · {role}",
@@ -15,7 +15,7 @@
   "draft.roster.locked": "ВЫБРАН",
   "draft.roster.picking": "ВЫБОР",
   "draft.title": "Соберите команду",
-  "draft.subtitle": "Герой · класс · линия · 30 секунд на выбор",
+  "draft.subtitle": "Герой · позиция · линия · 30 секунд на выбор",
   "draft.your_team": "ВАША КОМАНДА",
   "draft.avatars.included": "ВСТРОЕННЫЕ ГЕРОИ",
   "draft.avatars.studio": "EKZA STUDIO · БИБЛИОТЕКА",
@@ -28,5 +28,12 @@
   "draft.timer.gathering": "Ожидаем команду…",
   "draft.stage.rotate": "Потяни, чтобы повернуть",
   "draft.tab.avatars": "Аватары",
-  "draft.tab.classes": "Классы"
+  "draft.tab.classes": "Герои",
+  "draft.warning.same_hero": "В команде один и тот же герой выбран несколько раз.",
+  "draft.filter.all": "ВСЕ",
+  "draft.filter.gold": "ЗОЛОТО",
+  "draft.filter.experience": "ОПЫТ",
+  "draft.filter.center": "ЦЕНТР",
+  "draft.filter.jungle": "ЛЕС",
+  "draft.filter.support": "ПОДДЕРЖКА"
 }

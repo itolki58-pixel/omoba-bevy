@@ -1,5 +1,9 @@
 name: Release
 
+concurrency:
+  group: omoba-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 # Builds every desktop and Android package and attaches them to a DRAFT
 # GitHub release. Publishing stays a manual click (or
 # `gh release edit <tag> --draft=false`). iPhone builds need the Apple team
@@ -16,6 +20,13 @@ on:
       - ".github/workflows/release.yml"
       - "scripts/release.py"
       - "mobile/android/**"
+      - "client/**"
+      - "shared/**"
+      - "scripts/rig_zargat_source.py"
+      - "scripts/optimize_zargat_glb.py"
+      - "art/zargat/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
   workflow_dispatch:
     inputs:
       tag:
@@ -105,8 +116,41 @@ jobs:
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$sdkmanager" --licenses >/dev/null || true
           echo "ANDROID_NDK_HOME=${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}" >> "$GITHUB_ENV"
+      - name: Build the source-based Zargat hero model
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender python3-numpy python3-pil libegl1 libgl1 libglib2.0-0
+          export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
+          blender --background --factory-startup --python scripts/rig_zargat_source.py
+          python3 scripts/optimize_zargat_glb.py client/assets/avatars/zargat.glb
+          test -s client/assets/avatars/zargat.glb
+          test -s client/assets/avatars/zargat.png
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          path = Path("client/assets/avatars/zargat.glb")
+          raw = path.read_bytes()
+          magic, version, total = struct.unpack_from("<4sII", raw, 0)
+          assert magic == b"glTF" and version == 2 and total == len(raw)
+          length, kind = struct.unpack_from("<II", raw, 12)
+          assert kind == 0x4E4F534A
+          doc = json.loads(raw[20:20 + length].decode("utf-8"))
+          assert path.stat().st_size < 16_000_000, "Zargat GLB is still too large for the mobile texture budget"
+          vertex_count = doc["accessors"][doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]]["count"]
+          assert vertex_count <= 100_000, f"Zargat mesh exceeds mobile vertex budget: {vertex_count}"
+          assert doc.get("skins"), "Zargat GLB has no skeleton skin"
+          assert len(doc["skins"][0].get("joints", [])) >= 25, "Zargat rig is incomplete"
+          animations = {item.get("name") for item in doc.get("animations", [])}
+          required = {"Idle", "Run", "Walk", "Attack", "Cast", "Death", "Hit",
+                      "TurnLeft", "TurnRight", "Stop", "Ultimate"}
+          assert required <= animations, f"Missing clips: {sorted(required - animations)}"
+          print(f"Validated Zargat: {len(doc['skins'][0]['joints'])} joints, "
+                f"{len(animations)} animation clips, {path.stat().st_size} bytes")
+          PY
       - name: Update Cargo.lock
-        run: cargo run --quiet -p shared --example compatibility -- manifest 
+        run: cargo run --quiet -p shared --example compatibility -- manifest
+      - name: Test shared roster and protocol
+        run: cargo test -p shared --locked
       - name: Build the Android package
         env:
           # Optional: a stable signing key so updates install over each other.

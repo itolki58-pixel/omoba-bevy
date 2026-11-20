@@ -5,8 +5,8 @@
   "draft.notice.verification_failed": "Avatar verification failed. Your accepted choice is unchanged.",
   "draft.warning.same_avatar": "A teammate chose the same avatar · coordinate before locking.",
   "draft.warning.same_role": "{count} players intend {role} · agree your lanes together.",
-  "draft.warning.one_class": "One class across the team · consider a broader mix of kits.",
-  "draft.warning.default": "Roles describe your plan; class determines your abilities.",
+  "draft.warning.one_class": "Your team is relying on the same hero.",
+  "draft.warning.default": "Your hero defines your abilities and weapon; your position defines your lane.",
   "draft.roster.you": " · YOU",
   "draft.roster.bot": " · BOT",
   "draft.roster.class_role": "{hero} · {role}",
@@ -15,7 +15,7 @@
   "draft.roster.locked": "LOCKED",
   "draft.roster.picking": "PICKING",
   "draft.title": "Assemble your team",
-  "draft.subtitle": "Hero · class · lane · 30 seconds to choose",
+  "draft.subtitle": "Hero · position · lane · 30 seconds to choose",
   "draft.your_team": "YOUR TEAM",
   "draft.avatars.included": "INCLUDED HEROES",
   "draft.avatars.studio": "EKZA STUDIO · LIBRARY",
@@ -28,5 +28,12 @@
   "draft.timer.gathering": "Waiting for team…",
   "draft.stage.rotate": "Drag to rotate",
   "draft.tab.avatars": "Avatars",
-  "draft.tab.classes": "Classes"
+  "draft.tab.classes": "Heroes",
+  "draft.warning.same_hero": "Your team has selected the same hero more than once.",
+  "draft.filter.all": "ALL",
+  "draft.filter.gold": "GOLD",
+  "draft.filter.experience": "EXP",
+  "draft.filter.center": "MID",
+  "draft.filter.jungle": "JUNGLE",
+  "draft.filter.support": "SUPPORT"
 }

@@ -17,8 +17,8 @@ use std::{
 /// Operator override of the live avatar manifest.
 pub const AVATAR_MANIFEST_ENV: &str = "OMOBA_AVATAR_MANIFEST";
 
-/// One shipped avatar. All roster avatars are CC0 VRM models staged as GLB
-/// under `client/assets/avatars/<slug>.glb` with retargeted animation clips.
+/// One shipped avatar model, staged as GLB under
+/// `client/assets/avatars/<slug>.glb`; license and thumbnail are per-entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AvatarDefinition {
     pub slug: String,
@@ -346,9 +346,9 @@ mod tests {
     }
 
     #[test]
-    fn approved_release_roster_retains_fifteen_heroes_and_removed_selections_fall_back() {
+    fn approved_release_roster_retains_sixteen_heroes_and_removed_selections_fall_back() {
         let shipped: AvatarManifest = serde_json::from_str(AVATAR_MANIFEST_JSON).unwrap();
-        assert_eq!(shipped.avatars.len(), 15);
+        assert_eq!(shipped.avatars.len(), 16);
         for removed in ["el-bueno", "slime-green", "slime-blue", "wendigo-hollow"] {
             assert!(shipped.avatars.iter().all(|avatar| avatar.slug != removed));
             assert_eq!(normalize_avatar_slug(Some(removed)), None);

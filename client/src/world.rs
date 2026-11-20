@@ -3,6 +3,7 @@ use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::ecs::system::SystemParam;
 use bevy::gltf::{Gltf, GltfLoaderSettings};
 use bevy::light::CascadeShadowConfigBuilder;
+#[cfg(not(target_os = "android"))]
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::prelude::*;
 use bevy::render::view::{ColorGrading, ColorGradingGlobal};
@@ -367,49 +368,55 @@ fn setup_main_camera(
     let (yaw, pitch, _) = initial_cam_transform.rotation.to_euler(EulerRot::YXZ);
     cam_state.pitch = pitch;
     cam_state.yaw = yaw;
-    commands.spawn((
-        Camera3d::default(),
-        // Conservative Android default from Bevy 0.18's mobile example.
-        #[cfg(target_os = "android")]
-        Msaa::Off,
-        Camera {
-            clear_color: ClearColorConfig::Custom(Color::srgb(0.12, 0.19, 0.20)),
-            ..default()
-        },
-        Hdr,
-        Tonemapping::TonyMcMapface,
-        ColorGrading {
-            global: ColorGradingGlobal {
-                post_saturation: 1.08,
+    let camera = commands
+        .spawn((
+            Camera3d::default(),
+            // Conservative Android default from Bevy's mobile example.
+            #[cfg(target_os = "android")]
+            Msaa::Off,
+            Camera {
+                clear_color: ClearColorConfig::Custom(Color::srgb(0.12, 0.19, 0.20)),
                 ..default()
             },
-            ..default()
-        },
-        // Only HDR skill cores/rims feed the glow. Broad LDR floor and field
-        // fills stay readable; increasing global exposure would wash them out.
-        Bloom {
-            intensity: 0.12,
-            low_frequency_boost: 0.10,
-            high_pass_frequency: 0.75,
-            prefilter: BloomPrefilter {
-                threshold: 1.0,
-                threshold_softness: 0.15,
+            Hdr,
+            Tonemapping::TonyMcMapface,
+            ColorGrading {
+                global: ColorGradingGlobal {
+                    post_saturation: 1.08,
+                    ..default()
+                },
+                ..default()
             },
-            composite_mode: BloomCompositeMode::Additive,
-            ..default()
-        },
-        DistanceFog {
-            color: Color::srgb(0.32, 0.46, 0.46),
-            falloff: FogFalloff::Linear {
-                start: 260.0,
-                end: 850.0,
+            DistanceFog {
+                color: Color::srgb(0.32, 0.46, 0.46),
+                falloff: FogFalloff::Linear {
+                    start: 260.0,
+                    end: 850.0,
+                },
+                ..default()
             },
-            ..default()
+            initial_cam_transform,
+            MainCamera,
+            Name::new("MainCamera3d"),
+        ))
+        .id();
+
+    // Bloom is a nice desktop accent but an unnecessary full-screen post-process
+    // on mobile GPUs. Android keeps HDR/tonemapping and the skill VFX themselves.
+    #[cfg(not(target_os = "android"))]
+    commands.entity(camera).insert(Bloom {
+        intensity: 0.12,
+        low_frequency_boost: 0.10,
+        high_pass_frequency: 0.75,
+        prefilter: BloomPrefilter {
+            threshold: 1.0,
+            threshold_softness: 0.15,
         },
-        initial_cam_transform,
-        MainCamera,
-        Name::new("MainCamera3d"),
-    ));
+        composite_mode: BloomCompositeMode::Additive,
+        ..default()
+    });
+    #[cfg(target_os = "android")]
+    let _ = camera;
 }
 
 fn apply_lighting_settings_system(
@@ -479,6 +486,7 @@ fn spawn_local_player_on_team(
     session: Res<crate::net::ClientSession>,
     team_selection: Res<TeamSelection>,
     player_assets: Res<PlayerAssets>,
+    mut models: PlayerModelResolver,
     map_layout: Res<MapLayout>,
     existing_players: Query<Entity, With<Player>>,
     mut cam_state: ResMut<CameraState>,
@@ -495,15 +503,31 @@ fn spawn_local_player_on_team(
     }
     let team = team_selection.team.unwrap();
     let character = team_selection.character;
+    let hero_class = team_selection.hero_class;
     let avatar = team_selection.avatar.clone();
     let spawn = map_layout.team_spawn(team);
 
+    // Resolve the selected roster model at the spawn site. Relying on the
+    // asynchronously synchronized PlayerAssets resource could spawn the
+    // primitive fallback for one frame (or permanently in offline practice).
+    let resolved_assets = if *visual_mode == PlayerVisualMode::Models3d {
+        let (scene, gltf) = models.resolve(character, avatar.as_deref());
+        PlayerAssets {
+            scene,
+            gltf,
+            ..player_assets.clone()
+        }
+    } else {
+        player_assets.clone()
+    };
+
     spawn_player_entity(
         &mut commands,
-        &player_assets,
+        &resolved_assets,
         spawn,
         team,
         character,
+        hero_class,
         avatar,
         Some(team_selection.sprite_character.clone()),
         *visual_mode,
@@ -529,6 +553,7 @@ fn spawn_player_entity(
     spawn: Vec3,
     team: Team,
     character: CharacterChoice,
+    hero_class: shared::HeroClass,
     avatar: Option<String>,
     sprite_character: Option<String>,
     visual_mode: PlayerVisualMode,
@@ -545,6 +570,7 @@ fn spawn_player_entity(
             NetworkCharacterChoice(character),
             NetworkAvatar(avatar),
             NetworkSpriteCharacter(sprite_character),
+            crate::net::NetworkHeroClass(hero_class),
             Name::new(format!("Player-{}", team.as_str())),
         ));
         return;
@@ -566,6 +592,7 @@ fn spawn_player_entity(
             team,
             NetworkCharacterChoice(character),
             NetworkAvatar(avatar.clone()),
+            crate::net::NetworkHeroClass(hero_class),
             NormalizeModelScale::for_player_model(),
             Name::new(format!("Player-{}", team.as_str())),
         ));
@@ -588,6 +615,7 @@ fn spawn_player_entity(
             team,
             NetworkCharacterChoice(character),
             NetworkAvatar(avatar),
+            crate::net::NetworkHeroClass(hero_class),
             Name::new(format!("Player-{}", team.as_str())),
         ));
     }

@@ -1,7 +1,7 @@
 {
-  "role.solo": "Solo",
+  "role.solo": "EXP",
   "role.jungle": "Jungle",
-  "role.mid": "Mid",
-  "role.carry": "Carry",
+  "role.mid": "MID",
+  "role.carry": "GOLD",
   "role.support": "Support"
 }

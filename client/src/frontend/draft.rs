@@ -1,6 +1,6 @@
 //! Shared pre-match choices. The server owns accepted selections and lock state.
 //!
-//! Text comes from the `draft` dictionary (hero, role and avatar names through
+//! Text comes from the `draft` dictionary (hero and position names through
 //! `i18n::data`); the render key includes the locale generation. Server-authored
 //! draft errors stay English.
 // i18n-strict
@@ -16,8 +16,6 @@ pub(super) mod stage;
 use crate::{
     i18n::{Locale, data, tr, trf},
     net::{ClientSession, GameStateSnapshot, NetworkCommand, SessionUiCommand},
-    passport::{AvatarCatalogueSource, TicketPoll},
-    persistence::ClientSessionId,
     team::{AvatarThumbnails, CharacterChoice},
     ui::{
         Activated, TestId, UiAction, UiActionAppExt, UiSet,
@@ -88,24 +86,41 @@ struct Choice {
     role: Role,
 }
 impl Choice {
-    /// Proposes the kit's duty unless the player already chose a different
-    /// role on purpose.
-    fn pick_class(&mut self, class: HeroClass) {
-        if self.role == self.hero_class.primary_role() {
-            self.role = class.primary_role();
-        }
+    /// A hero owns its position, avatar and signature weapon. None of these
+    /// are independently selectable in the revised draft.
+    fn pick_hero(&mut self, class: HeroClass) {
+        let Some(hero) = shared::hero_roster::profile(class) else {
+            return;
+        };
         self.hero_class = class;
+        self.role = hero.position;
+        self.handheld = shared::handheld::HandheldSelection::ClassDefault;
+        self.avatar = Some(hero.avatar.to_owned());
+        self.sprite_character = Some(hero.sprite_character.to_owned());
     }
 }
+fn player_has_fixed_hero_identity(player: &DraftPlayer) -> bool {
+    let Some(hero) = shared::hero_roster::profile(player.hero_class) else {
+        return false;
+    };
+    player.handheld.is_default()
+        && player.avatar.as_deref() == Some(hero.avatar)
+        && player.sprite_character.as_deref() == Some(hero.sprite_character)
+        && player.role == hero.position
+}
+
 impl From<&DraftPlayer> for Choice {
     fn from(player: &DraftPlayer) -> Self {
+        let hero = shared::hero_roster::profile(player.hero_class)
+            .or_else(|| shared::hero_roster::profile(HeroClass::Warrior))
+            .expect("starter roster contains Zargat");
         Self {
-            handheld: player.handheld.clone(),
+            handheld: shared::handheld::HandheldSelection::ClassDefault,
             character: player.character,
-            hero_class: player.hero_class,
-            avatar: player.avatar.clone(),
-            sprite_character: player.sprite_character.clone(),
-            role: player.role,
+            hero_class: hero.class,
+            avatar: Some(hero.avatar.to_owned()),
+            sprite_character: Some(hero.sprite_character.to_owned()),
+            role: hero.position,
         }
     }
 }
@@ -116,20 +131,12 @@ struct PendingRequest {
     last_sent: f64,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum PickerTab {
-    #[default]
-    Avatars,
-    Classes,
-    Weapons,
-}
-
 #[derive(Resource, Default)]
 pub(super) struct DraftClient {
     namespace: Option<(u64, u64, u64)>,
     next_request_id: u64,
     choice: Option<Choice>,
-    picker_tab: PickerTab,
+    filter: HeroFilter,
     pending: Option<PendingRequest>,
     desired_lock: Option<bool>,
     wants_loaded: bool,
@@ -176,14 +183,13 @@ fn sync_draft(
     };
     let namespace = (game.meta.server_epoch, game.meta.match_id, draft.generation);
     let local = draft.players.iter().find(|p| p.player_id == game.your_id);
-    if let Some(local) = local {
+    if local.is_some() {
+        let fixed_weapon_slot = shared::handheld::HandheldSelection::ClassDefault;
         if let Some(selection) = selection.as_mut() {
-            if selection.handheld != local.handheld {
-                selection.handheld = local.handheld.clone();
-            }
+            selection.handheld = fixed_weapon_slot.clone();
         }
         if let Some(session) = session.as_mut() {
-            session.remember_handheld(&local.handheld);
+            session.remember_handheld(&fixed_weapon_slot);
         }
     }
     if state.namespace != Some(namespace) {
@@ -217,17 +223,44 @@ fn sync_draft(
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum HeroFilter {
+    #[default]
+    All,
+    Gold,
+    Experience,
+    Center,
+    Jungle,
+    Support,
+}
+impl HeroFilter {
+    fn matches(self, role: Role) -> bool {
+        match self {
+            Self::All => true,
+            Self::Gold => role == Role::Carry,
+            Self::Experience => role == Role::Solo,
+            Self::Center => role == Role::Mid,
+            Self::Jungle => role == Role::Jungle,
+            Self::Support => role == Role::Support,
+        }
+    }
+    fn label(self) -> &'static str {
+        match self {
+            Self::All => "draft.filter.all",
+            Self::Gold => "draft.filter.gold",
+            Self::Experience => "draft.filter.experience",
+            Self::Center => "draft.filter.center",
+            Self::Jungle => "draft.filter.jungle",
+            Self::Support => "draft.filter.support",
+        }
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum DraftAction {
-    Picker(PickerTab),
-    Class(HeroClass),
-    Role(Role),
-    Avatar(String),
-    Handheld(shared::handheld::HandheldSelection),
+    Hero(HeroClass),
+    Filter(HeroFilter),
     Lock,
     Leave,
-    Refresh,
-    Connect,
 }
 
 fn draft_actions(
@@ -237,7 +270,6 @@ fn draft_actions(
     mut session: MessageWriter<SessionUiCommand>,
 ) {
     let pressed: Vec<DraftAction> = activated.read().map(|a| a.action.clone()).collect();
-    // Leaving remains available when transport teardown removed the roster.
     if pressed.contains(&DraftAction::Leave) {
         state.reset();
         session.write(SessionUiCommand::LeaveMatch);
@@ -255,12 +287,6 @@ fn draft_actions(
                 state.reset();
                 session.write(SessionUiCommand::LeaveMatch);
             }
-            DraftAction::Refresh => {
-                crate::passport::refresh_avatar_catalogue();
-                omoba_passport::weapon_store::refresh(true);
-            }
-            DraftAction::Connect => crate::passport::connect_account(),
-            DraftAction::Picker(tab) => state.picker_tab = *tab,
             DraftAction::Lock if draft.phase == PrematchPhase::Draft => {
                 state.notice = None;
                 state.desired_lock = Some(!local.locked);
@@ -268,41 +294,14 @@ fn draft_actions(
             _ if draft.phase != PrematchPhase::Draft || local.locked => {
                 state.notice = Some(tr("draft.notice.unlock_first").into());
             }
-            DraftAction::Avatar(slug) => {
-                if omoba_passport::avatars::avatar_definition(slug)
-                    .is_none_or(|avatar| !crate::passport::can_select(avatar))
-                {
-                    state.notice = Some(tr("draft.notice.avatar_unavailable").into());
-                    continue;
-                }
+            DraftAction::Hero(class) => {
                 if let Some(choice) = &mut state.choice {
-                    choice.avatar = Some(slug.clone());
+                    choice.pick_hero(*class);
                 }
                 state.notice = None;
             }
-            DraftAction::Class(class) => {
-                if let Some(choice) = &mut state.choice {
-                    choice.pick_class(*class);
-                }
-                state.notice = None;
-            }
-            DraftAction::Handheld(value) => {
-                if let shared::handheld::HandheldSelection::Item(id) = value {
-                    if !omoba_passport::weapon_store::eligible(id) {
-                        continue;
-                    }
-                    omoba_passport::weapon_store::model_state(id);
-                }
-                state
-                    .choice
-                    .get_or_insert_with(|| Choice::from(local))
-                    .handheld = value.clone();
-            }
-            DraftAction::Role(role) => {
-                if let Some(choice) = &mut state.choice {
-                    choice.role = *role;
-                }
-                state.notice = None;
+            DraftAction::Filter(filter) => {
+                state.filter = *filter;
             }
             DraftAction::Lock => {}
         }
@@ -312,7 +311,6 @@ fn draft_actions(
 fn send_requests(
     game: Res<GameStateSnapshot>,
     session: Res<ClientSession>,
-    identity: Res<ClientSessionId>,
     time: Res<Time<Real>>,
     mut state: ResMut<DraftClient>,
     mut writer: MessageWriter<NetworkCommand>,
@@ -328,7 +326,6 @@ fn send_requests(
     };
     let now = time.elapsed_secs_f64();
     if let Some(pending) = &mut state.pending {
-        // Packet loss repeats the exact request identity, never a new purchase/select.
         if now - pending.last_sent >= 0.6 {
             pending.last_sent = now;
             writer.write(NetworkCommand::Prematch(pending.request.clone()));
@@ -340,40 +337,18 @@ fn send_requests(
         state.loaded_sent = true;
         Some(PrematchAction::Loaded)
     } else if draft.phase == PrematchPhase::Draft {
-        let desired = state.choice.clone();
-        if !local.locked
-            && desired
-                .as_ref()
-                .is_some_and(|choice| *choice != Choice::from(local))
-        {
-            let choice = desired.unwrap();
-            let ticket = match if choice.avatar == local.avatar {
-                TicketPoll::Free
-            } else {
-                crate::passport::ticket_for_slug(choice.avatar.as_deref(), &identity.0)
-            } {
-                TicketPoll::Free => None,
-                TicketPoll::Ready(ticket) => Some(ticket),
-                TicketPoll::Pending => {
-                    state.notice = Some(tr("draft.notice.verifying").into());
-                    return;
-                }
-                TicketPoll::Denied(_) => {
-                    state.choice = Some(Choice::from(local));
-                    state.desired_lock = None;
-                    state.notice = Some(tr("draft.notice.verification_failed").into());
-                    return;
-                }
-            };
+        let choice = state.choice.clone().unwrap_or_else(|| Choice::from(local));
+        let needs_select = !player_has_fixed_hero_identity(local) || choice != Choice::from(local);
+        if !local.locked && needs_select {
             state.notice = None;
             Some(PrematchAction::Select {
-                handheld: choice.handheld.clone(),
+                handheld: shared::handheld::HandheldSelection::ClassDefault,
                 character: choice.character,
                 hero_class: choice.hero_class,
                 avatar: choice.avatar,
                 sprite_character: choice.sprite_character,
                 role: choice.role,
-                passport_ticket: ticket,
+                passport_ticket: None,
             })
         } else {
             state
@@ -396,12 +371,11 @@ pub(super) fn composition_warning(players: &[DraftPlayer], local_id: u64) -> Str
         return String::new();
     };
     let team: Vec<_> = players.iter().filter(|p| p.team == local.team).collect();
-    let duplicate = local.avatar.as_ref().is_some_and(|avatar| {
-        team.iter()
-            .any(|p| p.player_id != local_id && p.avatar.as_ref() == Some(avatar))
-    });
-    if duplicate {
-        return tr("draft.warning.same_avatar").into();
+    let duplicate_hero = team
+        .iter()
+        .any(|player| player.player_id != local_id && player.hero_class == local.hero_class);
+    if duplicate_hero {
+        return tr("draft.warning.same_hero").into();
     }
     let same_role = team.iter().filter(|p| p.role == local.role).count();
     if same_role > 1 {
@@ -409,9 +383,6 @@ pub(super) fn composition_warning(players: &[DraftPlayer], local_id: u64) -> Str
             "draft.warning.same_role",
             &[("count", &same_role), ("role", &data::role(local.role))],
         );
-    }
-    if team.len() >= 3 && team.iter().all(|p| p.hero_class == local.hero_class) {
-        return tr("draft.warning.one_class").into();
     }
     tr("draft.warning.default").into()
 }
@@ -487,12 +458,69 @@ pub(super) fn action_button<T: UiActionT>(
             TestId::new(name.to_owned()),
         ))
         .with_children(|button| {
-            button.spawn(widgets::label(label, 13.0, theme::IVORY));
+            button.spawn(widgets::label(label, if width < 82.0 { 10.0 } else { 13.0 }, theme::IVORY));
         });
 }
 
-pub(super) fn avatar_name(slug: Option<&str>) -> String {
-    crate::passport::avatar_display_name(slug)
+fn hero_card(
+    parent: &mut ChildSpawnerCommands,
+    hero: &shared::hero_roster::HeroRosterEntry,
+    image: Option<Handle<Image>>,
+    width: f32,
+    selected: bool,
+) {
+    let portrait_width = (width - 12.0).clamp(52.0, 76.0);
+    let portrait_height = portrait_width * 1.08;
+    parent
+        .spawn((
+            Button,
+            Node {
+                width: Val::Px(width),
+                min_width: Val::Px(width),
+                height: Val::Px(124.0),
+                min_height: Val::Px(124.0),
+                flex_shrink: 0.0,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(5.0),
+                padding: UiRect::all(Val::Px(5.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                border_radius: BorderRadius::all(Val::Px(8.0)),
+                ..default()
+            },
+            BackgroundColor(if selected { theme::TILE_SELECTED } else { theme::PANEL_OPAQUE }),
+            BorderColor::all(if selected { theme::GOLD } else { theme::PANEL_EDGE }),
+            ButtonStyle { kind: ButtonKind::Tile, selected },
+            UiAction(DraftAction::Hero(hero.class)),
+            TestId::new(format!("DraftHero-{}", hero.class.id())),
+            Name::new(format!("HeroCard-{}", hero.class.id())),
+        ))
+        .with_children(|card| {
+            if let Some(image) = image {
+                card.spawn((
+                    ImageNode::new(image),
+                    Node {
+                        width: Val::Px(portrait_width),
+                        height: Val::Px(portrait_height),
+                        flex_shrink: 0.0,
+                        ..default()
+                    },
+                ));
+            } else {
+                card.spawn((
+                    Node {
+                        width: Val::Px(portrait_width),
+                        height: Val::Px(portrait_height),
+                        flex_shrink: 0.0,
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    BackgroundColor(theme::PANEL_EDGE),
+                ));
+            }
+            card.spawn(widgets::label(data::hero_name(hero.class), 12.0, theme::IVORY));
+        });
 }
 
 pub(super) fn roster_row(
@@ -575,10 +603,7 @@ pub(super) fn roster_row(
                     12.0,
                     theme::GOLD,
                 ));
-                text.spawn((
-                    widgets::label(&avatar_name(player.avatar.as_deref()), 11.0, theme::MUTED),
-                    TextLayout::justify(Justify::Left).with_linebreak(LineBreak::NoWrap),
-                ));
+
             });
             row.spawn(widgets::label(
                 if loading {
@@ -636,25 +661,22 @@ fn render_draft(
         }
         stage::sync_members(stage, &preview_roster, game.your_id);
     }
-    let catalogue = crate::passport::avatar_catalogue();
     // A ticking server clock must not tear down an active picker/drag.
     let mut render_snapshot = draft.clone();
     render_snapshot.remaining_ms = 0;
     let key = format!(
-        "{}:{:?}:{:?}:{:?}:{}:{}:{}",
+        "{}:{:?}:{:?}:{:?}:{}:{:?}:{}:{}",
         serde_json::to_string(&render_snapshot).unwrap_or_default(),
         state.choice,
         state.desired_lock,
         state.notice,
         state.pending.is_some(),
-        catalogue.revision,
-        window.width()
+        state.filter,
+        window.width(),
+        window.height()
     );
     let key = format!(
-        "{key}:{:?}:{}:{}:{}",
-        state.picker_tab,
-        omoba_passport::weapon_store::snapshot().0,
-        window.height(),
+        "{key}:{}",
         locale.as_ref().map_or(0, |locale| locale.generation())
     );
     if *last == key && !roots.is_empty() {
@@ -664,18 +686,23 @@ fn render_draft(
     for root in &roots {
         commands.entity(root).despawn();
     }
-    for entry in &catalogue.entries {
-        if let Some(path) = crate::passport::thumbnail_asset_path(&entry.avatar) {
+    for hero in shared::hero_roster::STARTER_ROSTER {
+        if let Some(avatar) = omoba_passport::avatars::avatar_definition(hero.avatar)
+            && let Some(path) = crate::passport::thumbnail_asset_path(avatar)
+        {
             thumbnails
                 .0
-                .insert(entry.avatar.slug.clone(), assets.load(path));
+                .insert(hero.avatar.to_owned(), assets.load(path));
         }
     }
-    let compact = window.height() < 500.0;
-    let side = if compact { 32.0 } else { 28.0 };
-    let available = window.width() - side * 2.0;
-    let roster_width = (available * if compact { 0.51 } else { 0.56 }).min(740.0);
-    let picker_width = available - roster_width - 12.0;
+    let vertical = window.width() < 720.0;
+    let compact = window.height() < 500.0 || vertical;
+    let side = if compact { 12.0 } else { 28.0 };
+    let available = (window.width() - side * 2.0).max(180.0);
+    let roster_width = if vertical { available } else {
+        (available * if compact { 0.43 } else { 0.48 }).min(740.0)
+    };
+    let picker_width = if vertical { available } else { available - roster_width - 12.0 };
     let local = draft.players.iter().find(|p| p.player_id == game.your_id);
     let choice = state.choice.as_ref();
     let locked = local.is_some_and(|p| p.locked);
@@ -760,14 +787,18 @@ fn render_draft(
             root.spawn(Node {
                 flex_grow: 1.0,
                 min_height: Val::Px(0.0),
+                flex_direction: if vertical { FlexDirection::Column } else { FlexDirection::Row },
+                row_gap: Val::Px(if vertical { 8.0 } else { 0.0 }),
                 column_gap: Val::Px(12.0),
                 ..default()
             })
             .with_children(|body| {
                 body.spawn(Node {
-                    width: Val::Px(roster_width),
-                    min_width: Val::Px(roster_width),
-                    height: Val::Percent(100.0),
+                    width: if vertical { Val::Percent(100.0) } else { Val::Px(roster_width) },
+                    min_width: if vertical { Val::Percent(100.0) } else { Val::Px(roster_width) },
+                    height: if vertical { Val::Px(142.0) } else { Val::Percent(100.0) },
+                    min_height: if vertical { Val::Px(142.0) } else { Val::Px(0.0) },
+                    flex_shrink: 0.0,
                     ..default()
                 })
                 .with_children(|roster| {
@@ -777,7 +808,9 @@ fn render_draft(
                         game.your_id,
                         party_stage.as_deref(),
                         roster_width,
-                        (window.height() - if compact { 136.0 } else { 152.0 }).max(180.0),
+                        if vertical { 132.0 } else {
+                            (window.height() - if compact { 136.0 } else { 152.0 }).max(180.0)
+                        },
                         false,
                         compact,
                     );
@@ -785,9 +818,10 @@ fn render_draft(
                 body.spawn((
                     Node {
                         flex_grow: 1.0,
+                        width: if vertical { Val::Percent(100.0) } else { Val::Auto },
                         min_width: Val::Px(0.0),
                         flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(5.0),
+                        row_gap: Val::Px(7.0),
                         min_height: Val::Px(0.0),
                         overflow: Overflow::scroll_y(),
                         ..default()
@@ -797,261 +831,75 @@ fn render_draft(
                     Name::new("DraftPicker"),
                 ))
                 .with_children(|picker| {
-                    if compact {
-                        picker
-                            .spawn(Node {
-                                column_gap: Val::Px(4.0),
-                                flex_shrink: 0.0,
-                                ..default()
-                            })
-                            .with_children(|tabs| {
-                                for (tab, key, id) in [
-                                    (PickerTab::Avatars, "draft.tab.avatars", "DraftTabAvatars"),
-                                    (PickerTab::Classes, "draft.tab.classes", "DraftTabClasses"),
-                                    (PickerTab::Weapons, "collection.weapons", "DraftTabWeapons"),
-                                ] {
-                                    action_button(
-                                        tabs,
-                                        tr(key),
-                                        DraftAction::Picker(tab),
-                                        id,
-                                        (picker_width - 8.0) / 3.0,
-                                        false,
-                                        state.picker_tab == tab,
-                                    );
-                                }
-                            });
-                    }
-                    if !compact || state.picker_tab == PickerTab::Weapons {
-                        picker.spawn(widgets::label(tr("collection.weapons"), 12.0, theme::MUTED));
-                        if let Some(status) = choice
-                            .and_then(|choice| super::collection::handheld_status(&choice.handheld))
-                        {
-                            picker.spawn((
-                                widgets::label(status, 12.0, theme::GOLD),
-                                Name::new("DraftWeaponStatus"),
-                            ));
-                        }
-                        picker
-                            .spawn(Node {
-                                flex_wrap: FlexWrap::Wrap,
-                                column_gap: Val::Px(4.0),
-                                row_gap: Val::Px(4.0),
-                                max_height: Val::Px(84.0),
-                                overflow: Overflow::scroll_y(),
-                                ..default()
-                            })
-                            .with_children(|row| {
-                                for (value, name, id) in super::collection::handheld_choices() {
-                                    let selected = choice.is_some_and(|c| c.handheld == value);
-                                    action_button(
-                                        row,
-                                        &name,
-                                        DraftAction::Handheld(value),
-                                        &format!("Draft-{id}"), // i18n-allow: stable ECS/test identity, never displayed
-                                        (picker_width - 8.0) / 3.0,
-                                        false,
-                                        selected,
-                                    );
-                                }
-                            });
-                    }
-                    if !compact || state.picker_tab == PickerTab::Classes {
-                        picker
-                            .spawn(Node {
-                                column_gap: Val::Px(4.0),
-                                row_gap: Val::Px(4.0),
-                                flex_wrap: FlexWrap::Wrap,
-                                ..default()
-                            })
-                            .with_children(|classes| {
-                                for class in HeroClass::ALL {
-                                    action_button(
-                                        classes,
-                                        data::hero_name(class),
-                                        DraftAction::Class(class),
-                                        &format!("DraftClass-{}", class.id()),
-                                        (picker_width - 12.0) / 4.0,
-                                        false,
-                                        choice.is_some_and(|c| c.hero_class == class),
-                                    );
-                                }
-                            });
-                        picker
-                            .spawn(Node {
-                                column_gap: Val::Px(4.0),
-                                ..default()
-                            })
-                            .with_children(|roles| {
-                                for role in Role::ALL {
-                                    action_button(
-                                        roles,
-                                        data::role(role),
-                                        DraftAction::Role(role),
-                                        // The TestId keeps the English label: ids never translate.
-                                        &format!("DraftRole-{}", role.label()),
-                                        (picker_width - 16.0) / 5.0,
-                                        false,
-                                        choice.is_some_and(|c| c.role == role),
-                                    );
-                                }
-                            });
-                    }
-                    if !compact || state.picker_tab == PickerTab::Avatars {
-                        picker
-                            .spawn((
-                                Node {
-                                    flex_grow: 1.0,
-                                    min_height: Val::Px(if compact { 192.0 } else { 100.0 }),
-                                    flex_shrink: 0.0,
-                                    flex_direction: FlexDirection::Column,
-                                    overflow: Overflow::scroll_y(),
-                                    row_gap: Val::Px(6.0),
-                                    ..default()
-                                },
-                                ScrollPosition(Vec2::new(0.0, *scroll.0.get(&1).unwrap_or(&0.0))),
-                                draft_pane(1),
-                                Name::new("DraftAvatarCatalogue"),
-                            ))
-                            .with_children(|avatars| {
-                                for defaults in [true, false] {
-                                    avatars.spawn((
-                                        widgets::label(
-                                            if defaults {
-                                                tr("draft.avatars.included")
-                                            } else {
-                                                tr("draft.avatars.studio")
-                                            },
-                                            12.0,
-                                            theme::GOLD,
-                                        ),
-                                        Name::new(if defaults {
-                                            "DraftIncludedHeading"
-                                        } else {
-                                            "DraftStudioHeading"
-                                        }),
-                                    ));
-                                    if !defaults {
-                                        avatars.spawn((
-                                            widgets::label(
-                                                crate::i18n::data::catalogue_status(
-                                                    &catalogue.status,
-                                                ),
-                                                12.0,
-                                                theme::MUTED,
-                                            ),
-                                            Name::new("DraftStudioStatus"),
-                                        ));
-                                        avatars
-                                            .spawn(Node {
-                                                column_gap: Val::Px(6.0),
-                                                ..default()
-                                            })
-                                            .with_children(|actions| {
-                                                action_button(
-                                                    actions,
-                                                    tr("draft.button.refresh"),
-                                                    DraftAction::Refresh,
-                                                    "DraftStudioRefresh",
-                                                    86.0,
-                                                    false,
-                                                    false,
-                                                );
-                                                if !crate::passport::account_connected() {
-                                                    action_button(
-                                                        actions,
-                                                        tr("draft.button.connect_ekza"),
-                                                        DraftAction::Connect,
-                                                        "DraftStudioConnect",
-                                                        116.0,
-                                                        false,
-                                                        false,
-                                                    );
-                                                }
-                                            });
-                                    }
-                                    avatars
-                                        .spawn(Node {
-                                            flex_wrap: FlexWrap::Wrap,
-                                            column_gap: Val::Px(6.0),
-                                            row_gap: Val::Px(6.0),
-                                            ..default()
-                                        })
-                                        .with_children(|tiles| {
-                                            for entry in catalogue.entries.iter().filter(|e| {
-                                                (e.source == AvatarCatalogueSource::Default)
-                                                    == defaults
-                                            }) {
-                                                let selected = choice.is_some_and(|c| {
-                                                    c.avatar.as_deref() == Some(&entry.avatar.slug)
-                                                });
-                                                let style = ButtonStyle {
-                                                    kind: ButtonKind::Tile,
-                                                    selected,
-                                                };
-                                                tiles
-                                                    .spawn((
-                                                        Button,
-                                                        Node {
-                                                            width: Val::Px(84.0),
-                                                            height: Val::Px(78.0),
-                                                            min_height: Val::Px(78.0),
-                                                            flex_shrink: 0.0,
-                                                            flex_direction: FlexDirection::Column,
-                                                            align_items: AlignItems::Center,
-                                                            justify_content: JustifyContent::Center,
-                                                            border: UiRect::all(Val::Px(1.0)),
-                                                            border_radius: BorderRadius::all(
-                                                                Val::Px(6.0),
-                                                            ),
-                                                            padding: UiRect::all(Val::Px(4.0)),
-                                                            overflow: Overflow::clip(),
-                                                            ..default()
-                                                        },
-                                                        BackgroundColor(style.idle_color()),
-                                                        BorderColor::all(if selected {
-                                                            theme::GOLD
-                                                        } else {
-                                                            theme::PANEL_EDGE
-                                                        }),
-                                                        style,
-                                                        UiAction(DraftAction::Avatar(
-                                                            entry.avatar.slug.clone(),
-                                                        )),
-                                                        TestId::new(format!(
-                                                            "DraftAvatar-{}",
-                                                            entry.avatar.slug
-                                                        )),
-                                                    ))
-                                                    .with_children(|tile| {
-                                                        if let Some(image) =
-                                                            thumbnails.0.get(&entry.avatar.slug)
-                                                        {
-                                                            tile.spawn((
-                                                                ImageNode::new(image.clone()),
-                                                                Node {
-                                                                    width: Val::Px(44.0),
-                                                                    height: Val::Px(44.0),
-                                                                    flex_shrink: 0.0,
-                                                                    ..default()
-                                                                },
-                                                            ));
-                                                        }
-                                                        tile.spawn((
-                                                            widgets::label(
-                                                                &entry.avatar.display_name,
-                                                                11.0,
-                                                                theme::IVORY,
-                                                            ),
-                                                            TextLayout::justify(Justify::Center)
-                                                                .with_linebreak(LineBreak::NoWrap),
-                                                        ));
-                                                    });
-                                            }
-                                        });
-                                }
-                            });
-                    }
+                    picker.spawn(widgets::label(tr("draft.avatars.included"), 12.0, theme::GOLD));
+                    picker
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            flex_wrap: FlexWrap::Wrap,
+                            column_gap: Val::Px(4.0),
+                            row_gap: Val::Px(4.0),
+                            ..default()
+                        })
+                        .with_children(|tabs| {
+                            let tab_width = if picker_width < 420.0 {
+                                ((picker_width - 8.0) / 3.0).max(40.0)
+                            } else {
+                                ((picker_width - 20.0) / 6.0).max(52.0)
+                            };
+                            for filter in [
+                                HeroFilter::All,
+                                HeroFilter::Gold,
+                                HeroFilter::Experience,
+                                HeroFilter::Center,
+                                HeroFilter::Jungle,
+                                HeroFilter::Support,
+                            ] {
+                                action_button(
+                                    tabs,
+                                    tr(filter.label()),
+                                    DraftAction::Filter(filter),
+                                    filter.label(),
+                                    tab_width,
+                                    false,
+                                    state.filter == filter,
+                                );
+                            }
+                        });
+                    let columns = if picker_width >= 360.0 {
+                        4.0
+                    } else if picker_width >= 270.0 {
+                        3.0
+                    } else {
+                        2.0
+                    };
+                    let gap = 7.0;
+                    let card_width = ((picker_width - gap * (columns - 1.0)) / columns).max(58.0);
+                    picker
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            flex_wrap: FlexWrap::Wrap,
+                            column_gap: Val::Px(gap),
+                            row_gap: Val::Px(gap),
+                            align_content: AlignContent::FlexStart,
+                            ..default()
+                        })
+                        .with_children(|heroes| {
+                            for hero in shared::hero_roster::STARTER_ROSTER
+                                .iter()
+                                .filter(|hero| state.filter.matches(hero.position))
+                            {
+                                let image = thumbnails.0.get(hero.avatar).cloned();
+                                hero_card(
+                                    heroes,
+                                    hero,
+                                    image,
+                                    card_width,
+                                    choice.is_some_and(|selected| selected.hero_class == hero.class),
+                                );
+                            }
+                        });
                 });
             });
             root.spawn(Node {
@@ -1152,6 +1000,7 @@ fn remember_scroll(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::persistence::ClientSessionId;
     use bevy::input::touch::{TouchInput, TouchPhase};
 
     #[test]
@@ -1283,7 +1132,7 @@ mod tests {
                 hero_class: HeroClass::Warrior,
                 avatar: None,
                 sprite_character: None,
-                role: Role::Mid,
+                role: Role::Solo,
                 is_bot: false,
                 locked: false,
                 loaded: false,
@@ -1337,7 +1186,7 @@ mod tests {
     }
 
     #[test]
-    fn phone_avatar_picker_has_visible_tiles_and_raw_taps_switch_tabs_and_select() {
+    fn phone_hero_picker_has_visible_tiles_and_raw_taps_select_fixed_heroes() {
         use bevy::camera::{ComputedCameraValues, RenderTargetInfo};
         use bevy::input::touch::{TouchInput, TouchPhase};
         let mut app = request_app();
@@ -1451,103 +1300,33 @@ mod tests {
             .x;
         assert!((center - 426.0).abs() <= 0.5, "draft clock at {center}");
         assert!(!app.world().get::<Text>(clock).unwrap().0.is_empty());
-        tap(&mut app, "DraftTabClasses");
-        assert_eq!(
-            app.world().resource::<DraftClient>().picker_tab,
-            PickerTab::Classes
-        );
-        assert!(crate::ui::test_id::harness::find(app.world_mut(), "DraftClass-mage").is_some());
-        tap(&mut app, "DraftTabAvatars");
-        let slug = crate::passport::default_avatars()[0].slug.clone();
-        tap(&mut app, &format!("DraftAvatar-{slug}"));
-        assert_eq!(
-            app.world()
-                .resource::<DraftClient>()
-                .choice
-                .as_ref()
-                .unwrap()
-                .avatar
-                .as_deref(),
-            Some(slug.as_str())
-        );
+        assert!(crate::ui::test_id::harness::find(app.world_mut(), "DraftHero-mage").is_some());
+        tap(&mut app, "DraftHero-mage");
+        let choice = app.world().resource::<DraftClient>().choice.as_ref().unwrap();
+        assert_eq!(choice.hero_class, HeroClass::Mage);
+        assert_eq!(choice.avatar.as_deref(), Some("anna"));
+        assert_eq!(choice.sprite_character.as_deref(), Some("clockwork-turnip-oracle"));
+        assert_eq!(choice.role, Role::Mid);
+        assert_eq!(choice.handheld, shared::handheld::HandheldSelection::ClassDefault);
         let sent = &app.world().resource::<SentRequests>().0;
         assert!(
             sent.iter().any(|request| matches!(
                 &request.action,
-                PrematchAction::Select { avatar: Some(avatar), .. } if avatar == &slug
+                PrematchAction::Select {
+                    hero_class: HeroClass::Mage,
+                    avatar: Some(avatar),
+                    role: Role::Mid,
+                    handheld: shared::handheld::HandheldSelection::ClassDefault,
+                    ..
+                } if avatar == "anna"
             )),
-            "no Select request for {slug} among the {} requests sent",
+            "no canonical hero Select request among the {} requests sent",
             sent.len()
         );
     }
 
     #[test]
-    fn avatar_picker_changes_an_available_avatar_before_lock_and_is_guarded_after_lock() {
-        let mut app = request_app();
-        app.add_message::<Activated<DraftAction>>()
-            .add_message::<SessionUiCommand>()
-            .add_systems(
-                Update,
-                draft_actions.after(sync_draft).before(send_requests),
-            );
-        let slug = crate::passport::default_avatars()
-            .into_iter()
-            .find(|avatar| crate::passport::can_select(avatar))
-            .unwrap()
-            .slug
-            .clone();
-        app.world_mut().write_message(Activated {
-            action: DraftAction::Avatar(slug.clone()),
-            source: Entity::PLACEHOLDER,
-        });
-        app.update();
-        let requests = drain_requests(&mut app);
-        assert_eq!(requests.len(), 1);
-        assert!(
-            matches!(&requests[0].action, PrematchAction::Select { avatar: Some(avatar), .. } if avatar == &slug)
-        );
-        assert_eq!(
-            app.world()
-                .resource::<DraftClient>()
-                .choice
-                .as_ref()
-                .unwrap()
-                .avatar
-                .as_ref(),
-            Some(&slug)
-        );
-        {
-            let mut game = app.world_mut().resource_mut::<GameStateSnapshot>();
-            let draft = game.prematch.as_mut().unwrap();
-            draft.players[0].avatar = Some(slug.clone());
-            draft.players[0].locked = true;
-            draft.last_request_id = requests[0].request_id;
-        }
-        app.update();
-        app.world_mut().write_message(Activated {
-            action: DraftAction::Avatar("missing-avatar".into()),
-            source: Entity::PLACEHOLDER,
-        });
-        app.update();
-        assert!(drain_requests(&mut app).is_empty());
-        assert_eq!(
-            app.world()
-                .resource::<DraftClient>()
-                .choice
-                .as_ref()
-                .unwrap()
-                .avatar
-                .as_ref(),
-            Some(&slug)
-        );
-        assert_eq!(
-            app.world().resource::<DraftClient>().notice.as_deref(),
-            Some(tr("draft.notice.unlock_first"))
-        );
-    }
-
-    #[test]
-    fn picking_a_class_proposes_its_role_but_keeps_a_deliberate_one() {
+    fn picking_a_hero_always_assigns_its_fixed_position_avatar_and_weapon() {
         let mut choice = Choice {
             handheld: Default::default(),
             character: CharacterChoice::default(),
@@ -1556,14 +1335,20 @@ mod tests {
             sprite_character: None,
             role: Role::Mid,
         };
-        choice.pick_class(HeroClass::Warden);
+        choice.pick_hero(HeroClass::Warden);
         assert_eq!(choice.role, Role::Jungle);
+        assert_eq!(choice.avatar.as_deref(), Some("sport-mecha"));
+        assert_eq!(choice.sprite_character.as_deref(), Some("cathedral-moth-bellringer"));
+        assert_eq!(choice.handheld, shared::handheld::HandheldSelection::ClassDefault);
+
+        // A previously selected position or avatar cannot override the hero profile.
         choice.role = Role::Support;
-        choice.pick_class(HeroClass::Warrior);
-        assert_eq!(
-            (choice.hero_class, choice.role),
-            (HeroClass::Warrior, Role::Support)
-        );
+        choice.avatar = Some("not-a-roster-avatar".into());
+        choice.pick_hero(HeroClass::Warrior);
+        assert_eq!((choice.hero_class, choice.role), (HeroClass::Warrior, Role::Solo));
+        assert_eq!(choice.avatar.as_deref(), Some("crowley"));
+        assert_eq!(choice.sprite_character.as_deref(), Some("mossback-teapot"));
+        assert_eq!(choice.handheld, shared::handheld::HandheldSelection::ClassDefault);
     }
 
     #[test]
@@ -1705,11 +1490,12 @@ mod tests {
             loaded: false,
         };
         let mut players = vec![player(1), player(2)];
-        assert!(composition_warning(&players, 1).contains("same avatar"));
-        players[1].avatar = Some("another".into());
+        assert!(composition_warning(&players, 1).contains("same hero"));
+        players[1].hero_class = HeroClass::Mage;
+        players[1].avatar = Some("anna".into());
         assert!(composition_warning(&players, 1).contains("Jungle"));
         players[1].role = Role::Support;
-        assert!(composition_warning(&players, 1).contains("class determines"));
+        assert!(!composition_warning(&players, 1).contains("Jungle"));
     }
 
     /// The draft is a render-key screen: a language change redraws it in the
@@ -1742,7 +1528,7 @@ mod tests {
                 hero_class: HeroClass::Warrior,
                 avatar: None,
                 sprite_character: None,
-                role: Role::Mid,
+                role: Role::Solo,
                 is_bot: false,
                 locked: false,
                 loaded: false,
@@ -1776,7 +1562,6 @@ mod tests {
                 .collect()
         };
         assert_eq!(label(&mut app, "DraftLock"), "Lock in");
-        assert_eq!(label(&mut app, "DraftRole-Mid"), "Mid");
         assert!(
             texts(&mut app)
                 .iter()
@@ -1799,7 +1584,7 @@ mod tests {
         };
         assert_eq!(
             plate_texts(&mut app),
-            ["Local · YOU", "Warrior", "Mid", "PICKING"]
+            ["Local · YOU", "Zargat", "EXP", "PICKING"]
         );
         app.world_mut()
             .resource_mut::<crate::i18n::Locale>()
@@ -1807,17 +1592,16 @@ mod tests {
         app.update();
         assert_eq!(label(&mut app, "DraftLock"), "锁定");
         assert_eq!(label(&mut app, "DraftCancel"), "取消");
-        assert_eq!(label(&mut app, "DraftRole-Mid"), "中路");
         assert_eq!(
-            label(&mut app, &format!("DraftClass-{}", HeroClass::Warrior.id())),
-            "战士"
+            label(&mut app, &format!("DraftHero-{}", HeroClass::Warrior.id())),
+            "战士 · 单人路"
         );
         let shown = texts(&mut app);
         assert!(shown.iter().any(|text| text == "组建你的队伍"), "{shown:?}");
         let plate = plate_texts(&mut app);
         assert!(plate[0].starts_with("Local"), "{plate:?}");
         assert_eq!(plate[1], "战士");
-        assert_eq!(plate[2], "中路");
+        assert_eq!(plate[2], "单人路");
         assert!(!plate.iter().any(|text| text == "Warrior" || text == "Mid"));
         assert!(!shown.iter().any(|text| text == "Assemble your team"));
     }
@@ -1884,4 +1668,16 @@ mod tests {
         );
         assert_eq!(app.world().resource::<DraftClient>().desired_lock, None);
     }
+    #[test]
+    fn hero_filter_tabs_cover_the_roster_and_match_the_five_lanes() {
+        let roster = &shared::hero_roster::STARTER_ROSTER;
+        let count = |filter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
+        assert_eq!(count(HeroFilter::All), 12);
+        assert_eq!(count(HeroFilter::Gold), 2);
+        assert_eq!(count(HeroFilter::Experience), 3);
+        assert_eq!(count(HeroFilter::Center), 2);
+        assert_eq!(count(HeroFilter::Jungle), 2);
+        assert_eq!(count(HeroFilter::Support), 3);
+    }
+
 }

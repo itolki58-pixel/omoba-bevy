@@ -28,10 +28,10 @@ impl Role {
     ];
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Solo => "Solo",
+            Self::Solo => "EXP",
             Self::Jungle => "Jungle",
-            Self::Mid => "Mid",
-            Self::Carry => "Carry",
+            Self::Mid => "MID",
+            Self::Carry => "GOLD",
             Self::Support => "Support",
         }
     }

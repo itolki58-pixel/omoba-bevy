@@ -134,6 +134,15 @@
       "slug": "orion",
       "source_url": "https://gateway.pinata.cloud/ipfs/Qmed8jVF5FvBn6Jerxk8Wm5DwRjuAHRfBXgofTue37orBC/Avatar_Orion.vrm",
       "thumbnail": "orion.png"
+    },
+    {
+      "author": "User-supplied model",
+      "collection": "OMOBA Heroes",
+      "display_name": "Zargat",
+      "license": "User-provided model; rights retained by user",
+      "slug": "zargat",
+      "source_url": "user-provided:art/zargat/demon-knight-source.glb",
+      "thumbnail": "zargat.png"
     }
   ]
 }

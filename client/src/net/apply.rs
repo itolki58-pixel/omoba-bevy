@@ -74,7 +74,7 @@ pub(in crate::net) fn respawn_sandbox_models(
         if frame
             .players
             .iter()
-            .any(|p| p.id == id.0 && p.avatar != avatar.0)
+            .any(|p| p.id == id.0 && canonical_avatar(p.hero_class, p.avatar.clone()) != avatar.0)
         {
             state.remote_players.remove(&id.0);
             commands.entity(entity).despawn();
@@ -99,7 +99,7 @@ fn accept_dash_ack(
 }
 
 /// Minions render at this multiple of the shared normalized hero height.
-const MINION_MODEL_HEIGHT_SCALE: f32 = 0.9;
+const MINION_MODEL_HEIGHT_SCALE: f32 = 1.125;
 
 fn network_projectile(state: &ProjectileState) -> NetworkProjectile {
     let direction = Vec3::from_array(state.direction);
@@ -335,26 +335,28 @@ fn apply_snapshot_resources(
         // Compare first: every write marks `TeamSelection` changed and the
         // settings file is rewritten on each change, so an unchanged draft
         // row (sent up to 20 times a second) must not touch it.
+        let avatar = canonical_avatar(own.hero_class, own.avatar.clone());
+        let sprite_character =
+            canonical_sprite_character(own.hero_class, own.sprite_character.clone());
         let differs = team_selection.character != own.character
             || team_selection.hero_class != own.hero_class
-            || team_selection.avatar != own.avatar
-            || own
-                .sprite_character
+            || team_selection.avatar != avatar
+            || sprite_character
                 .as_ref()
                 .is_some_and(|sprite| *sprite != team_selection.sprite_character);
         if differs {
             team_selection.character = own.character;
             team_selection.hero_class = own.hero_class;
-            team_selection.avatar = own.avatar.clone();
-            if let Some(sprite) = &own.sprite_character {
+            team_selection.avatar = avatar.clone();
+            if let Some(sprite) = &sprite_character {
                 team_selection.sprite_character = sprite.clone();
             }
         }
         if let Some(join) = client_session.last_join.as_mut() {
             join.character = own.character;
             join.hero_class = own.hero_class;
-            join.avatar = own.avatar.clone();
-            join.sprite_character = own.sprite_character.clone();
+            join.avatar = avatar;
+            join.sprite_character = sprite_character;
             join.team = own.team.into();
         }
     }
@@ -386,10 +388,32 @@ fn finish_snapshot_apply(
     });
 }
 
+
+/// The starter roster owns each hero's appearance. During server migration a
+/// server may still echo an old cosmetic slug (e.g. Crowley for Warrior);
+/// resolve the canonical bundled model and sprite from the selected hero kit.
+fn canonical_avatar(hero_class: shared::HeroClass, fallback: Option<String>) -> Option<String> {
+    shared::hero_roster::profile(hero_class)
+        .map(|hero| hero.avatar.to_owned())
+        .or(fallback)
+}
+
+fn canonical_sprite_character(
+    hero_class: shared::HeroClass,
+    fallback: Option<String>,
+) -> Option<String> {
+    shared::hero_roster::profile(hero_class)
+        .map(|hero| hero.sprite_character.to_owned())
+        .or(fallback)
+}
+
 /// The components every local hero spawns with, whatever its presentation
 /// (2D sprite, 3D scene or mesh fallback); the caller adds the transform and
 /// the presentation's own components.
 fn local_hero_components(state: &PlayerState, your_id: u64) -> impl Bundle {
+    let avatar = canonical_avatar(state.hero_class, state.avatar.clone());
+    let sprite_character =
+        canonical_sprite_character(state.hero_class, state.sprite_character.clone());
     (
         Player,
         PlayerBody,
@@ -398,8 +422,8 @@ fn local_hero_components(state: &PlayerState, your_id: u64) -> impl Bundle {
         (
             NetworkPlayerId(your_id),
             NetworkCharacterChoice(state.character),
-            NetworkAvatar(state.avatar.clone()),
-            NetworkSpriteCharacter(state.sprite_character.clone()),
+            NetworkAvatar(avatar),
+            NetworkSpriteCharacter(sprite_character),
             PlayerCosmeticAction::from(state),
             PlayerActionFacing::from(state),
             AuthoritativePlayerYaw(state.yaw),
@@ -514,8 +538,14 @@ fn apply_snapshot_local_player(
                 Team::from(local_player_state.team),
                 player_state_to_combat_stats(local_player_state),
                 NetworkCharacterChoice(local_player_state.character),
-                NetworkAvatar(local_player_state.avatar.clone()),
-                NetworkSpriteCharacter(local_player_state.sprite_character.clone()),
+                NetworkAvatar(canonical_avatar(
+                    local_player_state.hero_class,
+                    local_player_state.avatar.clone(),
+                )),
+                NetworkSpriteCharacter(canonical_sprite_character(
+                    local_player_state.hero_class,
+                    local_player_state.sprite_character.clone(),
+                )),
                 NetworkHeroClass(local_player_state.hero_class),
                 PlayerLoadout(local_player_state.loadout.clone()),
                 crate::supporter::NetworkSupporterAura(local_player_state.supporter_aura),
@@ -614,10 +644,11 @@ fn apply_snapshot_local_player(
             local_player_state.z,
         );
         let (local_scene, local_gltf) = if *visual_mode == PlayerVisualMode::Models3d {
-            models.resolve(
-                local_player_state.character,
-                local_player_state.avatar.as_deref(),
-            )
+            let avatar = canonical_avatar(
+                local_player_state.hero_class,
+                local_player_state.avatar.clone(),
+            );
+            models.resolve(local_player_state.character, avatar.as_deref())
         } else {
             (None, None)
         };
@@ -648,7 +679,11 @@ fn apply_snapshot_local_player(
                     gltf,
                     key: model_scale_key(
                         local_player_state.character,
-                        local_player_state.avatar.as_deref(),
+                        canonical_avatar(
+                            local_player_state.hero_class,
+                            local_player_state.avatar.clone(),
+                        )
+                        .as_deref(),
                     ),
                 });
             }
@@ -747,8 +782,11 @@ fn apply_snapshot_remote_players(
                 NetworkBot(player.is_bot),
                 Team::from(player.team),
                 NetworkCharacterChoice(player.character),
-                NetworkAvatar(player.avatar.clone()),
-                NetworkSpriteCharacter(player.sprite_character.clone()),
+                NetworkAvatar(canonical_avatar(player.hero_class, player.avatar.clone())),
+                NetworkSpriteCharacter(canonical_sprite_character(
+                    player.hero_class,
+                    player.sprite_character.clone(),
+                )),
                 NetworkHeroClass(player.hero_class),
                 PlayerLoadout(player.loadout.clone()),
                 (
@@ -773,8 +811,11 @@ fn apply_snapshot_remote_players(
             continue;
         }
 
+        let avatar = canonical_avatar(player.hero_class, player.avatar.clone());
+        let sprite_character =
+            canonical_sprite_character(player.hero_class, player.sprite_character.clone());
         let (scene_handle, gltf_handle) = if *visual_mode == PlayerVisualMode::Models3d {
-            models.resolve(player.character, player.avatar.as_deref())
+            models.resolve(player.character, avatar.as_deref())
         } else {
             (None, None)
         };
@@ -790,8 +831,8 @@ fn apply_snapshot_remote_players(
             Team::from(player.team),
             NetworkPlayerId(player.id),
             NetworkCharacterChoice(player.character),
-            NetworkAvatar(player.avatar.clone()),
-            NetworkSpriteCharacter(player.sprite_character.clone()),
+            NetworkAvatar(avatar.clone()),
+            NetworkSpriteCharacter(sprite_character),
             PlayerCosmeticAction::from(player),
             (
                 NetworkHeroClass(player.hero_class),
@@ -822,7 +863,7 @@ fn apply_snapshot_remote_players(
             if let Some(gltf) = gltf_handle {
                 entity_commands.insert(ModelScaleSource {
                     gltf,
-                    key: model_scale_key(player.character, player.avatar.as_deref()),
+                    key: model_scale_key(player.character, avatar.as_deref()),
                 });
             }
             entity_commands.with_children(|parent| {
@@ -1986,5 +2027,26 @@ mod tests {
         let chosen = choose_authoritative_local_player(&candidates, 1);
 
         assert_eq!(chosen, None);
+    }
+}
+
+#[cfg(test)]
+mod canonical_roster_identity_tests {
+    use super::*;
+
+    #[test]
+    fn warrior_snapshot_uses_zargat_assets_even_if_server_echoes_legacy_crowley_slug() {
+        assert_eq!(
+            canonical_avatar(shared::HeroClass::Warrior, Some("crowley".into())).as_deref(),
+            Some("zargat")
+        );
+        assert_eq!(
+            canonical_sprite_character(
+                shared::HeroClass::Warrior,
+                Some("mossback-teapot".into())
+            )
+            .as_deref(),
+            Some("mossback-teapot")
+        );
     }
 }
