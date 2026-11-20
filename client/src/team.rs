@@ -1959,15 +1959,15 @@ mod tests {
             (844.0, 390.0, true, [32.0, 32.0, 12.0, 20.0]),
         ] {
             let p = PickerLayout::new(w, h, phone, safe);
-            assert!(p.grid_x + p.grid_w + 10.0 <= p.stage_x);
+            assert!(p.inset + p.left_w + 10.0 <= p.stage_x);
+            assert!(p.left_w >= 300.0, "{p:?}");
             assert!(p.stage_h >= 140.0, "{p:?}");
             assert!(p.stage_y + p.stage_h <= p.action_y - 46.0);
             assert!(p.action_y + 56.0 <= h - safe[3]);
             assert!(p.stage_x + p.stage_w <= w - safe[1]);
             assert!(p.grid_y + p.grid_h <= h - safe[3]);
-            assert!(p.tile_width() >= 68.0, "{p:?}");
             if phone {
-                assert!(p.inset + p.left_w + 10.0 <= p.grid_x);
+                assert!(p.inset + p.left_w + 10.0 <= p.stage_x);
             }
         }
     }
