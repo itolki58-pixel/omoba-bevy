@@ -855,8 +855,9 @@ fn spawn_hero_panel(
             panel
                 .spawn((
                     Node {
-                        width: if compact { Val::Percent(100.0) } else { Val::Percent(100.0) },
+                        width: if compact { Val::Auto } else { Val::Percent(100.0) },
                         min_width: Val::Px(0.0),
+                        flex_grow: if compact { 1.0 } else { 0.0 },
                         flex_direction: FlexDirection::Column,
                         align_items: if compact { AlignItems::FlexStart } else { AlignItems::Center },
                         row_gap: Val::Px(4.0),
