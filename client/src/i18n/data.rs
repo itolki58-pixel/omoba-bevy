@@ -88,6 +88,31 @@ pub(crate) fn item_short(item: ItemId) -> &'static str {
     lookup_composed("item.", item.id(), ".short").unwrap_or_else(|| item_name(item))
 }
 
+/// A curated hero difficulty label.
+pub(crate) fn difficulty(value: &str) -> &'static str {
+    tr(match value {
+        "easy" => "draft.difficulty.easy",
+        "hard" => "draft.difficulty.hard",
+        _ => "draft.difficulty.medium",
+    })
+}
+
+/// A hero's fixed signature weapon label.
+pub(crate) fn signature_weapon(class: HeroClass) -> &'static str {
+    let id = shared::handheld::HandheldSelection::ClassDefault
+        .resolve(class)
+        .unwrap_or("unknown");
+    tr(match id {
+        "forge-sword" => "draft.weapon.sword",
+        "forge-hammer" => "draft.weapon.hammer",
+        "dawn-scepter" => "draft.weapon.scepter",
+        "dagger" => "draft.weapon.dagger",
+        "wild-repeater" => "draft.weapon.repeater",
+        "verdant-bow" => "draft.weapon.bow",
+        _ => "draft.weapon.default",
+    })
+}
+
 /// A draft role (`Solo`).
 pub(crate) fn role(role: Role) -> &'static str {
     tr(match role {
