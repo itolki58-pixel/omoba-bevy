@@ -37,51 +37,33 @@ for v in body.data.vertices:
     v.co.z += 1.175
 body.data.update()
 
-# Bring the supplied model's palette closer to the approved concept art:
-# blackened steel, vivid infernal crimson, molten orange and restrained antique gold.
-# Preserve texture maps and their detail; tint the material color rather than replacing geometry.
-import colorsys
-def vivid_palette_material(mat):
-    if not mat.use_nodes:
-        mat.use_nodes = True
-    bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+# Keep the supplied painted base-colour texture intact. The source atlas already
+# contains the red plates and dark forged-metal regions; multiplying it by a
+# luminance-derived red/orange tint flattened every surface into plastic.
+# Use a neutral shader multiplier so the authored texture remains visible.
+for material in bpy.data.materials:
+    if not material.use_nodes:
+        material.use_nodes = True
+    bsdf = next((n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
     if bsdf is None:
-        return
-    socket = bsdf.inputs.get("Base Color")
-    if socket is None:
-        return
-    c = tuple(socket.default_value[:3])
-    lum = 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]
-    mx, mn = max(c), min(c)
-    sat = (mx-mn)/mx if mx > 1e-5 else 0.0
-    # Existing red/orange/gold materials retain their hue, with stronger saturation.
-    if sat > 0.18:
-        h, s, v = colorsys.rgb_to_hsv(*c)
-        s = min(0.96, max(0.72, s*1.45))
-        v = min(1.0, v*1.18)
-        rgb = colorsys.hsv_to_rgb(h,s,v)
-    # Neutral source materials receive a deliberate fantasy-armor palette.
-    elif lum < 0.16:
-        rgb = (0.018, 0.022, 0.030)             # near-black forged steel
-    elif lum < 0.43:
-        rgb = (0.34, 0.018, 0.025)              # deep crimson armor
-    elif lum < 0.70:
-        rgb = (0.78, 0.20, 0.035)               # hot ember / red-orange
-    else:
-        rgb = (0.92, 0.57, 0.16)                # antique gold highlights
-    socket.default_value = (*rgb, 1.0)
+        continue
+    base = bsdf.inputs.get("Base Color")
+    if base:
+        base.default_value = (1.0, 1.0, 1.0, 1.0)
     metallic = bsdf.inputs.get("Metallic")
     rough = bsdf.inputs.get("Roughness")
-    if metallic: metallic.default_value = max(float(metallic.default_value), 0.48)
-    if rough: rough.default_value = min(float(rough.default_value), 0.38)
-    # Warm emissive accents are intentionally subtle so armor details remain readable.
+    if metallic:
+        metallic.default_value = 0.72
+    if rough:
+        rough.default_value = 0.48
+    # No broad orange emission: only the painted red/orange texture should glow
+    # under the warm rim light, leaving the black steel dark and readable.
     emission = bsdf.inputs.get("Emission Color") or bsdf.inputs.get("Emission")
     strength = bsdf.inputs.get("Emission Strength")
-    if emission and lum > 0.42:
-        emission.default_value = (0.9, 0.075, 0.012, 1.0)
-        if strength: strength.default_value = 0.18
-for material in bpy.data.materials:
-    vivid_palette_material(material)
+    if emission:
+        emission.default_value = (0.0, 0.0, 0.0, 1.0)
+    if strength:
+        strength.default_value = 0.0
 
 # Bounds after normalization.
 verts = [v.co.copy() for v in body.data.vertices]
