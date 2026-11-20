@@ -28,5 +28,6 @@
   "draft.timer.gathering": "Ожидаем команду…",
   "draft.stage.rotate": "Потяни, чтобы повернуть",
   "draft.tab.avatars": "Аватары",
-  "draft.tab.classes": "Герои"
+  "draft.tab.classes": "Герои",
+  "draft.warning.same_hero": "В команде один и тот же герой выбран несколько раз."
 }
