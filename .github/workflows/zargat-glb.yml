@@ -1,0 +1,35 @@
+name: Zaragat GLB processing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  process:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out experimental branch
+        uses: actions/checkout@v4
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+          blender --version
+
+      - name: Process Zaragat source model
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          mkdir -p artifacts/zargat
+          blender --background --python scripts/zargat/process_model.py
+
+      - name: Upload processed GLB
+        uses: actions/upload-artifact@v4
+        with:
+          name: zaragat-intermediate-glb
+          path: artifacts/zargat/Zargat_intermediate.glb
+          if-no-files-found: error
+          retention-days: 14
