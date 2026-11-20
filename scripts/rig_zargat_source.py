@@ -83,7 +83,7 @@ bpy.ops.object.mode_set(mode="OBJECT")
 
 # Spatial skinning: blend the two closest anatomical control points. The
 # original fused surface/materials remain intact; no procedural replacement.
-bone_points={name:Vector((b.head+b.tail)*.5) for name,b in eb.items()}
+bone_points={name:Vector((b.head_local+b.tail_local)*.5) for name,b in ad.bones.items()}
 groups={name:body.vertex_groups.new(name=name) for name in bone_points}
 for i,v in enumerate(body.data.vertices):
     p=v.co
