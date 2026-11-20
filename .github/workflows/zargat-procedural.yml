@@ -23,11 +23,11 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender xvfb libegl1 libgl1-mesa-dri
       - name: Generate Zargat GLB and render preview
         run: |
           mkdir -p dist
-          blender --background --factory-startup --python tools/zargat/procedural_zargat.py
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a blender --background --factory-startup --python tools/zargat/procedural_zargat.py
       - name: Validate GLB and preview
         run: |
           python3 - <<'PY'
