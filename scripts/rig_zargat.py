@@ -155,9 +155,8 @@ root = bpy.data.objects.new("Zargat_Root_180", None)
 bpy.context.scene.collection.objects.link(root)
 root.rotation_euler[2] = 3.141592653589793
 for obj in meshes + [arm_obj]:
-    world = obj.matrix_world.copy()
+    # Keep each imported object's local transform so the root rotation is inherited.
     obj.parent = root
-    obj.matrix_world = world
 
 # Author a real in-place walk cycle. The legs swing alternately around the
 # character's lateral axis; knees flex during the rear swing and feet counter-rotate.
