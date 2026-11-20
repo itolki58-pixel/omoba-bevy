@@ -1,5 +1,9 @@
 name: Release
 
+concurrency:
+  group: omoba-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 # Builds every desktop and Android package and attaches them to a DRAFT
 # GitHub release. Publishing stays a manual click (or
 # `gh release edit <tag> --draft=false`). iPhone builds need the Apple team
