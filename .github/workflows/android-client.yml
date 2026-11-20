@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - fix/quick-matchmaking-50s
+      - hunyuan3d-zargat
     paths:
       - "client/**"
       - "shared/**"
@@ -17,6 +18,7 @@ on:
       - "shared/**"
       - "scripts/release.py"
       - "scripts/rig_zargat_source.py"
+      - "scripts/rig_zargat.py"
       - "mobile/android/**"
       - "Cargo.toml"
       - "Cargo.lock"
@@ -83,8 +85,15 @@ jobs:
           required = {"Idle", "Run", "Walk", "Attack", "Cast", "Death", "Hit", "TurnLeft", "TurnRight", "Stop", "Ultimate"}
           assert required <= names, f"Missing animation clips: {sorted(required-names)}"
           node_names = {node.get("name", "") for node in doc.get("nodes", [])}
-          required_bones = {"jaw", "neck", "finger.1.L", "finger.2.L", "finger.3.L", "finger.1.R", "finger.2.R", "finger.3.R"}
-          assert required_bones <= node_names, f"Missing rig bones: {sorted(required_bones-node_names)}"
+          vrm = doc.get("extensions", {}).get("VRM", {})
+          mapped = {item["bone"] for item in vrm.get("humanoid", {}).get("humanBones", [])}
+          required_bones = {"hips", "spine", "chest", "neck", "head",
+                            "leftUpperArm", "leftLowerArm", "leftHand",
+                            "rightUpperArm", "rightLowerArm", "rightHand",
+                            "leftUpperLeg", "leftLowerLeg", "leftFoot",
+                            "rightUpperLeg", "rightLowerLeg", "rightFoot"}
+          assert required_bones <= mapped, f"Missing VRM humanoid semantics: {sorted(required_bones-mapped)}"
+          assert "VRM" in doc.get("extensionsUsed", []), "Missing VRM runtime metadata"
           print(f"Validated source Zaragat: {path.stat().st_size} bytes; bones={len(node_names)}; clips={sorted(names)}")
           PY
           python3 - <<'PY'
