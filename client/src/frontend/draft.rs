@@ -1290,7 +1290,7 @@ mod tests {
                 hero_class: HeroClass::Warrior,
                 avatar: None,
                 sprite_character: None,
-                role: Role::Mid,
+                role: Role::Solo,
                 is_bot: false,
                 locked: false,
                 loaded: false,
@@ -1784,7 +1784,6 @@ mod tests {
                 .collect()
         };
         assert_eq!(label(&mut app, "DraftLock"), "Lock in");
-        assert_eq!(label(&mut app, "DraftRole-Mid"), "Mid");
         assert!(
             texts(&mut app)
                 .iter()
@@ -1807,7 +1806,7 @@ mod tests {
         };
         assert_eq!(
             plate_texts(&mut app),
-            ["Local · YOU", "Warrior", "Mid", "PICKING"]
+            ["Local · YOU", "Zargat", "EXP", "PICKING"]
         );
         app.world_mut()
             .resource_mut::<crate::i18n::Locale>()
@@ -1815,17 +1814,16 @@ mod tests {
         app.update();
         assert_eq!(label(&mut app, "DraftLock"), "锁定");
         assert_eq!(label(&mut app, "DraftCancel"), "取消");
-        assert_eq!(label(&mut app, "DraftRole-Mid"), "中路");
         assert_eq!(
-            label(&mut app, &format!("DraftClass-{}", HeroClass::Warrior.id())),
-            "战士"
+            label(&mut app, &format!("DraftHero-{}", HeroClass::Warrior.id())),
+            "战士 · 单人路"
         );
         let shown = texts(&mut app);
         assert!(shown.iter().any(|text| text == "组建你的队伍"), "{shown:?}");
         let plate = plate_texts(&mut app);
         assert!(plate[0].starts_with("Local"), "{plate:?}");
         assert_eq!(plate[1], "战士");
-        assert_eq!(plate[2], "中路");
+        assert_eq!(plate[2], "单人路");
         assert!(!plate.iter().any(|text| text == "Warrior" || text == "Mid"));
         assert!(!shown.iter().any(|text| text == "Assemble your team"));
     }
