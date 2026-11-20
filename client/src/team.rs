@@ -895,12 +895,14 @@ struct HeroPanelMetadata;
 struct HeroPanelAbility(usize);
 
 fn hero_difficulty(class: HeroClass) -> &'static str {
-    match class {
-        HeroClass::Warrior | HeroClass::Ranger | HeroClass::Cleric | HeroClass::Warden => "Easy",
+    tr(match class {
+        HeroClass::Warrior | HeroClass::Ranger | HeroClass::Cleric | HeroClass::Warden => {
+            "team.difficulty.easy"
+        }
         HeroClass::Mage
         | HeroClass::Dawnweaver
         | HeroClass::Cinderforge
-        | HeroClass::Frostguard => "Medium",
+        | HeroClass::Frostguard => "team.difficulty.medium",
         HeroClass::Wildspark
         | HeroClass::Edgeweaver
         | HeroClass::Stormfist
@@ -909,16 +911,22 @@ fn hero_difficulty(class: HeroClass) -> &'static str {
         | HeroClass::Orbitwright
         | HeroClass::Riftshot
         | HeroClass::Chainkeeper
-        | HeroClass::Adventurer => "Hard",
-    }
+        | HeroClass::Adventurer => "team.difficulty.hard",
+    })
 }
 
 fn hero_metadata_line(class: HeroClass) -> String {
     let role = data::role(class.primary_role());
     let range = shared::basic_attack_for_class(class).range;
     format!(
-        "Role: {role}  ·  Difficulty: {}  ·  Attack range: {range:.1}",
-        hero_difficulty(class)
+        "{}: {} · {}: {} · {}: {range:.1} · {}: {}",
+        tr("team.hero.role"),
+        role,
+        tr("team.hero.difficulty"),
+        hero_difficulty(class),
+        tr("team.hero.range"),
+        tr("team.hero.weapon"),
+        data::signature_weapon(class),
     )
 }
 
