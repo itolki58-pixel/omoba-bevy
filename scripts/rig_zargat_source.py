@@ -174,7 +174,7 @@ for old_mod in list(body.modifiers):
     if old_mod.type == "ARMATURE":
         body.modifiers.remove(old_mod)
 body.parent = rig
-body.parent_type = "OBJECT"
+body.parent_type = "ARMATURE"
 mod = body.modifiers.new("DemonKnight_Armature", "ARMATURE")
 mod.object = rig
 mod.use_vertex_groups = True
