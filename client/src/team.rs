@@ -783,9 +783,9 @@ pub fn spawn_team_select_ui(
 }
 
 /// Share of the window the live hero panel takes on the right of the picker.
-const HERO_PANEL_PERCENT: f32 = 27.0;
+const HERO_PANEL_PERCENT: f32 = 36.0;
 /// Upper bound for that panel on a wide window.
-const HERO_PANEL_MAX_WIDTH: f32 = 320.0;
+const HERO_PANEL_MAX_WIDTH: f32 = 480.0;
 
 /// Marks the live hero panel's avatar name.
 #[derive(Component)]
@@ -1417,8 +1417,8 @@ fn spawn_class_button(
         });
         button.spawn((
             Node {
-                width: Val::Px(if compact { 72.0 } else { 78.0 }),
-                height: Val::Px(if compact { 72.0 } else { 78.0 }),
+                width: Val::Px(if compact { 48.0 } else { 52.0 }),
+                height: Val::Px(if compact { 48.0 } else { 52.0 }),
                 flex_shrink: 0.0,
                 border_radius: BorderRadius::all(Val::Px(7.0)),
                 justify_content: JustifyContent::Center,
@@ -1905,7 +1905,7 @@ fn layout_spacious_picker(
             node.display = Display::None; continue;
         }
         if class.is_some() {
-            node.width = Val::Px(if phone { left_w } else { (left_w - 24.0) / 4.0 });
+            node.width = Val::Px(if phone { left_w } else { (left_w - 24.0) / 2.0 });
             node.height = Val::Px(if phone {
                 ((bottom - class_y - 24.0) / 5.0).clamp(40.0, 48.0)
             } else {
@@ -2019,7 +2019,7 @@ fn layout_spacious_picker(
                 node.height = Val::Px(if phone {
                     (stage_h - 62.0).max(100.0)
                 } else {
-                    (stage_h - 204.0).max(156.0)
+                    (stage_h - 116.0).max(220.0)
                 });
                 node.flex_shrink = 0.0;
             }
@@ -2125,7 +2125,7 @@ impl PickerLayout {
         let left_w = stage_x - inset - if phone { 12.0 } else { 24.0 };
         let class_y = top + if phone { 72.0 } else { 104.0 };
         let grid_x = if phone { inset + left_w + 12.0 } else { inset };
-        let class_rows = shared::hero_roster::STARTER_ROSTER.len().div_ceil(4).min(3) as f32;
+        let class_rows = shared::hero_roster::STARTER_ROSTER.len().div_ceil(2).min(6) as f32;
         let grid_y = if phone {
             class_y
         } else {
