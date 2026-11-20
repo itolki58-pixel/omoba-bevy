@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Read-only GLB inspection and neutral studio preview for the Zaragat source."""
-import bpy, json, os, sys
+import bpy, json, os, sys, glob
 from mathutils import Vector
+
+# Ubuntu Blender uses its bundled Python; expose matching system site-packages (numpy).\nfor candidate in glob.glob("/usr/lib/python3/dist-packages"):\n    if candidate not in sys.path:\n        sys.path.append(candidate)
 
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 if len(args) != 2:
@@ -84,7 +86,7 @@ with open(os.path.join(out_dir, "zargat-report.json"), "w", encoding="utf-8") as
 if not meshes:
     raise SystemExit("GLB imported but contains no mesh objects; report was written.")
 
-scene.render.engine = "BLENDER_EEVEE_NEXT"
+scene.render.engine = "BLENDER_EEVEE" if "BLENDER_EEVEE" in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items.keys() else "BLENDER_EEVEE_NEXT"
 scene.render.resolution_x = 1200
 scene.render.resolution_y = 1200
 scene.render.resolution_percentage = 100
