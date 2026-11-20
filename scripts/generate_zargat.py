@@ -155,7 +155,7 @@ def cone_between(name, a, b, radius, material, bone_name, vertices=16, radius2=0
 def wing_mesh(side, suffix):
     # Dense, curved bat membrane with a scalloped trailing edge (not flat triangles).
     # The surface is tessellated so lighting and the membrane normal read smoothly.
-    span_steps, chord_steps = 18, 12
+    span_steps, chord_steps = 32, 20
     verts, faces = [], []
     leading = [(0.36,1.53),(0.70,1.83),(1.05,2.02),(1.42,2.13)]
     trailing = [(0.36,1.48),(0.64,1.22),(0.91,1.05),(1.17,1.12),(1.31,1.48)]
@@ -186,8 +186,8 @@ def wing_mesh(side, suffix):
     return finish_part(obj,obj.name,MAT_WING,"wing."+suffix)
 
 # Core anatomy and living demonic silhouette — skin is the dominant visible material.
-sphere("Infernal torso",(0,0,1.28),(0.46,0.31,0.48),MAT_SKIN,"spine")
-sphere("Broad chest",(0,-0.005,1.49),(0.61,0.34,0.36),MAT_SKIN,"chest")
+sphere("Infernal torso",(0,0,1.27),(0.50,0.34,0.49),MAT_SKIN,"spine",48,32)
+sphere("Broad chest",(0,-0.005,1.49),(0.66,0.36,0.38),MAT_SKIN,"chest",48,32)
 sphere("Living chest hide",(0,-0.285,1.45),(0.47,0.105,0.30),MAT_SKIN,"chest")
 sphere("Molten heart",(0,-0.386,1.45),(0.105,0.025,0.12),MAT_EMBER,"chest")
 for z in (1.30,1.42,1.54):
@@ -197,9 +197,9 @@ sphere("Infernal pelvic hide",(0,0,0.86),(0.34,0.24,0.22),MAT_SKIN,"pelvis")
 sphere("Pelvic dermal ridge",(0,-0.225,0.86),(0.22,0.045,0.13),MAT_RED,"pelvis",24,16)
 
 # Head, horns, mane, eyes and jaw.
-sphere("Demon skull",(0,-0.025,1.84),(0.285,0.255,0.325),MAT_SKIN,"head")
-sphere("Infernal facial hide",(0,-0.238,1.785),(0.225,0.055,0.155),MAT_SKIN,"head")
-sphere("Demon jaw",(0,-0.215,1.675),(0.17,0.105,0.13),MAT_RED,"jaw")
+sphere("Demon skull",(0,-0.025,1.86),(0.31,0.275,0.34),MAT_SKIN,"head",48,32)
+sphere("Infernal facial hide",(0,-0.252,1.785),(0.245,0.075,0.17),MAT_SKIN,"head",40,28)
+sphere("Demon jaw",(0,-0.235,1.665),(0.205,0.12,0.145),MAT_RED,"jaw",40,28)
 for side in (-1,1):
     cone_between("Crown horn",(side*0.16,0.0,1.98),(side*0.29,0.02,2.35),0.105,MAT_GOLD,"head",9,0.006)
     sphere("Burning eye",(side*0.105,-0.245,1.84),(0.045,0.025,0.035),MAT_EYE,"head",10,6)
@@ -545,6 +545,18 @@ body.name="Zargat_Skinned_Mesh"
 body.parent=arm
 body["character_id"]="zargat"
 body["rig_type"]="independent_modular_armature"
+POLYGON_BUDGET = 245000
+current_polys = len(body.data.polygons)
+if current_polys > POLYGON_BUDGET:
+    decimate = body.modifiers.new("Mobile polygon budget", "DECIMATE")
+    decimate.ratio = POLYGON_BUDGET / float(current_polys)
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.modifier_apply(modifier=decimate.name)
+final_polys = len(body.data.polygons)
+if final_polys > 300000:
+    raise RuntimeError(f"Zargat mesh exceeds 300k polygon limit: {final_polys}")
+body["polygon_count"] = final_polys
+print("Zargat polygon count", final_polys)
 
 # Global hero scale: add the requested final 5% (19% previous increase + 5% = 24% total target).
 arm.scale = (1.05, 1.05, 1.05)
