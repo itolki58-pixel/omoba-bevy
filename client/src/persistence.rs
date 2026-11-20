@@ -33,10 +33,11 @@ use crate::world::{
     MIN_LIGHT_YAW_DEG,
 };
 
-const SCHEMA_VERSION: u32 = 9;
+const SCHEMA_VERSION: u32 = 10;
 const LEGACY_DEFAULT_MODEL_TARGET_HEIGHT: f32 = 1.15;
 const SCHEMA_3_DEFAULT_MODEL_TARGET_HEIGHT: f32 = 1.45;
 const SCHEMA_8_DEFAULT_MODEL_TARGET_HEIGHT: f32 = 2.1;
+const SCHEMA_9_DEFAULT_MODEL_TARGET_HEIGHT: f32 = 2.625;
 const PREFS_FILENAME: &str = "client_preferences.json";
 const CLIENT_SESSION_ID_MAX_LEN: usize = 64;
 
@@ -207,8 +208,8 @@ pub fn clamp_model_target_height(value: f32) -> f32 {
 }
 
 /// Migrates old defaults once, preserving custom sizes in the supported range.
-/// Schema 9 raises the normalized hero height from 2.1 to 2.625. Only the exact
-/// schema-8 default is upgraded; custom heights remain untouched.
+/// Schema 10 raises normalized hero height by 25% from 2.625 to 3.28125.
+/// Only the exact schema-9 default is upgraded; custom heights remain untouched.
 pub fn migrate_model_target_height(stored: f32, schema_version: u32) -> f32 {
     let legacy_default = schema_version < 3
         && (stored < MIN_MODEL_TARGET_HEIGHT
@@ -217,7 +218,9 @@ pub fn migrate_model_target_height(stored: f32, schema_version: u32) -> f32 {
         schema_version == 3 && (stored - SCHEMA_3_DEFAULT_MODEL_TARGET_HEIGHT).abs() < f32::EPSILON;
     let schema_eight_default = schema_version == 8
         && (stored - SCHEMA_8_DEFAULT_MODEL_TARGET_HEIGHT).abs() < f32::EPSILON;
-    if legacy_default || schema_three_default || schema_eight_default {
+    let schema_nine_default = schema_version == 9
+        && (stored - SCHEMA_9_DEFAULT_MODEL_TARGET_HEIGHT).abs() < f32::EPSILON;
+    if legacy_default || schema_three_default || schema_eight_default || schema_nine_default {
         DEFAULT_MODEL_TARGET_HEIGHT
     } else {
         clamp_model_target_height(stored)
@@ -1081,6 +1084,10 @@ mod tests {
     fn schema_eight_default_migrates_to_larger_hero_models_and_preserves_custom_sizes() {
         assert_eq!(
             migrate_model_target_height(SCHEMA_8_DEFAULT_MODEL_TARGET_HEIGHT, 8),
+            DEFAULT_MODEL_TARGET_HEIGHT
+        );
+        assert_eq!(
+            migrate_model_target_height(SCHEMA_9_DEFAULT_MODEL_TARGET_HEIGHT, 9),
             DEFAULT_MODEL_TARGET_HEIGHT
         );
         for custom in [1.15, 1.45, 2.0, 2.099, 2.101, 2.4, 3.0] {
