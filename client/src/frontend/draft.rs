@@ -559,7 +559,6 @@ fn render_draft(
         }
         stage::sync_members(stage, &preview_roster, game.your_id);
     }
-    let catalogue = crate::passport::avatar_catalogue();
     // A ticking server clock must not tear down an active picker/drag.
     let mut render_snapshot = draft.clone();
     render_snapshot.remaining_ms = 0;
@@ -570,14 +569,11 @@ fn render_draft(
         state.desired_lock,
         state.notice,
         state.pending.is_some(),
-        catalogue.revision,
-        window.width()
+        window.width(),
+        window.height()
     );
     let key = format!(
-        "{key}:{:?}:{}:{}:{}",
-        state.picker_tab,
-        omoba_passport::weapon_store::snapshot().0,
-        window.height(),
+        "{key}:{}",
         locale.as_ref().map_or(0, |locale| locale.generation())
     );
     if *last == key && !roots.is_empty() {
@@ -587,11 +583,13 @@ fn render_draft(
     for root in &roots {
         commands.entity(root).despawn();
     }
-    for entry in &catalogue.entries {
-        if let Some(path) = crate::passport::thumbnail_asset_path(&entry.avatar) {
+    for hero in shared::hero_roster::STARTER_ROSTER {
+        if let Some(avatar) = omoba_passport::avatars::avatar_definition(hero.avatar)
+            && let Some(path) = crate::passport::thumbnail_asset_path(avatar)
+        {
             thumbnails
                 .0
-                .insert(entry.avatar.slug.clone(), assets.load(path));
+                .insert(hero.avatar.to_owned(), assets.load(path));
         }
     }
     let compact = window.height() < 500.0;
@@ -720,268 +718,33 @@ fn render_draft(
                     Name::new("DraftPicker"),
                 ))
                 .with_children(|picker| {
-                    if false {
-                        picker
-                            .spawn(Node {
-                                column_gap: Val::Px(4.0),
-                                flex_shrink: 0.0,
-                                ..default()
-                            })
-                            .with_children(|tabs| {
-                                for (tab, key, id) in [
-                                    (PickerTab::Avatars, "draft.tab.avatars", "DraftTabAvatars"),
-                                    (PickerTab::Heroes, "draft.tab.classes", "DraftTabClasses"),
-                                    (PickerTab::Weapons, "collection.weapons", "DraftTabWeapons"),
-                                ] {
-                                    action_button(
-                                        tabs,
-                                        tr(key),
-                                        DraftAction::Picker(tab),
-                                        id,
-                                        (picker_width - 8.0) / 3.0,
-                                        false,
-                                        state.picker_tab == tab,
-                                    );
-                                }
-                            });
-                    }
-                    if false {
-                        picker.spawn(widgets::label(tr("collection.weapons"), 12.0, theme::MUTED));
-                        if let Some(status) = choice
-                            .and_then(|choice| super::collection::handheld_status(&choice.handheld))
-                        {
-                            picker.spawn((
-                                widgets::label(status, 12.0, theme::GOLD),
-                                Name::new("DraftWeaponStatus"),
-                            ));
-                        }
-                        picker
-                            .spawn(Node {
-                                flex_wrap: FlexWrap::Wrap,
-                                column_gap: Val::Px(4.0),
-                                row_gap: Val::Px(4.0),
-                                max_height: Val::Px(84.0),
-                                overflow: Overflow::scroll_y(),
-                                ..default()
-                            })
-                            .with_children(|row| {
-                                for (value, name, id) in super::collection::handheld_choices() {
-                                    let selected = choice.is_some_and(|c| c.handheld == value);
-                                    action_button(
-                                        row,
-                                        &name,
-                                        DraftAction::Handheld(value),
-                                        &format!("Draft-{id}"), // i18n-allow: stable ECS/test identity, never displayed
-                                        (picker_width - 8.0) / 3.0,
-                                        false,
-                                        selected,
-                                    );
-                                }
-                            });
-                    }
-                    if true {
-                        picker
-                            .spawn(Node {
-                                column_gap: Val::Px(4.0),
-                                row_gap: Val::Px(4.0),
-                                flex_wrap: FlexWrap::Wrap,
-                                ..default()
-                            })
-                            .with_children(|classes| {
-                                for hero in shared::hero_roster::STARTER_ROSTER {
-                                    let class = hero.class;
-                                    let label = format!(
-                                        "{} · {}",
-                                        data::hero_name(class),
-                                        data::role(hero.position)
-                                    );
-                                    action_button(
-                                        classes,
-                                        &label,
-                                        DraftAction::Hero(class),
-                                        &format!("DraftHero-{}", class.id()),
-                                        (picker_width - 12.0) / 3.0,
-                                        false,
-                                        choice.is_some_and(|c| c.hero_class == class),
-                                    );
-                                }
-                            });
-                        picker
-                            .spawn(Node {
-                                display: Display::None,
-                                column_gap: Val::Px(4.0),
-                                ..default()
-                            })
-                            .with_children(|roles| {
-                                for role in Role::ALL {
-                                    action_button(
-                                        roles,
-                                        data::role(role),
-                                        DraftAction::Role(role),
-                                        // The TestId keeps the English label: ids never translate.
-                                        &format!("DraftRole-{}", role.label()),
-                                        (picker_width - 16.0) / 5.0,
-                                        false,
-                                        choice.is_some_and(|c| c.role == role),
-                                    );
-                                }
-                            });
-                    }
-                    if false {
-                        picker
-                            .spawn((
-                                Node {
-                                    flex_grow: 1.0,
-                                    min_height: Val::Px(if compact { 192.0 } else { 100.0 }),
-                                    flex_shrink: 0.0,
-                                    flex_direction: FlexDirection::Column,
-                                    overflow: Overflow::scroll_y(),
-                                    row_gap: Val::Px(6.0),
-                                    ..default()
-                                },
-                                ScrollPosition(Vec2::new(0.0, *scroll.0.get(&1).unwrap_or(&0.0))),
-                                draft_pane(1),
-                                Name::new("DraftAvatarCatalogue"),
-                            ))
-                            .with_children(|avatars| {
-                                for defaults in [true, false] {
-                                    avatars.spawn((
-                                        widgets::label(
-                                            if defaults {
-                                                tr("draft.avatars.included")
-                                            } else {
-                                                tr("draft.avatars.studio")
-                                            },
-                                            12.0,
-                                            theme::GOLD,
-                                        ),
-                                        Name::new(if defaults {
-                                            "DraftIncludedHeading"
-                                        } else {
-                                            "DraftStudioHeading"
-                                        }),
-                                    ));
-                                    if !defaults {
-                                        avatars.spawn((
-                                            widgets::label(
-                                                crate::i18n::data::catalogue_status(
-                                                    &catalogue.status,
-                                                ),
-                                                12.0,
-                                                theme::MUTED,
-                                            ),
-                                            Name::new("DraftStudioStatus"),
-                                        ));
-                                        avatars
-                                            .spawn(Node {
-                                                column_gap: Val::Px(6.0),
-                                                ..default()
-                                            })
-                                            .with_children(|actions| {
-                                                action_button(
-                                                    actions,
-                                                    tr("draft.button.refresh"),
-                                                    DraftAction::Refresh,
-                                                    "DraftStudioRefresh",
-                                                    86.0,
-                                                    false,
-                                                    false,
-                                                );
-                                                if !crate::passport::account_connected() {
-                                                    action_button(
-                                                        actions,
-                                                        tr("draft.button.connect_ekza"),
-                                                        DraftAction::Connect,
-                                                        "DraftStudioConnect",
-                                                        116.0,
-                                                        false,
-                                                        false,
-                                                    );
-                                                }
-                                            });
-                                    }
-                                    avatars
-                                        .spawn(Node {
-                                            flex_wrap: FlexWrap::Wrap,
-                                            column_gap: Val::Px(6.0),
-                                            row_gap: Val::Px(6.0),
-                                            ..default()
-                                        })
-                                        .with_children(|tiles| {
-                                            for entry in catalogue.entries.iter().filter(|e| {
-                                                (e.source == AvatarCatalogueSource::Default)
-                                                    == defaults
-                                            }) {
-                                                let selected = choice.is_some_and(|c| {
-                                                    c.avatar.as_deref() == Some(&entry.avatar.slug)
-                                                });
-                                                let style = ButtonStyle {
-                                                    kind: ButtonKind::Tile,
-                                                    selected,
-                                                };
-                                                tiles
-                                                    .spawn((
-                                                        Button,
-                                                        Node {
-                                                            width: Val::Px(84.0),
-                                                            height: Val::Px(78.0),
-                                                            min_height: Val::Px(78.0),
-                                                            flex_shrink: 0.0,
-                                                            flex_direction: FlexDirection::Column,
-                                                            align_items: AlignItems::Center,
-                                                            justify_content: JustifyContent::Center,
-                                                            border: UiRect::all(Val::Px(1.0)),
-                                                            border_radius: BorderRadius::all(
-                                                                Val::Px(6.0),
-                                                            ),
-                                                            padding: UiRect::all(Val::Px(4.0)),
-                                                            overflow: Overflow::clip(),
-                                                            ..default()
-                                                        },
-                                                        BackgroundColor(style.idle_color()),
-                                                        BorderColor::all(if selected {
-                                                            theme::GOLD
-                                                        } else {
-                                                            theme::PANEL_EDGE
-                                                        }),
-                                                        style,
-                                                        UiAction(DraftAction::Avatar(
-                                                            entry.avatar.slug.clone(),
-                                                        )),
-                                                        TestId::new(format!(
-                                                            "DraftAvatar-{}",
-                                                            entry.avatar.slug
-                                                        )),
-                                                    ))
-                                                    .with_children(|tile| {
-                                                        if let Some(image) =
-                                                            thumbnails.0.get(&entry.avatar.slug)
-                                                        {
-                                                            tile.spawn((
-                                                                ImageNode::new(image.clone()),
-                                                                Node {
-                                                                    width: Val::Px(44.0),
-                                                                    height: Val::Px(44.0),
-                                                                    flex_shrink: 0.0,
-                                                                    ..default()
-                                                                },
-                                                            ));
-                                                        }
-                                                        tile.spawn((
-                                                            widgets::label(
-                                                                &entry.avatar.display_name,
-                                                                11.0,
-                                                                theme::IVORY,
-                                                            ),
-                                                            TextLayout::justify(Justify::Center)
-                                                                .with_linebreak(LineBreak::NoWrap),
-                                                        ));
-                                                    });
-                                            }
-                                        });
-                                }
-                            });
-                    }
+                    picker.spawn(widgets::label(tr("draft.tab.classes"), 12.0, theme::GOLD));
+                    picker
+                        .spawn(Node {
+                            flex_wrap: FlexWrap::Wrap,
+                            column_gap: Val::Px(6.0),
+                            row_gap: Val::Px(6.0),
+                            ..default()
+                        })
+                        .with_children(|heroes| {
+                            for hero in shared::hero_roster::STARTER_ROSTER {
+                                let class = hero.class;
+                                let label = format!(
+                                    "{} · {}",
+                                    data::hero_name(class),
+                                    data::role(hero.position)
+                                );
+                                action_button(
+                                    heroes,
+                                    &label,
+                                    DraftAction::Hero(class),
+                                    &format!("DraftHero-{}", class.id()),
+                                    (picker_width - 12.0) / 3.0,
+                                    false,
+                                    choice.is_some_and(|selected| selected.hero_class == class),
+                                );
+                            }
+                        });
                 });
             });
             root.spawn(Node {
