@@ -12,21 +12,37 @@ impl HandheldSelection {
     pub fn is_default(&self) -> bool {
         *self == Self::ClassDefault
     }
+
+    /// Every hero has a fixed signature weapon. These are visual equipment
+    /// defaults only: they do not alter combat stats, abilities, or item shop.
     pub fn resolve(&self, class: crate::HeroClass) -> Option<&str> {
         match self {
-            Self::ClassDefault if class == crate::HeroClass::Warrior => Some("forge-sword"),
-            Self::ClassDefault if class == crate::HeroClass::Adventurer => Some("dagger"),
-            Self::ClassDefault if class == crate::HeroClass::Wildspark => Some("wild-repeater"),
-            Self::ClassDefault if class == crate::HeroClass::Ranger => Some("verdant-bow"),
-            Self::ClassDefault if class == crate::HeroClass::Riftshot => Some("wild-repeater"),
-            Self::ClassDefault if class == crate::HeroClass::Dawnweaver => Some("dawn-scepter"),
-            Self::ClassDefault | Self::Unequipped => None,
+            Self::ClassDefault => Some(match class {
+                crate::HeroClass::Warrior => "forge-sword",
+                crate::HeroClass::Mage => "dawn-scepter",
+                crate::HeroClass::Ranger => "verdant-bow",
+                crate::HeroClass::Cleric => "dawn-scepter",
+                crate::HeroClass::Warden => "forge-hammer",
+                crate::HeroClass::Dawnweaver => "dawn-scepter",
+                crate::HeroClass::Wildspark => "wild-repeater",
+                crate::HeroClass::Cinderforge => "forge-hammer",
+                crate::HeroClass::Edgeweaver => "dagger",
+                crate::HeroClass::Stormfist => "forge-hammer",
+                crate::HeroClass::Veilstalker => "dagger",
+                crate::HeroClass::Emberveil => "dawn-scepter",
+                crate::HeroClass::Orbitwright => "dawn-scepter",
+                crate::HeroClass::Riftshot => "wild-repeater",
+                crate::HeroClass::Chainkeeper => "forge-hammer",
+                crate::HeroClass::Frostguard => "forge-hammer",
+                crate::HeroClass::Adventurer => "dagger",
+            }),
+            Self::Unequipped => None,
             Self::Item(id) => Some(id),
         }
     }
 
-    /// Only the class default follows the equipped gun mode. An explicitly
-    /// selected SDK or packaged skin remains the user's choice in either mode.
+    /// Only the Wildspark default follows its selected ranged weapon mode.
+    /// Other heroes keep their signature weapon regardless of that setting.
     pub fn resolve_mode(
         &self,
         class: crate::HeroClass,
@@ -46,50 +62,56 @@ impl HandheldSelection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::HeroClass;
-
-    #[test]
-    fn adventurer_defaults_to_dagger_and_any_class_can_equip_it() {
-        assert_eq!(
-            HandheldSelection::ClassDefault.resolve(HeroClass::Adventurer),
-            Some("dagger")
-        );
-        let equipped = HandheldSelection::Item("dagger".into());
-        for class in HeroClass::ALL {
-            assert_eq!(equipped.resolve(class), Some("dagger"));
-            assert_eq!(HandheldSelection::Unequipped.resolve(class), None);
-        }
-    }
-}
-
-#[cfg(test)]
-mod ranged_tests {
-    use super::*;
     use crate::{HeroClass, loadout::WeaponMode};
+
     #[test]
-    fn ranged_defaults_change_gun_mode_but_preserve_explicit_sdk_skins_and_unequip() {
+    fn every_hero_has_a_signature_weapon() {
+        for class in HeroClass::ALL {
+            assert!(
+                HandheldSelection::ClassDefault.resolve(class).is_some(),
+                "{} has no signature weapon",
+                class.id()
+            );
+        }
+        assert_eq!(
+            HandheldSelection::ClassDefault.resolve(HeroClass::Warrior),
+            Some("forge-sword")
+        );
         assert_eq!(
             HandheldSelection::ClassDefault.resolve(HeroClass::Ranger),
             Some("verdant-bow")
         );
         assert_eq!(
-            HandheldSelection::ClassDefault
-                .resolve_mode(HeroClass::Wildspark, WeaponMode::Repeater),
+            HandheldSelection::ClassDefault.resolve(HeroClass::Mage),
+            Some("dawn-scepter")
+        );
+        assert_eq!(
+            HandheldSelection::ClassDefault.resolve(HeroClass::Adventurer),
+            Some("dagger")
+        );
+    }
+
+    #[test]
+    fn only_wildspark_switches_its_signature_weapon_with_weapon_mode() {
+        assert_eq!(
+            HandheldSelection::ClassDefault.resolve_mode(HeroClass::Wildspark, WeaponMode::Repeater),
             Some("wild-repeater")
         );
         assert_eq!(
             HandheldSelection::ClassDefault.resolve_mode(HeroClass::Wildspark, WeaponMode::Rockets),
             Some("wild-launcher")
         );
-        for mode in [WeaponMode::Repeater, WeaponMode::Rockets] {
-            assert_eq!(
-                HandheldSelection::Unequipped.resolve_mode(HeroClass::Wildspark, mode),
-                None
-            );
-            assert_eq!(
-                HandheldSelection::Item("sdk-skin".into()).resolve_mode(HeroClass::Wildspark, mode),
-                Some("sdk-skin")
-            );
+        assert_eq!(
+            HandheldSelection::ClassDefault.resolve_mode(HeroClass::Warrior, WeaponMode::Rockets),
+            Some("forge-sword")
+        );
+        assert_eq!(
+            HandheldSelection::Unequipped.resolve(HeroClass::Wildspark),
+            None
+        );
+        let equipped = HandheldSelection::Item("sdk-skin".into());
+        for class in HeroClass::ALL {
+            assert_eq!(equipped.resolve(class), Some("sdk-skin"));
         }
     }
 }
