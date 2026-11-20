@@ -22,7 +22,7 @@ impl HandheldSelection {
     pub fn resolve(&self, class: crate::HeroClass) -> Option<&str> {
         match self {
             Self::ClassDefault => crate::hero_roster::profile(class)
-                .map(|hero| hero.weapon)
+                .and_then(|hero| hero.weapon)
                 .or_else(|| match class {
                     // Non-selectable legacy kits keep a single visual fallback.
                     crate::HeroClass::Wildspark => Some("wild-repeater"),
@@ -56,7 +56,7 @@ mod tests {
         for hero in STARTER_ROSTER {
             assert_eq!(
                 HandheldSelection::ClassDefault.resolve(hero.class),
-                Some(hero.weapon),
+                hero.weapon,
                 "{}",
                 hero.display_name
             );
