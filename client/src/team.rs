@@ -1,4 +1,4 @@
-//! Pre-join selection flow: hero class -> roster avatar -> team.
+//! Pre-join selection flow: choose a hero, then join a team.
 //!
 //! The roster avatars under `assets/avatars/` are the primary cosmetic path;
 //! the legacy SDK character stays in
