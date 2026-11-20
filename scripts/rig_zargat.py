@@ -149,13 +149,69 @@ for obj in meshes:
     validation.append({"mesh":obj.name,"vertices":len(obj.data.vertices),"vertex_groups":len(obj.vertex_groups),"weighted_vertices":weighted,"armature_modifiers":len(mods)})
 if not all(r["weighted_vertices"] == r["vertices"] and r["armature_modifiers"] > 0 for r in validation):
     raise SystemExit("Skin weights/modifier validation failed after automatic and fallback weighting")
+# Create a shared model root and turn the complete character 180 degrees.
+# Parenting both mesh and armature together preserves the bind relationship.
+root = bpy.data.objects.new("Zargat_Root_180", None)
+bpy.context.scene.collection.objects.link(root)
+root.rotation_euler[2] = 3.141592653589793
+for obj in meshes + [arm_obj]:
+    world = obj.matrix_world.copy()
+    obj.parent = root
+    obj.matrix_world = world
+
+# Author a real in-place walk cycle. The legs swing alternately around the
+# character's lateral axis; knees flex during the rear swing and feet counter-rotate.
+from mathutils import Matrix
+arm_obj.animation_data_create()
+walk = bpy.data.actions.new("Zargat_Walk")
+arm_obj.animation_data.action = walk
+scene = bpy.context.scene
+scene.render.fps = 30
+scene.frame_start = 1
+scene.frame_end = 32
+cycle = [
+    (1, 0.42, -0.42, 0.08, 0.42),
+    (9, 0.00, 0.00, 0.42, 0.42),
+    (17, -0.42, 0.42, 0.08, 0.08),
+    (25, 0.00, 0.00, 0.42, 0.42),
+    (33, 0.42, -0.42, 0.08, 0.42),
+]
+def set_world_axis_rotation(pose_bone, angle):
+    pose_bone.rotation_mode = "QUATERNION"
+    rest = pose_bone.bone.matrix_local.to_3x3()
+    local_delta = rest.inverted() @ Matrix.Rotation(angle, 3, "X") @ rest
+    pose_bone.rotation_quaternion = local_delta.to_quaternion()
+
+for frame, left_swing, right_swing, left_knee, right_knee in cycle:
+    scene.frame_set(frame)
+    values = {
+        "Thigh_L": left_swing, "Thigh_R": right_swing,
+        "Shin_L": left_knee, "Shin_R": right_knee,
+        "Foot_L": -left_swing * 0.35, "Foot_R": -right_swing * 0.35,
+    }
+    for name, angle in values.items():
+        pb = arm_obj.pose.bones.get(name)
+        if pb is None:
+            raise RuntimeError("Required walk bone missing: " + name)
+        set_world_axis_rotation(pb, angle)
+        pb.keyframe_insert(data_path="rotation_quaternion", frame=frame, group=name)
+    pelvis_pb = arm_obj.pose.bones.get("Pelvis")
+    pelvis_pb.location.z = 0.025 if frame in (9, 25) else 0.0
+    pelvis_pb.keyframe_insert(data_path="location", frame=frame, group="Pelvis")
+# Smooth interpolation and cyclic extrapolation make the gait loop seamlessly.
+for fc in walk.fcurves:
+    for key in fc.keyframe_points:
+        key.interpolation = "BEZIER"
+    fc.modifiers.new(type="CYCLES")
+scene.frame_set(1)
+
 bpy.ops.object.select_all(action="DESELECT")
 for obj in meshes: obj.select_set(True)
 arm_obj.select_set(True)
 bpy.context.view_layer.objects.active = arm_obj
 out_glb = os.path.join(out_dir,"zargat-rigged.glb")
 bpy.ops.export_scene.gltf(filepath=out_glb,export_format="GLB",use_selection=True)
-report = {"source":os.path.basename(source),"output":os.path.basename(out_glb),"blender_version":bpy.app.version_string,"bone_count":len(arm_data.bones),"bones":[b.name for b in arm_data.bones],"bounds_dimensions":dims,"mesh_validation":validation,"animation_count":len(bpy.data.actions),"note":"First-pass automatic-weight rig; visual deformation review and animation tests are still required."}
+report = {"source":os.path.basename(source),"output":os.path.basename(out_glb),"blender_version":bpy.app.version_string,"bone_count":len(arm_data.bones),"bones":[b.name for b in arm_data.bones],"bounds_dimensions":dims,"mesh_validation":validation,"animation_count":len(bpy.data.actions),"animations":[a.name for a in bpy.data.actions],"root_rotation_degrees":180,"walk_cycle_frames":32,"walk_cycle_fps":30,"note":"Walk cycle and 180-degree root orientation authored; deformation still requires visual review in-engine."}
 with open(os.path.join(out_dir,"zargat-rig-report.json"),"w",encoding="utf-8") as f:
     json.dump(report,f,ensure_ascii=False,indent=2)
 print("ZARGAT_RIGGING_OK")
