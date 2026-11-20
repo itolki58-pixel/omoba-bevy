@@ -31,6 +31,15 @@ struct ZargatWing {
     side: f32,
 }
 
+pub(crate) struct ZargatPlugin;
+
+impl Plugin for ZargatPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, setup_zargat_assets)
+            .add_systems(Update, (attach_zargat_visuals, animate_zargat_wings));
+    }
+}
+
 pub(crate) fn setup_zargat_assets(
     mut commands: Commands,
     mode: Res<PlayerVisualMode>,
