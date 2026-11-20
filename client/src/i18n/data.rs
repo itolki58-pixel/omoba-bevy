@@ -88,6 +88,23 @@ pub(crate) fn item_short(item: ItemId) -> &'static str {
     lookup_composed("item.", item.id(), ".short").unwrap_or_else(|| item_name(item))
 }
 
+/// A hero's fixed signature weapon label.
+pub(crate) fn signature_weapon(class: HeroClass) -> &'static str {
+    let id = shared::handheld::HandheldSelection::ClassDefault
+        .resolve(class)
+        .unwrap_or("unknown");
+    tr(match id {
+        "forge-sword" => "team.weapon.sword",
+        "forge-hammer" => "team.weapon.hammer",
+        "dawn-scepter" => "team.weapon.scepter",
+        "dagger" => "team.weapon.dagger",
+        "wild-repeater" => "team.weapon.repeater",
+        "wild-launcher" => "team.weapon.launcher",
+        "verdant-bow" => "team.weapon.bow",
+        _ => "team.weapon.default",
+    })
+}
+
 /// A draft role (`Solo`).
 pub(crate) fn role(role: Role) -> &'static str {
     tr(match role {
