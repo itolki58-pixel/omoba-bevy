@@ -223,7 +223,6 @@ cam.data.lens=55; bpy.context.scene.camera=cam
 
 scene=bpy.context.scene
 scene.render.engine="BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in {e.identifier for e in scene.render.bl_rna.properties["engine"].enum_items} else "BLENDER_EEVEE"
-scene.eevee.taa_render_samples=48 if hasattr(scene,"eevee") else 48
 scene.render.resolution_x=1100; scene.render.resolution_y=1100; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.filepath=PNG
 scene.view_settings.view_transform="Standard"
