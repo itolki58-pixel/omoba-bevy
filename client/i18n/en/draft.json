@@ -29,5 +29,11 @@
   "draft.stage.rotate": "Drag to rotate",
   "draft.tab.avatars": "Avatars",
   "draft.tab.classes": "Heroes",
-  "draft.warning.same_hero": "Your team has selected the same hero more than once."
+  "draft.warning.same_hero": "Your team has selected the same hero more than once.",
+  "draft.filter.all": "ALL",
+  "draft.filter.gold": "GOLD",
+  "draft.filter.experience": "EXP",
+  "draft.filter.center": "MID",
+  "draft.filter.jungle": "JUNGLE",
+  "draft.filter.support": "SUPPORT"
 }
