@@ -864,7 +864,7 @@ fn render_draft(
                                 );
                             }
                         });
-                    let columns = if picker_width >= 430.0 { 3.0 } else { 2.0 };
+                    let columns = if picker_width >= 320.0 { 3.0 } else { 2.0 };
                     let gap = 7.0;
                     let card_width = ((picker_width - gap * (columns - 1.0)) / columns).max(58.0);
                     picker
