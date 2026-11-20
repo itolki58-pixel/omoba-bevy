@@ -28,5 +28,6 @@
   "draft.timer.gathering": "Waiting for team…",
   "draft.stage.rotate": "Drag to rotate",
   "draft.tab.avatars": "Avatars",
-  "draft.tab.classes": "Heroes"
+  "draft.tab.classes": "Heroes",
+  "draft.warning.same_hero": "Your team has selected the same hero more than once."
 }
