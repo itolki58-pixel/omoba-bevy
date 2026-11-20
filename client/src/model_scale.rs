@@ -28,10 +28,10 @@ use crate::team::CharacterChoice;
 /// Standing hero height in world units, tuned for Verdant's 12-unit lanes.
 /// This changes presentation only: `PLAYER_SIZE`, combat ranges and navigation
 /// clearance keep their existing values, as does the creature reference below.
-pub const DEFAULT_MODEL_TARGET_HEIGHT: f32 = 2.1;
-/// Creature multipliers were authored against the previous 1.15-unit hero
-/// height. Keep that reference independent of hero readability preferences.
-pub const CREATURE_MODEL_TARGET_HEIGHT: f32 = 1.15;
+pub const DEFAULT_MODEL_TARGET_HEIGHT: f32 = 2.625;
+/// Lane minions and neutral creatures are enlarged by the same 25% presentation
+/// multiplier as heroes; combat radii and navigation clearance remain unchanged.
+pub const CREATURE_MODEL_TARGET_HEIGHT: f32 = 1.4375;
 pub const MIN_MODEL_TARGET_HEIGHT: f32 = 0.3;
 pub const MAX_MODEL_TARGET_HEIGHT: f32 = 3.0;
 const NORMALIZATION_MIN_HEIGHT: f32 = 0.001;
