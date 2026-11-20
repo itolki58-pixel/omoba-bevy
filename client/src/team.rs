@@ -2361,6 +2361,13 @@ mod tests {
 
         let mut heroes = app.world_mut().query::<&ClassSelectButton>();
         assert_eq!(heroes.iter(app.world()).count(), 12);
+        let mut filters = app.world_mut().query::<&HeroFilterTab>();
+        assert_eq!(filters.iter(app.world()).count(), 6);
+        let mut visible_cards = app.world_mut().query::<(&HeroCardLane, &Visibility)>();
+        assert_eq!(
+            visible_cards.iter(app.world()).filter(|(_, visibility)| **visibility == Visibility::Inherited).count(),
+            12
+        );
         let mut avatars = app.world_mut().query::<&AvatarSelectButton>();
         assert_eq!(avatars.iter(app.world()).count(), 0);
         let mut portrait_slots = app.world_mut().query::<&AvatarThumbnailSlot>();
@@ -2387,7 +2394,7 @@ mod tests {
         assert_eq!(teams.iter(app.world()).count(), 1);
         let selection = TeamSelection::default();
         assert_eq!(selection.hero_class, HeroClass::Warrior);
-        assert_eq!(selection.avatar.as_deref(), Some("crowley"));
+        assert_eq!(selection.avatar.as_deref(), Some("zargat"));
         assert_eq!(selection.handheld, shared::handheld::HandheldSelection::ClassDefault);
     }
 
@@ -2538,4 +2545,16 @@ mod tests {
         app.update();
         assert_eq!(text(&app), "01  选择职业");
     }
+    #[test]
+    fn hero_lane_filters_cover_all_twelve_heroes() {
+        let roster = &shared::hero_roster::STARTER_ROSTER;
+        let count = |filter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
+        assert_eq!(count(HeroLaneFilter::All), 12);
+        assert_eq!(count(HeroLaneFilter::Gold), 2);
+        assert_eq!(count(HeroLaneFilter::Experience), 3);
+        assert_eq!(count(HeroLaneFilter::Center), 2);
+        assert_eq!(count(HeroLaneFilter::Jungle), 2);
+        assert_eq!(count(HeroLaneFilter::Support), 3);
+    }
+
 }
