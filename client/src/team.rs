@@ -2119,7 +2119,7 @@ mod tests {
     }
 
     #[test]
-    fn model_join_ui_excludes_inactive_layout_and_scrolls_all_shipped_choices() {
+    fn model_join_ui_shows_only_the_twelve_fixed_heroes() {
         let mut app = App::new();
         app.add_message::<bevy::input::mouse::MouseWheel>()
             .init_resource::<ButtonInput<KeyCode>>()
@@ -2138,75 +2138,27 @@ mod tests {
         app.world_mut()
             .spawn((Window::default(), bevy::window::PrimaryWindow));
         app.update();
-        let mut model = app
+
+        let mut heroes = app.world_mut().query::<&ClassSelectButton>();
+        assert_eq!(heroes.iter(app.world()).count(), 12);
+        let mut avatars = app.world_mut().query::<&AvatarSelectButton>();
+        assert_eq!(avatars.iter(app.world()).count(), 0);
+        let mut model_grids = app
             .world_mut()
-            .query_filtered::<(Entity, &Node), With<ModelAvatarGrid>>();
-        let (grid, node) = model.single(app.world()).unwrap();
-        assert_eq!(node.display, Display::Flex);
-        // Two whole avatar rows on a normal window; a short window gets one.
-        assert_eq!(
-            node.max_height,
-            Val::Px(2.0 * (AVATAR_BUTTON_HEIGHT + AVATAR_GRID_GAP) + AVATAR_GRID_GAP)
-        );
-        assert_eq!(node.overflow.y, OverflowAxis::Scroll);
-        let mut inactive = app
+            .query_filtered::<&Node, With<ModelAvatarGrid>>();
+        assert_eq!(model_grids.iter(app.world()).count(), 0);
+        let mut sprite_grids = app
             .world_mut()
             .query_filtered::<&Node, With<SpriteAvatarGrid>>();
-        assert_eq!(inactive.single(app.world()).unwrap().display, Display::None);
-        let mut choices = app.world_mut().query::<&AvatarSelectButton>();
-        assert_eq!(choices.iter(app.world()).count(), avatar_roster().len());
-        // Defaults precede the persistent Studio section, even without a connection.
-        let mut names = app.world_mut().query::<crate::ui::test_id::NodeKey>();
-        let names: Vec<String> = names
-            .iter(app.world())
-            .map(|name| name.as_str().to_owned())
-            .collect();
-        for expected in [
-            "DefaultAvatarsLabel",
-            "StudioAvatarsLabel",
-            "PurchasedAvatarsHint",
-            // Pairing starts from the menu, not from a launch flag.
-            "WalletConnectButton",
-        ] {
-            assert!(names.iter().any(|name| name == expected), "{expected}");
-        }
-        assert_eq!(
-            crate::passport::wallet_view(),
-            crate::passport::WalletView::Disconnected
-        );
-        assert!(!crate::passport::poll_wallet());
+        assert_eq!(sprite_grids.iter(app.world()).count(), 0);
         let mut sprite_choices = app.world_mut().query::<&SpriteSelectButton>();
         assert_eq!(sprite_choices.iter(app.world()).count(), 0);
         let mut teams = app.world_mut().query::<&TeamSelectButton>();
         assert_eq!(teams.iter(app.world()).count(), 1);
-        // A 720p / 768p roster viewport is bounded while the complete content scrolls.
-        for height in [720.0, 768.0] {
-            app.world_mut().entity_mut(grid).insert((
-                ComputedNode {
-                    size: Vec2::new(672.0, height * 0.32),
-                    content_size: Vec2::new(672.0, 700.0),
-                    inverse_scale_factor: 1.0,
-                    ..default()
-                },
-                // No visibility propagation in this app.
-                InheritedVisibility::VISIBLE,
-            ));
-            app.world_mut()
-                .resource_mut::<ButtonInput<KeyCode>>()
-                .press(KeyCode::PageDown);
-            app.update();
-            assert!(app.world().entity(grid).get::<ScrollPosition>().unwrap().y > 0.0);
-            assert!(
-                app.world().entity(grid).get::<ScrollPosition>().unwrap().y
-                    <= 700.0 - height * 0.32
-            );
-        }
-        let mut status = app.world_mut().query::<(&Name, Option<&Button>)>();
-        assert!(
-            status
-                .iter(app.world())
-                .any(|(name, button)| name.as_str() == "RendererStatus" && button.is_none())
-        );
+        let selection = TeamSelection::default();
+        assert_eq!(selection.hero_class, HeroClass::Warrior);
+        assert_eq!(selection.avatar.as_deref(), Some("crowley"));
+        assert_eq!(selection.handheld, shared::handheld::HandheldSelection::ClassDefault);
     }
 
     fn hero_select_app() -> App {
@@ -2252,6 +2204,10 @@ mod tests {
             app.world().resource::<TeamSelection>().hero_class,
             HeroClass::Mage
         );
+        let selection = app.world().resource::<TeamSelection>();
+        assert_eq!(selection.avatar.as_deref(), Some("anna"));
+        assert_eq!(selection.sprite_character, "clockwork-turnip-oracle");
+        assert_eq!(selection.handheld, shared::handheld::HandheldSelection::ClassDefault);
         app.update();
         assert!(harness::drain_actions::<HeroSelectAction>(app.world_mut()).is_empty());
         let tile = harness::find(app.world_mut(), &mage).unwrap();
