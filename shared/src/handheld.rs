@@ -20,6 +20,34 @@ impl HandheldSelection {
             Self::ClassDefault if class == crate::HeroClass::Ranger => Some("verdant-bow"),
             Self::ClassDefault if class == crate::HeroClass::Riftshot => Some("wild-repeater"),
             Self::ClassDefault if class == crate::HeroClass::Dawnweaver => Some("dawn-scepter"),
+            Self::ClassDefault
+                if matches!(
+                    class,
+                    crate::HeroClass::Mage
+                        | crate::HeroClass::Cleric
+                        | crate::HeroClass::Emberveil
+                        | crate::HeroClass::Orbitwright
+                        | crate::HeroClass::Chainkeeper
+                ) =>
+            {
+                Some("dawn-scepter")
+            }
+            Self::ClassDefault
+                if matches!(
+                    class,
+                    crate::HeroClass::Cinderforge | crate::HeroClass::Frostguard
+                ) =>
+            {
+                Some("forge-hammer")
+            }
+            Self::ClassDefault
+                if matches!(
+                    class,
+                    crate::HeroClass::Edgeweaver | crate::HeroClass::Veilstalker
+                ) =>
+            {
+                Some("dagger")
+            }
             Self::ClassDefault | Self::Unequipped => None,
             Self::Item(id) => Some(id),
         }
