@@ -1896,11 +1896,9 @@ impl PickerLayout {
             (available * 0.29).min(352.0)
         };
         let stage_x = w - right - stage_w;
-        let left_w = if phone {
-            available * 0.22
-        } else {
-            stage_x - inset - 24.0
-        };
+        // The hero grid now owns the full left pane; there is no separate
+        // avatar-selection column between it and the fixed hero preview.
+        let left_w = stage_x - inset - if phone { 12.0 } else { 24.0 };
         let class_y = top + if phone { 72.0 } else { 104.0 };
         let grid_x = if phone { inset + left_w + 12.0 } else { inset };
         let class_rows = shared::hero_roster::STARTER_ROSTER.len().div_ceil(4).min(3) as f32;
