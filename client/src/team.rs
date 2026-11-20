@@ -226,7 +226,7 @@ fn class_keys(class: HeroClass) -> (&'static str, &'static str) {
     }
 }
 
-/// `Warrior · Melee bruiser…` in the active language.
+/// Fixed position and signature weapon shown for the selected hero.
 fn class_line(class: HeroClass) -> String {
     let role = data::role(class.primary_role());
     let weapon = shared::hero_roster::profile(class)
