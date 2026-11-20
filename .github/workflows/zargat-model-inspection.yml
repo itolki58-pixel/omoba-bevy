@@ -1,0 +1,54 @@
+name: Zaragat GLB inspection
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - hunyuan3d-zargat
+    paths:
+      - "source.glb"
+      - ".github/workflows/zargat-model-inspection.yml"
+      - "scripts/inspect_avatar_glb.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zaragat-inspection-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inspect:
+    name: Inspect source GLB and render preview
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out the dedicated Zaragat branch
+        uses: actions/checkout@v4
+        with:
+          ref: hunyuan3d-zargat
+          lfs: true
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+
+      - name: Verify source file
+        run: |
+          test -s source.glb
+          file source.glb
+          sha256sum source.glb
+
+      - name: Inspect model and render preview
+        run: |
+          mkdir -p artifacts/zargat
+          blender --background --factory-startup --python scripts/inspect_avatar_glb.py -- source.glb artifacts/zargat
+
+      - name: Upload inspection report and preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: zaragat-model-inspection
+          path: artifacts/zargat/
+          if-no-files-found: error
+          retention-days: 14
