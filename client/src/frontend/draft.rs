@@ -80,6 +80,8 @@ impl Plugin for DraftScreenPlugin {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Choice {
+    // Kept in the wire snapshot for compatibility; client proposals always
+    // normalize this to ClassDefault so a hero cannot equip a different prop.
     handheld: shared::handheld::HandheldSelection,
     character: CharacterChoice,
     hero_class: HeroClass,
