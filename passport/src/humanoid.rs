@@ -449,7 +449,7 @@ fn parse_bones(
                     .collect(),
             )
         }
-        (None, None) => return Err("Model has no VRM0 or VRM1 humanoid metadata".into()),
+        (None, None) => return parse_demon_knight_bones(document, node_count),
         (Some(_), Some(_)) => {
             return Err("Model declares conflicting VRM0 and VRM1 extensions".into());
         }
@@ -467,6 +467,59 @@ fn parse_bones(
         }
     }
     Ok((version, bones))
+}
+
+/// The shipped DemonKnight/Zargat source uses the project's authored
+/// bone names rather than VRM metadata. Translate that exact rig layout into
+/// the same semantic map used by the shared humanoid retargeter. This is not a
+/// name-guessing fallback: every required joint must exist exactly once and
+/// the normal skin/hierarchy validation below still applies.
+fn parse_demon_knight_bones(
+    document: &Value,
+    node_count: usize,
+) -> Result<(VrmVersion, BTreeMap<String, usize>), String> {
+    let nodes = document["nodes"]
+        .as_array()
+        .ok_or("DemonKnight GLB has no node list")?;
+    if nodes.len() != node_count {
+        return Err("DemonKnight node count changed while mapping its rig".into());
+    }
+    let names: BTreeMap<&str, usize> = nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(index, node)| node["name"].as_str().map(|name| (name, index)))
+        .collect();
+    let authored = [
+        ("hips", "Pelvis"),
+        ("spine", "Spine_01"),
+        ("chest", "Spine_02"),
+        ("neck", "Neck"),
+        ("head", "Head"),
+        ("leftUpperLeg", "Thigh_L"),
+        ("leftLowerLeg", "Shin_L"),
+        ("leftFoot", "Foot_L"),
+        ("rightUpperLeg", "Thigh_R"),
+        ("rightLowerLeg", "Shin_R"),
+        ("rightFoot", "Foot_R"),
+        ("leftUpperArm", "UpperArm_L"),
+        ("leftLowerArm", "Forearm_L"),
+        ("leftHand", "Hand_L"),
+        ("rightUpperArm", "UpperArm_R"),
+        ("rightLowerArm", "Forearm_R"),
+        ("rightHand", "Hand_R"),
+    ];
+    let mut bones = BTreeMap::new();
+    let mut indices = HashSet::new();
+    for (semantic, authored_name) in authored {
+        let index = *names
+            .get(authored_name)
+            .ok_or_else(|| format!("DemonKnight rig is missing authored bone {authored_name}"))?;
+        if !indices.insert(index) {
+            return Err(format!("DemonKnight authored bone {authored_name} is assigned twice"));
+        }
+        bones.insert(semantic.to_owned(), index);
+    }
+    Ok((VrmVersion::Vrm0, bones))
 }
 
 fn semantic_parent(bone: &str, version: VrmVersion) -> Option<String> {
