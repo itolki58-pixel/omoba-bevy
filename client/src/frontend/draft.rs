@@ -137,6 +137,7 @@ pub(super) struct DraftClient {
     namespace: Option<(u64, u64, u64)>,
     next_request_id: u64,
     choice: Option<Choice>,
+    filter: HeroFilter,
     pending: Option<PendingRequest>,
     desired_lock: Option<bool>,
     wants_loaded: bool,
@@ -223,9 +224,42 @@ fn sync_draft(
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum HeroFilter {
+    #[default]
+    All,
+    Gold,
+    Experience,
+    Center,
+    Jungle,
+    Support,
+}
+impl HeroFilter {
+    fn matches(self, role: Role) -> bool {
+        match self {
+            Self::All => true,
+            Self::Gold => role == Role::Carry,
+            Self::Experience => role == Role::Solo,
+            Self::Center => role == Role::Mid,
+            Self::Jungle => role == Role::Jungle,
+            Self::Support => role == Role::Support,
+        }
+    }
+    fn label(self) -> &'static str {
+        match self {
+            Self::All => "draft.filter.all",
+            Self::Gold => "draft.filter.gold",
+            Self::Experience => "draft.filter.experience",
+            Self::Center => "draft.filter.center",
+            Self::Jungle => "draft.filter.jungle",
+            Self::Support => "draft.filter.support",
+        }
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum DraftAction {
     Hero(HeroClass),
+    Filter(HeroFilter),
     Lock,
     Leave,
 }
@@ -266,6 +300,9 @@ fn draft_actions(
                     choice.pick_hero(*class);
                 }
                 state.notice = None;
+            }
+            DraftAction::Filter(filter) => {
+                state.filter = *filter;
             }
             DraftAction::Lock => {}
         }
@@ -426,6 +463,65 @@ pub(super) fn action_button<T: UiActionT>(
         });
 }
 
+fn hero_card(
+    parent: &mut ChildSpawnerCommands,
+    hero: &shared::hero_roster::HeroRosterEntry,
+    image: Option<Handle<Image>>,
+    width: f32,
+    selected: bool,
+) {
+    parent
+        .spawn((
+            Button,
+            Node {
+                width: Val::Px(width),
+                min_width: Val::Px(width),
+                height: Val::Px(116.0),
+                min_height: Val::Px(116.0),
+                flex_shrink: 0.0,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(5.0),
+                padding: UiRect::all(Val::Px(5.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                border_radius: BorderRadius::all(Val::Px(8.0)),
+                ..default()
+            },
+            BackgroundColor(if selected { theme::TILE_SELECTED } else { theme::PANEL_OPAQUE }),
+            BorderColor::all(if selected { theme::GOLD } else { theme::PANEL_EDGE }),
+            ButtonStyle { kind: ButtonKind::Tile, selected },
+            UiAction(DraftAction::Hero(hero.class)),
+            TestId::new(format!("DraftHero-{}", hero.class.id())),
+            Name::new(format!("HeroCard-{}", hero.class.id())),
+        ))
+        .with_children(|card| {
+            if let Some(image) = image {
+                card.spawn((
+                    ImageNode::new(image),
+                    Node {
+                        width: Val::Px(70.0),
+                        height: Val::Px(76.0),
+                        flex_shrink: 0.0,
+                        ..default()
+                    },
+                ));
+            } else {
+                card.spawn((
+                    Node {
+                        width: Val::Px(70.0),
+                        height: Val::Px(76.0),
+                        flex_shrink: 0.0,
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    BackgroundColor(theme::PANEL_EDGE),
+                ));
+            }
+            card.spawn(widgets::label(data::hero_name(hero.class), 12.0, theme::IVORY));
+        });
+}
+
 pub(super) fn roster_row(
     parent: &mut ChildSpawnerCommands,
     player: &DraftPlayer,
@@ -574,6 +670,7 @@ fn render_draft(
         state.desired_lock,
         state.notice,
         state.pending.is_some(),
+        state.filter,
         window.width(),
         window.height()
     );
@@ -597,11 +694,14 @@ fn render_draft(
                 .insert(hero.avatar.to_owned(), assets.load(path));
         }
     }
-    let compact = window.height() < 500.0;
-    let side = if compact { 32.0 } else { 28.0 };
-    let available = window.width() - side * 2.0;
-    let roster_width = (available * if compact { 0.51 } else { 0.56 }).min(740.0);
-    let picker_width = available - roster_width - 12.0;
+    let vertical = window.width() < 720.0;
+    let compact = window.height() < 500.0 || vertical;
+    let side = if compact { 12.0 } else { 28.0 };
+    let available = (window.width() - side * 2.0).max(180.0);
+    let roster_width = if vertical { available } else {
+        (available * if compact { 0.43 } else { 0.48 }).min(740.0)
+    };
+    let picker_width = if vertical { available } else { available - roster_width - 12.0 };
     let local = draft.players.iter().find(|p| p.player_id == game.your_id);
     let choice = state.choice.as_ref();
     let locked = local.is_some_and(|p| p.locked);
@@ -686,14 +786,18 @@ fn render_draft(
             root.spawn(Node {
                 flex_grow: 1.0,
                 min_height: Val::Px(0.0),
+                flex_direction: if vertical { FlexDirection::Column } else { FlexDirection::Row },
+                row_gap: Val::Px(if vertical { 8.0 } else { 0.0 }),
                 column_gap: Val::Px(12.0),
                 ..default()
             })
             .with_children(|body| {
                 body.spawn(Node {
-                    width: Val::Px(roster_width),
-                    min_width: Val::Px(roster_width),
-                    height: Val::Percent(100.0),
+                    width: if vertical { Val::Percent(100.0) } else { Val::Px(roster_width) },
+                    min_width: if vertical { Val::Percent(100.0) } else { Val::Px(roster_width) },
+                    height: if vertical { Val::Px(142.0) } else { Val::Percent(100.0) },
+                    min_height: if vertical { Val::Px(142.0) } else { Val::Px(0.0) },
+                    flex_shrink: 0.0,
                     ..default()
                 })
                 .with_children(|roster| {
@@ -703,7 +807,9 @@ fn render_draft(
                         game.your_id,
                         party_stage.as_deref(),
                         roster_width,
-                        (window.height() - if compact { 136.0 } else { 152.0 }).max(180.0),
+                        if vertical { 132.0 } else {
+                            (window.height() - if compact { 136.0 } else { 152.0 }).max(180.0)
+                        },
                         false,
                         compact,
                     );
@@ -711,9 +817,10 @@ fn render_draft(
                 body.spawn((
                     Node {
                         flex_grow: 1.0,
+                        width: if vertical { Val::Percent(100.0) } else { Val::Auto },
                         min_width: Val::Px(0.0),
                         flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(5.0),
+                        row_gap: Val::Px(7.0),
                         min_height: Val::Px(0.0),
                         overflow: Overflow::scroll_y(),
                         ..default()
@@ -723,30 +830,59 @@ fn render_draft(
                     Name::new("DraftPicker"),
                 ))
                 .with_children(|picker| {
-                    picker.spawn(widgets::label(tr("draft.tab.classes"), 12.0, theme::GOLD));
+                    picker.spawn(widgets::label(tr("draft.avatars.included"), 12.0, theme::GOLD));
                     picker
                         .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(4.0),
+                            ..default()
+                        })
+                        .with_children(|tabs| {
+                            for filter in [
+                                HeroFilter::All,
+                                HeroFilter::Gold,
+                                HeroFilter::Experience,
+                                HeroFilter::Center,
+                                HeroFilter::Jungle,
+                                HeroFilter::Support,
+                            ] {
+                                action_button(
+                                    tabs,
+                                    tr(filter.label()),
+                                    DraftAction::Filter(filter),
+                                    filter.label(),
+                                    ((picker_width - 20.0) / 6.0).max(40.0),
+                                    false,
+                                    state.filter == filter,
+                                );
+                            }
+                        });
+                    let columns = if picker_width >= 430.0 { 3.0 } else { 2.0 };
+                    let gap = 7.0;
+                    let card_width = ((picker_width - gap * (columns - 1.0)) / columns).max(58.0);
+                    picker
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
                             flex_wrap: FlexWrap::Wrap,
-                            column_gap: Val::Px(6.0),
-                            row_gap: Val::Px(6.0),
+                            column_gap: Val::Px(gap),
+                            row_gap: Val::Px(gap),
+                            align_content: AlignContent::FlexStart,
                             ..default()
                         })
                         .with_children(|heroes| {
-                            for hero in shared::hero_roster::STARTER_ROSTER {
-                                let class = hero.class;
-                                let label = format!(
-                                    "{} · {}",
-                                    data::hero_name(class),
-                                    data::role(hero.position)
-                                );
-                                action_button(
+                            for hero in shared::hero_roster::STARTER_ROSTER
+                                .iter()
+                                .filter(|hero| state.filter.matches(hero.position))
+                            {
+                                let image = thumbnails.0.get(hero.avatar).cloned();
+                                hero_card(
                                     heroes,
-                                    &label,
-                                    DraftAction::Hero(class),
-                                    &format!("DraftHero-{}", class.id()),
-                                    (picker_width - 12.0) / 3.0,
-                                    false,
-                                    choice.is_some_and(|selected| selected.hero_class == class),
+                                    hero,
+                                    image,
+                                    card_width,
+                                    choice.is_some_and(|selected| selected.hero_class == hero.class),
                                 );
                             }
                         });
