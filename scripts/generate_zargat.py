@@ -152,6 +152,29 @@ def cone_between(name, a, b, radius, material, bone_name, vertices=16, radius2=0
     for poly in o.data.polygons: poly.use_smooth = True
     return finish_part(o,name,material,bone_name)
 
+
+def curve_tube(name, points, radius, material, bone_name, resolution=3):
+    # Build a real beveled tube mesh from a polyline, then bind it to the named bone.
+    curve = bpy.data.curves.new(name + "_Curve", "CURVE")
+    curve.dimensions = "3D"
+    curve.resolution_u = 12
+    curve.bevel_depth = radius
+    curve.bevel_resolution = max(1, int(resolution))
+    spline = curve.splines.new("POLY")
+    spline.points.add(len(points) - 1)
+    for point, co in zip(spline.points, points):
+        point.co = (co[0], co[1], co[2], 1.0)
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.convert(target="MESH")
+    obj = bpy.context.object
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
+    return finish_part(obj, name, material, bone_name)
+
+
 def wing_mesh(side, suffix):
     # Dense, curved bat membrane with a scalloped trailing edge (not flat triangles).
     # The surface is tessellated so lighting and the membrane normal read smoothly.
