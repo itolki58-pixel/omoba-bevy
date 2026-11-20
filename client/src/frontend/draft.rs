@@ -88,24 +88,31 @@ struct Choice {
     role: Role,
 }
 impl Choice {
-    /// Proposes the kit's duty unless the player already chose a different
-    /// role on purpose.
+    /// A hero owns its position, avatar and signature weapon. None of these
+    /// are independently selectable in the revised draft.
     fn pick_class(&mut self, class: HeroClass) {
-        if self.role == self.hero_class.primary_role() {
-            self.role = class.primary_role();
-        }
+        let Some(hero) = shared::hero_roster::profile(class) else {
+            return;
+        };
         self.hero_class = class;
+        self.role = hero.position;
+        self.handheld = shared::handheld::HandheldSelection::ClassDefault;
+        self.avatar = Some(hero.avatar.to_owned());
+        self.sprite_character = Some(hero.sprite_character.to_owned());
     }
 }
 impl From<&DraftPlayer> for Choice {
     fn from(player: &DraftPlayer) -> Self {
+        let hero = shared::hero_roster::profile(player.hero_class)
+            .or_else(|| shared::hero_roster::profile(HeroClass::Warrior))
+            .expect("starter roster contains Zargat");
         Self {
-            handheld: player.handheld.clone(),
+            handheld: shared::handheld::HandheldSelection::ClassDefault,
             character: player.character,
-            hero_class: player.hero_class,
-            avatar: player.avatar.clone(),
-            sprite_character: player.sprite_character.clone(),
-            role: player.role,
+            hero_class: hero.class,
+            avatar: Some(hero.avatar.to_owned()),
+            sprite_character: Some(hero.sprite_character.to_owned()),
+            role: hero.position,
         }
     }
 }
@@ -118,8 +125,8 @@ struct PendingRequest {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum PickerTab {
-    #[default]
     Avatars,
+    #[default]
     Classes,
     Weapons,
 }
@@ -865,13 +872,19 @@ fn render_draft(
                                 ..default()
                             })
                             .with_children(|classes| {
-                                for class in HeroClass::ALL {
+                                for hero in shared::hero_roster::STARTER_ROSTER {
+                                    let class = hero.class;
+                                    let label = format!(
+                                        "{} · {}",
+                                        data::hero_name(class),
+                                        data::role(hero.position)
+                                    );
                                     action_button(
                                         classes,
-                                        data::hero_name(class),
+                                        &label,
                                         DraftAction::Class(class),
-                                        &format!("DraftClass-{}", class.id()),
-                                        (picker_width - 12.0) / 4.0,
+                                        &format!("DraftHero-{}", class.id()),
+                                        (picker_width - 12.0) / 3.0,
                                         false,
                                         choice.is_some_and(|c| c.hero_class == class),
                                     );
