@@ -140,3 +140,10 @@ Support has the fixed `Role::Support` position and spawns beside GOLD from match
 - [ ] Jungle receives no lane-minion income and can farm neutral camps.
 - [ ] Support starts with GOLD and can leave to help another lane.
 - [ ] Reconnect and respawn preserve the hero's assigned position.
+
+If the game server is built from a separate checkout, copy these two updated files into that checkout and rebuild/restart the server:
+
+- `shared/src/hero_roster.rs` — canonical hero-to-avatar mapping (Warrior/Zargat now maps to `zargat`)
+- `client/assets/avatars/manifest.json` — allows the server to normalize and retain the `zargat` slug
+
+The server does not need `zargat.glb` or the Blender script; those are client-only assets generated during the Android build.
