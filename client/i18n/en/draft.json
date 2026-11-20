@@ -5,7 +5,7 @@
   "draft.notice.verification_failed": "Avatar verification failed. Your accepted choice is unchanged.",
   "draft.warning.same_avatar": "A teammate chose the same avatar · coordinate before locking.",
   "draft.warning.same_role": "{count} players intend {role} · agree your lanes together.",
-  "draft.warning.one_class": "One class across the team · consider a broader mix of kits.",
+  "draft.warning.one_class": "Your team is relying on the same hero.",
   "draft.warning.default": "Roles describe your plan; class determines your abilities.",
   "draft.roster.you": " · YOU",
   "draft.roster.bot": " · BOT",
@@ -28,5 +28,5 @@
   "draft.timer.gathering": "Waiting for team…",
   "draft.stage.rotate": "Drag to rotate",
   "draft.tab.avatars": "Avatars",
-  "draft.tab.classes": "Classes"
+  "draft.tab.classes": "Heroes"
 }
