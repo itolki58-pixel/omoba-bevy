@@ -415,6 +415,8 @@ fn setup_main_camera(
         composite_mode: BloomCompositeMode::Additive,
         ..default()
     });
+    #[cfg(target_os = "android")]
+    let _ = camera;
 }
 
 fn apply_lighting_settings_system(
