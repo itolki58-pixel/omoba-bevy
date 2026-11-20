@@ -100,6 +100,16 @@ impl Choice {
         self.sprite_character = Some(hero.sprite_character.to_owned());
     }
 }
+fn player_has_fixed_hero_identity(player: &DraftPlayer) -> bool {
+    let Some(hero) = shared::hero_roster::profile(player.hero_class) else {
+        return false;
+    };
+    player.handheld.is_default()
+        && player.avatar.as_deref() == Some(hero.avatar)
+        && player.sprite_character.as_deref() == Some(hero.sprite_character)
+        && player.role == hero.position
+}
+
 impl From<&DraftPlayer> for Choice {
     fn from(player: &DraftPlayer) -> Self {
         let hero = shared::hero_roster::profile(player.hero_class)
@@ -291,13 +301,9 @@ fn send_requests(
         state.loaded_sent = true;
         Some(PrematchAction::Loaded)
     } else if draft.phase == PrematchPhase::Draft {
-        let desired = state.choice.clone();
-        if !local.locked
-            && desired
-                .as_ref()
-                .is_some_and(|choice| *choice != Choice::from(local))
-        {
-            let choice = desired.expect("checked above");
+        let choice = state.choice.clone().unwrap_or_else(|| Choice::from(local));
+        let needs_select = !player_has_fixed_hero_identity(local) || choice != Choice::from(local);
+        if !local.locked && needs_select {
             state.notice = None;
             Some(PrematchAction::Select {
                 handheld: shared::handheld::HandheldSelection::ClassDefault,
