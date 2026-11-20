@@ -195,15 +195,15 @@ def idle(f):
     rot("Spine_01",.025*math.sin(t)); rot("Spine_02",.025*math.sin(t+.4),.025*math.sin(t/2))
     rot("Head",.025*math.sin(t+.8))
     for suf,s in [("L",1),("R",-1)]:
-        rot("wing."+suf,s*.10*math.sin(t/2))
+        rot("Wing_Root_"+suf,s*.10*math.sin(t/2))
     for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.18)]:
         rot(n,k*math.sin(t+.6))
 def locomotion(f,amount):
     t=(f-1)/24*math.tau
     for suf,phase in [("L",0),("R",math.pi)]:
         a=math.sin(t+phase)
-        rot("thigh."+suf,.55*amount*a); rot("shin."+suf,.45*amount*max(0,-a))
-        rot("upper_arm."+suf,-.30*amount*a)
+        rot("Thigh_"+suf,.55*amount*a); rot("Shin_"+suf,.45*amount*max(0,-a))
+        rot("UpperArm_"+suf,-.30*amount*a)
     rot("Spine_01",.04*amount*math.sin(2*t)); rot("Spine_02",.025*amount*math.sin(2*t+1))
     for suf,s in [("L",1),("R",-1)]: rot("wing."+suf,s*.12*amount*math.sin(2*t))
     for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.20)]:
