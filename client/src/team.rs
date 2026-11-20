@@ -1909,7 +1909,7 @@ fn layout_spacious_picker(
             node.height = Val::Px(if phone {
                 ((bottom - class_y - 24.0) / 5.0).clamp(40.0, 48.0)
             } else {
-                64.0
+                84.0
             });
             node.flex_direction = if phone {
                 FlexDirection::Row
@@ -2129,7 +2129,7 @@ impl PickerLayout {
         let grid_y = if phone {
             class_y
         } else {
-            class_y + class_rows * 64.0 + (class_rows - 1.0) * 6.0 + 40.0
+            class_y + class_rows * 84.0 + (class_rows - 1.0) * 6.0 + 40.0
         };
         let grid_w = if phone {
             stage_x - grid_x - 12.0
