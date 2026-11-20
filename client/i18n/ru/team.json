@@ -31,5 +31,6 @@
   "team.weapon.dagger": "Кинжал",
   "team.weapon.repeater": "Репитер",
   "team.weapon.bow": "Лук",
-  "team.weapon.default": "Родное оружие"
+  "team.weapon.default": "Родное оружие",
+  "team.weapon.integrated": "Встроено в модель героя"
 }
