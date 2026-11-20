@@ -18,6 +18,8 @@ on:
       - "mobile/android/**"
       - "client/**"
       - "shared/**"
+      - "scripts/rig_zargat_source.py"
+      - "art/zargat/**"
       - "Cargo.toml"
       - "Cargo.lock"
   workflow_dispatch:
