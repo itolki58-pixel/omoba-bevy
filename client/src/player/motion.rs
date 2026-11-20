@@ -29,6 +29,7 @@ pub(super) fn move_player(
                 Option<&crate::net::PlayerEquipment>,
                 Option<&crate::net::PlayerUtility>,
                 Option<&crate::net::NetworkHeroClass>,
+                Option<&crate::net::NetworkAvatar>,
                 Option<&crate::net::PlayerProgression>,
                 Option<&crate::net::PlayerLoadout>,
             ),
@@ -67,6 +68,7 @@ pub(super) fn move_player(
         equipment,
         utility,
         class,
+        avatar,
         progression,
         loadout,
     ) in player_query.iter_mut()
@@ -147,7 +149,10 @@ pub(super) fn move_player(
             transform.translation.z = desired.z;
 
             if direction.length_squared() > 0.001 {
-                let target_y_angle = shared::math::hero_yaw_towards(direction.x, direction.z);
+                let target_y_angle = hero_yaw_for_avatar(
+                    avatar.and_then(|avatar| avatar.0.as_deref()),
+                    direction,
+                );
                 let target_rotation = Quat::from_rotation_y(target_y_angle);
 
                 transform.rotation = transform
@@ -155,6 +160,17 @@ pub(super) fn move_player(
                     .slerp(target_rotation, 1.0 - (-10.0 * time.delta_secs()).exp());
             }
         }
+    }
+}
+
+
+/// Zaragat's supplied GLB is authored facing local +Z; the rest of the hero
+/// roster follows Bevy's local -Z convention. Keep the correction per-avatar.
+fn hero_yaw_for_avatar(avatar_slug: Option<&str>, direction: Vec3) -> f32 {
+    if avatar_slug == Some("zargat") {
+        shared::math::unit_yaw_towards(direction.x, direction.z)
+    } else {
+        shared::math::hero_yaw_towards(direction.x, direction.z)
     }
 }
 
@@ -406,4 +422,30 @@ pub(super) fn hero_movement_multiplier(
         class.map_or(shared::HeroClass::default(), |c| c.0),
         progression.map_or(1, |p| p.level),
     )
+}
+
+#[cfg(test)]
+mod avatar_facing_tests {
+    use super::*;
+
+    #[test]
+    fn zargat_and_other_heroes_face_their_travel_direction() {
+        for direction in [
+            Vec3::X,
+            Vec3::Z,
+            Vec3::NEG_X,
+            Vec3::NEG_Z,
+            Vec3::new(0.6, 0.0, -0.8),
+        ] {
+            let zargat_yaw = hero_yaw_for_avatar(Some("zargat"), direction);
+            let zargat_forward = shared::math::unit_forward(zargat_yaw);
+            assert!((zargat_forward[0] - direction.x).abs() < 1e-5);
+            assert!((zargat_forward[1] - direction.z).abs() < 1e-5);
+
+            let regular_yaw = hero_yaw_for_avatar(Some("anna"), direction);
+            let regular_forward = shared::math::hero_forward(regular_yaw);
+            assert!((regular_forward[0] - direction.x).abs() < 1e-5);
+            assert!((regular_forward[1] - direction.z).abs() < 1e-5);
+        }
+    }
 }
