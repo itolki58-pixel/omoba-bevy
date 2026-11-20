@@ -403,12 +403,11 @@ pub(super) fn composition_warning(players: &[DraftPlayer], local_id: u64) -> Str
         return String::new();
     };
     let team: Vec<_> = players.iter().filter(|p| p.team == local.team).collect();
-    let duplicate = local.avatar.as_ref().is_some_and(|avatar| {
-        team.iter()
-            .any(|p| p.player_id != local_id && p.avatar.as_ref() == Some(avatar))
-    });
-    if duplicate {
-        return tr("draft.warning.same_avatar").into();
+    let duplicate_hero = team
+        .iter()
+        .any(|player| player.player_id != local_id && player.hero_class == local.hero_class);
+    if duplicate_hero {
+        return tr("draft.warning.same_hero").into();
     }
     let same_role = team.iter().filter(|p| p.role == local.role).count();
     if same_role > 1 {
@@ -416,9 +415,6 @@ pub(super) fn composition_warning(players: &[DraftPlayer], local_id: u64) -> Str
             "draft.warning.same_role",
             &[("count", &same_role), ("role", &data::role(local.role))],
         );
-    }
-    if team.len() >= 3 && team.iter().all(|p| p.hero_class == local.hero_class) {
-        return tr("draft.warning.one_class").into();
     }
     tr("draft.warning.default").into()
 }
@@ -1716,11 +1712,12 @@ mod tests {
             loaded: false,
         };
         let mut players = vec![player(1), player(2)];
-        assert!(composition_warning(&players, 1).contains("same avatar"));
-        players[1].avatar = Some("another".into());
+        assert!(composition_warning(&players, 1).contains("same hero"));
+        players[1].hero_class = HeroClass::Mage;
+        players[1].avatar = Some("anna".into());
         assert!(composition_warning(&players, 1).contains("Jungle"));
         players[1].role = Role::Support;
-        assert!(composition_warning(&players, 1).contains("class determines"));
+        assert!(!composition_warning(&players, 1).contains("Jungle"));
     }
 
     /// The draft is a render-key screen: a language change redraws it in the
