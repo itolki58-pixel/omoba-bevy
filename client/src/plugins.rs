@@ -149,7 +149,6 @@ impl PluginGroup for PresentationPlugins {
             .add(World2dPlugin)
             // 3D model backend.
             .add(Presentation3dPlugin)
-            .add(crate::zargat::ZargatPlugin)
             .add(Verdant3dPlugin)
             .add(DecorPlugin)
             .add(JungleVisualsPlugin)
