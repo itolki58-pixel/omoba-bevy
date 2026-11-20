@@ -130,6 +130,8 @@ jobs:
           assert kind == 0x4E4F534A
           doc = json.loads(raw[20:20 + length].decode("utf-8"))
           assert path.stat().st_size < 23_000_000, "Zargat GLB is still too large for the mobile texture budget"
+          vertex_count = doc["accessors"][doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]]["count"]
+          assert vertex_count <= 100_000, f"Zargat mesh exceeds mobile vertex budget: {vertex_count}"
           assert doc.get("skins"), "Zargat GLB has no skeleton skin"
           assert len(doc["skins"][0].get("joints", [])) >= 25, "Zargat rig is incomplete"
           animations = {item.get("name") for item in doc.get("animations", [])}
