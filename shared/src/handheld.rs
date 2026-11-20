@@ -14,41 +14,26 @@ impl HandheldSelection {
     }
     pub fn resolve(&self, class: crate::HeroClass) -> Option<&str> {
         match self {
-            Self::ClassDefault if class == crate::HeroClass::Warrior => Some("forge-sword"),
-            Self::ClassDefault if class == crate::HeroClass::Adventurer => Some("dagger"),
-            Self::ClassDefault if class == crate::HeroClass::Wildspark => Some("wild-repeater"),
-            Self::ClassDefault if class == crate::HeroClass::Ranger => Some("verdant-bow"),
-            Self::ClassDefault if class == crate::HeroClass::Riftshot => Some("wild-repeater"),
-            Self::ClassDefault if class == crate::HeroClass::Dawnweaver => Some("dawn-scepter"),
-            Self::ClassDefault
-                if matches!(
-                    class,
-                    crate::HeroClass::Mage
-                        | crate::HeroClass::Cleric
-                        | crate::HeroClass::Emberveil
-                        | crate::HeroClass::Orbitwright
-                        | crate::HeroClass::Chainkeeper
-                ) =>
-            {
-                Some("dawn-scepter")
-            }
-            Self::ClassDefault
-                if matches!(
-                    class,
-                    crate::HeroClass::Cinderforge | crate::HeroClass::Frostguard
-                ) =>
-            {
-                Some("forge-hammer")
-            }
-            Self::ClassDefault
-                if matches!(
-                    class,
-                    crate::HeroClass::Edgeweaver | crate::HeroClass::Veilstalker
-                ) =>
-            {
-                Some("dagger")
-            }
-            Self::ClassDefault | Self::Unequipped => None,
+            Self::ClassDefault => Some(match class {
+                crate::HeroClass::Warrior => "forge-sword",
+                crate::HeroClass::Mage => "dawn-scepter",
+                crate::HeroClass::Ranger => "verdant-bow",
+                crate::HeroClass::Cleric => "dawn-scepter",
+                crate::HeroClass::Warden => "forge-hammer",
+                crate::HeroClass::Dawnweaver => "dawn-scepter",
+                crate::HeroClass::Wildspark => "wild-repeater",
+                crate::HeroClass::Cinderforge => "forge-hammer",
+                crate::HeroClass::Edgeweaver => "dagger",
+                crate::HeroClass::Stormfist => "forge-hammer",
+                crate::HeroClass::Veilstalker => "dagger",
+                crate::HeroClass::Emberveil => "dawn-scepter",
+                crate::HeroClass::Orbitwright => "dawn-scepter",
+                crate::HeroClass::Riftshot => "wild-repeater",
+                crate::HeroClass::Chainkeeper => "dawn-scepter",
+                crate::HeroClass::Frostguard => "forge-hammer",
+                crate::HeroClass::Adventurer => "dagger",
+            }),
+            Self::Unequipped => None,
             Self::Item(id) => Some(id),
         }
     }
@@ -96,12 +81,12 @@ mod tests {
             (HeroClass::Mage, Some("dawn-scepter")),
             (HeroClass::Ranger, Some("verdant-bow")),
             (HeroClass::Cleric, Some("dawn-scepter")),
-            (HeroClass::Warden, None),
+            (HeroClass::Warden, Some("forge-hammer")),
             (HeroClass::Dawnweaver, Some("dawn-scepter")),
             (HeroClass::Wildspark, Some("wild-repeater")),
             (HeroClass::Cinderforge, Some("forge-hammer")),
             (HeroClass::Edgeweaver, Some("dagger")),
-            (HeroClass::Stormfist, None),
+            (HeroClass::Stormfist, Some("forge-hammer")),
             (HeroClass::Veilstalker, Some("dagger")),
             (HeroClass::Emberveil, Some("dawn-scepter")),
             (HeroClass::Orbitwright, Some("dawn-scepter")),
