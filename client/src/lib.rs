@@ -72,7 +72,6 @@ mod team;
 mod team_vision;
 mod ui;
 mod verdant3d;
-mod zargat;
 mod vfx_clock;
 mod world;
 mod world2d;
