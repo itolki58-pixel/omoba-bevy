@@ -125,16 +125,47 @@ bpy.ops.object.mode_set(mode="OBJECT")
 # original fused surface/materials remain intact; no procedural replacement.
 bone_points={name:Vector((b.head_local+b.tail_local)*.5) for name,b in ad.bones.items()}
 groups={name:body.vertex_groups.new(name=name) for name in bone_points}
+
+def assign_chain(vertex_index, point, candidates):
+    # Blend only within one anatomical chain: wings cannot pull the torso,
+    # tail, arms or legs; left/right limbs cannot deform one another.
+    ranked=sorted(((point-bone_points[name]).length,name)
+                  for name in candidates if name in bone_points)
+    if not ranked:
+        ranked=sorted(((point-bone_points[name]).length,name)
+                      for name in ("root","pelvis","spine","chest") if name in bone_points)
+    if len(ranked)==1:
+        groups[ranked[0][1]].add([vertex_index],1.0,"REPLACE")
+        return
+    d0=max(ranked[0][0],.0001); d1=max(ranked[1][0],.0001)
+    total=d0+d1
+    groups[ranked[0][1]].add([vertex_index],d1/total,"REPLACE")
+    groups[ranked[1][1]].add([vertex_index],d0/total,"REPLACE")
+
 for i,v in enumerate(body.data.vertices):
     p=v.co
-    # Keep torso/helmet vertices anchored to their nearest central controls;
-    # limb and wing vertices naturally select their nearest limb controls.
-    ranked=sorted(((p-bp).length,name) for name,bp in bone_points.items())
-    chosen=ranked[:2]
-    d0=max(chosen[0][0],.0001); d1=max(chosen[1][0],.0001)
-    w0=d1/(d0+d1); w1=d0/(d0+d1)
-    groups[chosen[0][1]].add([i],w0,"REPLACE")
-    groups[chosen[1][1]].add([i],w1,"REPLACE")
+    dx=p.x-cx
+    side="L" if dx < 0 else "R"
+    lateral=abs(dx)
+    rear=p.y > cy+depth*.08
+    # Tail: back-facing, low central vertices follow only the tail chain.
+    if p.y > cy+depth*.16 and p.z < 1.05 and lateral < width*.34:
+        assign_chain(i,p,["tail.01","tail.02","tail.03","tail.tip"])
+    # Wings: elevated rear/outer geometry follows its own side's wing pivot.
+    elif rear and p.z > 1.12 and lateral > width*.16:
+        assign_chain(i,p,["wing."+side])
+    # Legs: each side is restricted to its own hip/knee/ankle chain.
+    elif p.z < .88:
+        assign_chain(i,p,["pelvis","thigh."+side,"shin."+side,"foot."+side])
+    # Arms and hands: only the matching shoulder/elbow/hand/finger chain.
+    elif .78 < p.z < 1.72 and lateral > width*.22 and not rear:
+        assign_chain(i,p,["upper_arm."+side,"forearm."+side,"hand."+side,
+                          "finger.1."+side,"finger.2."+side,"finger.3."+side])
+    # Head/neck stay separate from torso and limb chains.
+    elif p.z > 1.68 and lateral < width*.22:
+        assign_chain(i,p,["neck","head","jaw"])
+    else:
+        assign_chain(i,p,["root","pelvis","spine","chest","neck"])
 mod=body.modifiers.new("Zargat skeletal deformation","ARMATURE"); mod.object=rig
 body.parent=rig
 body["character_id"]="zargat"; body["source_asset"]="demon knight 3d model.glb"
@@ -184,6 +215,7 @@ def cast(f):
     p=math.sin((f-1)/24*math.pi)
     rot("upper_arm.L",.65*p); rot("upper_arm.R",-.65*p)
     rot("wing.L",.35*p); rot("wing.R",-.35*p)
+    rot("tail.01",.18*p); rot("tail.02",.24*p); rot("tail.03",.30*p)
 def death(f):
     p=(f-1)/30
     rot("spine",.65*p); rot("head",-.3*p); rot("wing.L",.45*p); rot("wing.R",-.45*p)
@@ -200,6 +232,7 @@ def ultimate(f):
     p=math.sin((f-1)/30*math.pi/2)
     rot("upper_arm.L",.8*p); rot("upper_arm.R",-.8*p)
     rot("wing.L",.7*p); rot("wing.R",-.7*p); rot("chest",-.1*p)
+    rot("tail.01",.30*p); rot("tail.02",-.35*p); rot("tail.03",.40*p)
 clip("Idle",[1,16,31],idle)
 clip("Run",[1,6,11,16,21],lambda f:locomotion(f,1.0))
 clip("Walk",[1,7,13,19,25],lambda f:locomotion(f,.65))
