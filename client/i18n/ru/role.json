@@ -1,7 +1,7 @@
 {
-  "role.solo": "Соло",
+  "role.solo": "Линия опыта",
   "role.jungle": "Лес",
   "role.mid": "Центр",
-  "role.carry": "Керри",
+  "role.carry": "Линия золота",
   "role.support": "Поддержка"
 }
