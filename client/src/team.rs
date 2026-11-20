@@ -30,8 +30,8 @@ const TEAM_BUTTON_GAP: f32 = 28.0;
 const CLASS_BUTTON_WIDTH: f32 = 164.0;
 const CLASS_BUTTON_HEIGHT: f32 = 112.0;
 const CLASS_BUTTON_GAP: f32 = 10.0;
-const COMPACT_CLASS_BUTTON_WIDTH: f32 = 92.0;
-const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 76.0;
+const COMPACT_CLASS_BUTTON_WIDTH: f32 = 76.0;
+const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 108.0;
 const AVATAR_BUTTON_WIDTH: f32 = 76.0;
 const AVATAR_BUTTON_HEIGHT: f32 = 92.0;
 const AVATAR_THUMBNAIL_SIZE: f32 = 56.0;
@@ -700,8 +700,12 @@ pub fn spawn_team_select_ui(
                         align_content: AlignContent::Center,
                         width: Val::Percent(100.0),
                         max_width: Val::Percent(100.0),
-                        column_gap: Val::Px(if compact { 7.0 } else { CLASS_BUTTON_GAP }),
-                        row_gap: Val::Px(if compact { 7.0 } else { CLASS_BUTTON_GAP }),
+                        column_gap: Val::Px(if compact { 6.0 } else { CLASS_BUTTON_GAP }),
+                        row_gap: Val::Px(if compact { 6.0 } else { CLASS_BUTTON_GAP }),
+                        max_height: Val::Percent(if compact { 48.0 } else { 56.0 }),
+                        min_height: Val::Px(0.0),
+                        overflow: Overflow::scroll_y(),
+                        flex_shrink: 1.0,
                         ..default()
                     },
                     Name::new("ClassButtonsRow"),
@@ -1357,17 +1361,16 @@ fn spawn_class_button(
     row.spawn((
         Button,
         Node {
-            width: Val::Px(width),
+            width: if compact { Val::Percent(22.0) } else { Val::Px(width) },
+            min_width: if compact { Val::Px(68.0) } else { Val::Px(width) },
+            max_width: if compact { Val::Px(92.0) } else { Val::Px(width) },
             height: Val::Px(height),
+            min_height: Val::Px(height),
             display: if filter.matches(hero.position) { Display::Flex } else { Display::None },
-            flex_direction: if compact {
-                FlexDirection::Row
-            } else {
-                FlexDirection::Column
-            },
+            flex_direction: FlexDirection::Column,
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
-            column_gap: Val::Px(6.0),
+            column_gap: Val::Px(0.0),
             row_gap: Val::Px(4.0),
             padding: UiRect::all(Val::Px(if compact { 5.0 } else { 8.0 })),
             border: UiRect::all(Val::Px(if selected { 2.0 } else { 1.0 })),
@@ -1392,8 +1395,8 @@ fn spawn_class_button(
     .with_children(|button| {
         button.spawn((
             Node {
-                width: Val::Px(if compact { 38.0 } else { 66.0 }),
-                height: Val::Px(if compact { 38.0 } else { 66.0 }),
+                width: Val::Px(if compact { 64.0 } else { 66.0 }),
+                height: Val::Px(if compact { 68.0 } else { 66.0 }),
                 flex_shrink: 0.0,
                 border_radius: BorderRadius::all(Val::Px(7.0)),
                 justify_content: JustifyContent::Center,
@@ -1410,7 +1413,7 @@ fn spawn_class_button(
             Node {
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::Center,
-                align_items: if compact { AlignItems::FlexStart } else { AlignItems::Center },
+                align_items: AlignItems::Center,
                 row_gap: Val::Px(2.0),
                 min_width: Val::Px(0.0),
                 ..default()
@@ -1421,7 +1424,7 @@ fn spawn_class_button(
             labels.spawn((
                 Localized::new(name).into_text(),
                 TextFont {
-                    font_size: (if compact { 10.0 } else { 14.0 }).into(),
+                    font_size: (if compact { 11.0 } else { 14.0 }).into(),
                     ..default()
                 },
                 TextColor(theme::IVORY),
