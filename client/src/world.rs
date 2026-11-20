@@ -479,6 +479,7 @@ fn spawn_local_player_on_team(
     session: Res<crate::net::ClientSession>,
     team_selection: Res<TeamSelection>,
     player_assets: Res<PlayerAssets>,
+    mut models: PlayerModelResolver,
     map_layout: Res<MapLayout>,
     existing_players: Query<Entity, With<Player>>,
     mut cam_state: ResMut<CameraState>,
@@ -495,15 +496,31 @@ fn spawn_local_player_on_team(
     }
     let team = team_selection.team.unwrap();
     let character = team_selection.character;
+    let hero_class = team_selection.hero_class;
     let avatar = team_selection.avatar.clone();
     let spawn = map_layout.team_spawn(team);
 
+    // Resolve the selected roster model at the spawn site. Relying on the
+    // asynchronously synchronized PlayerAssets resource could spawn the
+    // primitive fallback for one frame (or permanently in offline practice).
+    let resolved_assets = if *visual_mode == PlayerVisualMode::Models3d {
+        let (scene, gltf) = models.resolve(character, avatar.as_deref());
+        PlayerAssets {
+            scene,
+            gltf,
+            ..player_assets.clone()
+        }
+    } else {
+        player_assets.clone()
+    };
+
     spawn_player_entity(
         &mut commands,
-        &player_assets,
+        &resolved_assets,
         spawn,
         team,
         character,
+        hero_class,
         avatar,
         Some(team_selection.sprite_character.clone()),
         *visual_mode,
@@ -529,6 +546,7 @@ fn spawn_player_entity(
     spawn: Vec3,
     team: Team,
     character: CharacterChoice,
+    hero_class: shared::HeroClass,
     avatar: Option<String>,
     sprite_character: Option<String>,
     visual_mode: PlayerVisualMode,
@@ -545,6 +563,7 @@ fn spawn_player_entity(
             NetworkCharacterChoice(character),
             NetworkAvatar(avatar),
             NetworkSpriteCharacter(sprite_character),
+            crate::net::NetworkHeroClass(hero_class),
             Name::new(format!("Player-{}", team.as_str())),
         ));
         return;
@@ -566,6 +585,7 @@ fn spawn_player_entity(
             team,
             NetworkCharacterChoice(character),
             NetworkAvatar(avatar.clone()),
+            crate::net::NetworkHeroClass(hero_class),
             NormalizeModelScale::for_player_model(),
             Name::new(format!("Player-{}", team.as_str())),
         ));
@@ -588,6 +608,7 @@ fn spawn_player_entity(
             team,
             NetworkCharacterChoice(character),
             NetworkAvatar(avatar),
+            crate::net::NetworkHeroClass(hero_class),
             Name::new(format!("Player-{}", team.as_str())),
         ));
     }
