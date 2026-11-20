@@ -27,11 +27,11 @@ pub use shared::wire::CharacterChoice;
 
 const TEAM_BUTTON_SIZE: f32 = 64.0;
 const TEAM_BUTTON_GAP: f32 = 28.0;
-const CLASS_BUTTON_WIDTH: f32 = 164.0;
-const CLASS_BUTTON_HEIGHT: f32 = 112.0;
+const CLASS_BUTTON_WIDTH: f32 = 132.0;
+const CLASS_BUTTON_HEIGHT: f32 = 122.0;
 const CLASS_BUTTON_GAP: f32 = 10.0;
-const COMPACT_CLASS_BUTTON_WIDTH: f32 = 76.0;
-const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 108.0;
+const COMPACT_CLASS_BUTTON_WIDTH: f32 = 92.0;
+const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 118.0;
 const AVATAR_BUTTON_WIDTH: f32 = 76.0;
 const AVATAR_BUTTON_HEIGHT: f32 = 92.0;
 const AVATAR_THUMBNAIL_SIZE: f32 = 56.0;
@@ -696,8 +696,8 @@ pub fn spawn_team_select_ui(
                     Node {
                         flex_direction: FlexDirection::Row,
                         flex_wrap: FlexWrap::Wrap,
-                        justify_content: JustifyContent::Center,
-                        align_content: AlignContent::Center,
+                        justify_content: JustifyContent::FlexStart,
+                        align_content: AlignContent::FlexStart,
                         width: Val::Percent(100.0),
                         max_width: Val::Percent(100.0),
                         column_gap: Val::Px(if compact { 6.0 } else { CLASS_BUTTON_GAP }),
@@ -1361,9 +1361,9 @@ fn spawn_class_button(
     row.spawn((
         Button,
         Node {
-            width: if compact { Val::Percent(22.0) } else { Val::Px(width) },
-            min_width: if compact { Val::Px(68.0) } else { Val::Px(width) },
-            max_width: if compact { Val::Percent(22.0) } else { Val::Px(width) },
+            width: if compact { Val::Percent(31.0) } else { Val::Px(width) },
+            min_width: if compact { Val::Px(COMPACT_CLASS_BUTTON_WIDTH) } else { Val::Px(width) },
+            max_width: if compact { Val::Percent(31.0) } else { Val::Px(width) },
             height: Val::Px(height),
             min_height: Val::Px(height),
             display: if filter.matches(hero.position) { Display::Flex } else { Display::None },
@@ -1393,10 +1393,32 @@ fn spawn_class_button(
         TestId::new(format!("ClassButton-{}", class.id())),
     ))
     .with_children(|button| {
+        // Name first, portrait second: every hero is a compact tile in a wrapping grid.
         button.spawn((
             Node {
-                width: Val::Px(if compact { 64.0 } else { 66.0 }),
-                height: Val::Px(if compact { 68.0 } else { 66.0 }),
+                width: Val::Percent(100.0),
+                min_height: Val::Px(if compact { 18.0 } else { 20.0 }),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            Name::new(format!("HeroCardText-{}", class.id())),
+        ))
+        .with_children(|labels| {
+            labels.spawn((
+                Localized::new(name).into_text(),
+                TextFont {
+                    font_size: (if compact { 10.0 } else { 13.0 }).into(),
+                    ..default()
+                },
+                TextColor(theme::IVORY),
+                TextLayout::justify(Justify::Center),
+            ));
+        });
+        button.spawn((
+            Node {
+                width: Val::Px(if compact { 72.0 } else { 78.0 }),
+                height: Val::Px(if compact { 72.0 } else { 78.0 }),
                 flex_shrink: 0.0,
                 border_radius: BorderRadius::all(Val::Px(7.0)),
                 justify_content: JustifyContent::Center,
@@ -1409,28 +1431,6 @@ fn spawn_class_button(
             },
             Name::new(format!("HeroPortrait-{}", hero.avatar)),
         ));
-        button.spawn((
-            Node {
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(2.0),
-                min_width: Val::Px(0.0),
-                ..default()
-            },
-            Name::new(format!("HeroCardText-{}", class.id())),
-        ))
-        .with_children(|labels| {
-            labels.spawn((
-                Localized::new(name).into_text(),
-                TextFont {
-                    font_size: (if compact { 11.0 } else { 14.0 }).into(),
-                    ..default()
-                },
-                TextColor(theme::IVORY),
-                TextLayout::justify(Justify::Center),
-            ));
-        });
     });
 }
 
