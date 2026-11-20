@@ -74,25 +74,82 @@ for side, sign in (("L", 1.0), ("R", -1.0)):
     add_bone("Wing_Tip_"+side, mid.tail, (cx+sign*height*.78,cy+height*.10,z_at(.64)), mid, True)
 
 bpy.ops.object.mode_set(mode="OBJECT")
-for obj in bpy.context.selected_objects: obj.select_set(False)
-for obj in meshes: obj.select_set(True)
-arm_obj.select_set(True)
-bpy.context.view_layer.objects.active = arm_obj
+# First attempt the user's automatic heat-weight workflow. Blender can fail on
+# intersecting/isolated demon armor parts; in that case use deterministic
+# nearest-bone-segment weights so every vertex is bound to the skeleton.
+for obj in meshes:
+    obj.select_set(False)
+arm_obj.select_set(False)
 try:
+    for obj in meshes:
+        obj.select_set(True)
+    arm_obj.select_set(True)
+    bpy.context.view_layer.objects.active = arm_obj
     bpy.ops.object.parent_set(type="ARMATURE_AUTO")
 except Exception as exc:
-    with open(os.path.join(out_dir,"rigging-error.txt"),"w",encoding="utf-8") as f:
-        f.write("Automatic weights failed: " + repr(exc) + "\n")
-    raise
+    print("Automatic weights operator raised:", repr(exc))
+
+def has_complete_weights(obj):
+    if not any(m.type == "ARMATURE" and m.object == arm_obj for m in obj.modifiers):
+        return False
+    return all(len(v.groups) > 0 for v in obj.data.vertices)
+
+if not all(has_complete_weights(obj) for obj in meshes):
+    print("Automatic weights incomplete; applying nearest-segment fallback weights")
+    import numpy as np
+    bone_list = list(arm_data.bones)
+    bone_names = [b.name for b in bone_list]
+    bone_groups = {}
+    for obj in meshes:
+        # Keep the source mesh transform unchanged; weights are calculated in armature space.
+        for group in list(obj.vertex_groups):
+            obj.vertex_groups.remove(group)
+        for mod in list(obj.modifiers):
+            if mod.type == "ARMATURE":
+                obj.modifiers.remove(mod)
+        mod = obj.modifiers.new(name="DemonKnight_Armature", type="ARMATURE")
+        mod.object = arm_obj
+        groups = {name: obj.vertex_groups.new(name=name) for name in bone_names}
+        coords = np.asarray([tuple(obj.matrix_world @ v.co) for v in obj.data.vertices], dtype=np.float64)
+        if len(coords) == 0:
+            continue
+        dist2 = np.empty((len(bone_list), len(coords)), dtype=np.float64)
+        for bi, bone in enumerate(bone_list):
+            a = np.asarray(tuple(bone.head_local), dtype=np.float64)
+            b = np.asarray(tuple(bone.tail_local), dtype=np.float64)
+            ab = b - a
+            denom = float(np.dot(ab, ab))
+            if denom < 1.0e-12:
+                delta = coords - a
+                dist2[bi] = np.einsum("ij,ij->i", delta, delta)
+            else:
+                t = np.clip(((coords - a) @ ab) / denom, 0.0, 1.0)
+                closest = a[None, :] + t[:, None] * ab[None, :]
+                delta = coords - closest
+                dist2[bi] = np.einsum("ij,ij->i", delta, delta)
+        k = min(4, len(bone_list))
+        nearest = np.argpartition(dist2, kth=k-1, axis=0)[:k, :]
+        nearest_d2 = np.take_along_axis(dist2, nearest, axis=0)
+        inv = 1.0 / np.maximum(nearest_d2, 1.0e-10)
+        weights = inv / np.sum(inv, axis=0, keepdims=True)
+        vertex_ids = np.arange(len(coords), dtype=np.int32)
+        for slot in range(k):
+            for bi in range(len(bone_list)):
+                mask = nearest[slot] == bi
+                ids = vertex_ids[mask].tolist()
+                if ids:
+                    vals = weights[slot, mask].astype(float).tolist()
+                    groups[bone_names[bi]].add(ids, 0.0, "REPLACE")
+                    # Add actual normalized weights after creating the membership.
+                    groups[bone_names[bi]].add(ids, vals, "REPLACE")
 
 validation = []
 for obj in meshes:
     mods = [m for m in obj.modifiers if m.type == "ARMATURE" and m.object == arm_obj]
     weighted = sum(1 for v in obj.data.vertices if any(g.weight > 0 for g in v.groups))
     validation.append({"mesh":obj.name,"vertices":len(obj.data.vertices),"vertex_groups":len(obj.vertex_groups),"weighted_vertices":weighted,"armature_modifiers":len(mods)})
-if not any(r["weighted_vertices"] > 0 and r["armature_modifiers"] > 0 for r in validation):
-    raise SystemExit("Skin weights/modifier validation failed")
-
+if not all(r["weighted_vertices"] == r["vertices"] and r["armature_modifiers"] > 0 for r in validation):
+    raise SystemExit("Skin weights/modifier validation failed after automatic and fallback weighting")
 bpy.ops.object.select_all(action="DESELECT")
 for obj in meshes: obj.select_set(True)
 arm_obj.select_set(True)
