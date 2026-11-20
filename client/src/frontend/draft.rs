@@ -127,7 +127,7 @@ struct PendingRequest {
 enum PickerTab {
     Avatars,
     #[default]
-    Classes,
+    Heroes,
     Weapons,
 }
 
@@ -227,7 +227,7 @@ fn sync_draft(
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum DraftAction {
     Picker(PickerTab),
-    Class(HeroClass),
+    Hero(HeroClass),
     Role(Role),
     Avatar(String),
     Handheld(shared::handheld::HandheldSelection),
@@ -287,7 +287,7 @@ fn draft_actions(
                 }
                 state.notice = None;
             }
-            DraftAction::Class(class) => {
+            DraftAction::Hero(class) => {
                 if let Some(choice) = &mut state.choice {
                     choice.pick_class(*class);
                 }
@@ -807,7 +807,7 @@ fn render_draft(
                             .with_children(|tabs| {
                                 for (tab, key, id) in [
                                     (PickerTab::Avatars, "draft.tab.avatars", "DraftTabAvatars"),
-                                    (PickerTab::Classes, "draft.tab.classes", "DraftTabClasses"),
+                                    (PickerTab::Heroes, "draft.tab.classes", "DraftTabClasses"),
                                     (PickerTab::Weapons, "collection.weapons", "DraftTabWeapons"),
                                 ] {
                                     action_button(
@@ -875,7 +875,7 @@ fn render_draft(
                                     action_button(
                                         classes,
                                         &label,
-                                        DraftAction::Class(class),
+                                        DraftAction::Hero(class),
                                         &format!("DraftHero-{}", class.id()),
                                         (picker_width - 12.0) / 3.0,
                                         false,
@@ -1461,7 +1461,7 @@ mod tests {
         tap(&mut app, "DraftTabClasses");
         assert_eq!(
             app.world().resource::<DraftClient>().picker_tab,
-            PickerTab::Classes
+            PickerTab::Heroes
         );
         assert!(crate::ui::test_id::harness::find(app.world_mut(), "DraftClass-mage").is_some());
         tap(&mut app, "DraftTabAvatars");
