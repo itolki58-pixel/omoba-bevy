@@ -48,26 +48,6 @@ print("Zargat mobile mesh:", len(body.data.vertices), "vertices")
 if len(body.data.vertices) > 100000:
     raise RuntimeError("Zargat mesh exceeds the 100k mobile vertex budget")
 
-# Reduce mobile texture memory while preserving the authored skin.
-# Base colour is JPEG; normal and packed metallic/roughness maps stay lossless.
-for image in bpy.data.images:
-    if not image.has_data:
-        continue
-    width, height = map(int, image.size)
-    if width <= 0 or height <= 0:
-        continue
-    largest = max(width, height)
-    if largest > 2048:
-        factor = 2048.0 / largest
-        image.scale(max(1, round(width * factor)), max(1, round(height * factor)))
-    image.file_format = "PNG" if any(
-        token in image.name.lower() for token in ("normal", "roughness", "metallic", "_rm")
-    ) else "JPEG"
-    image.pack()
-    if max(map(int, image.size)) > 2048:
-        raise RuntimeError("Zargat texture was not reduced to the mobile 2K limit: " + image.name)
-    print("Zargat texture prepared:", image.name, tuple(map(int, image.size)), image.file_format)
-
 # Keep the supplied painted base-colour texture intact. The source atlas already
 # contains the red plates and dark forged-metal regions; multiplying it by a
 # luminance-derived red/orange tint flattened every surface into plastic.
