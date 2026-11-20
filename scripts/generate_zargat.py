@@ -32,14 +32,14 @@ def mat(name, color, metallic=0.0, rough=0.5, emission=None):
             strength_input.default_value = 2.0
     return m
 
-MAT_SKIN = mat("Zargat | Living infernal hide", (0.29, 0.012, 0.026), 0.0, 0.48)
-MAT_ARMOR = mat("Zargat | Blackened living keratin", (0.035, 0.003, 0.009), 0.0, 0.68)
-MAT_RED = mat("Zargat | Raised crimson dermis", (0.39, 0.018, 0.028), 0.0, 0.44)
-MAT_GOLD = mat("Zargat | Dark horn and hardened keratin", (0.075, 0.012, 0.018), 0.0, 0.72)
+MAT_SKIN = mat("Zargat | Living infernal hide", (0.075, 0.0035, 0.010), 0.0, 0.62)
+MAT_ARMOR = mat("Zargat | Blackened living keratin", (0.009, 0.001, 0.003), 0.0, 0.78)
+MAT_RED = mat("Zargat | Raised crimson dermis", (0.16, 0.004, 0.014), 0.0, 0.58)
+MAT_GOLD = mat("Zargat | Dark horn and hardened keratin", (0.022, 0.003, 0.006), 0.0, 0.82)
 MAT_EMBER = mat("Zargat | Molten core", (1.0, 0.12, 0.015), 0.0, 0.24, (1.0, 0.045, 0.004))
-MAT_WING = mat("Zargat | Living leathery membrane", (0.018, 0.0015, 0.006), 0.0, 0.72)
-MAT_HAIR = mat("Zargat | Charred mane", (0.105, 0.025, 0.03), 0.0, 0.68)
-MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.22, 0.015), 0.0, 0.2, (1.0, 0.08, 0.002))
+MAT_WING = mat("Zargat | Living leathery membrane", (0.006, 0.0008, 0.002), 0.0, 0.84)
+MAT_HAIR = mat("Zargat | Charred mane", (0.018, 0.002, 0.006), 0.0, 0.82)
+MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.34, 0.018), 0.0, 0.16, (1.0, 0.18, 0.004))
 
 
 # Layered procedural surface detail: living scaled hide, keratin ridges and molten fissures.
@@ -866,8 +866,8 @@ def area_light(name, location, energy, color, size):
     obj.rotation_euler = (Vector((0, 0, 1.25)) - obj.location).to_track_quat("-Z", "Y").to_euler()
     return obj
 
-area_light("Zargat portrait | warm key", (-3.8, -4.5, 5.2), 950, (1.0, 0.42, 0.20), 4.0)
-area_light("Zargat portrait | cool fill", (4.2, -3.0, 3.0), 700, (0.22, 0.48, 1.0), 3.5)
+area_light("Zargat portrait | warm key", (-3.8, -4.5, 5.2), 650, (1.0, 0.24, 0.10), 4.0)
+area_light("Zargat portrait | cool fill", (4.2, -3.0, 3.0), 360, (0.12, 0.24, 0.55), 3.5)
 area_light("Zargat portrait | ember rim", (0.0, 1.0, 4.4), 1200, (1.0, 0.12, 0.035), 2.5)
 
 camera_data = bpy.data.cameras.new("Zargat portrait camera")
