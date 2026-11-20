@@ -147,22 +147,16 @@ pub(crate) fn attach_zargat_visuals(
                 spawned.id()
             };
 
-            // Dark infernal cuirass and layered shoulder plates.
-            part(
-                "Cuirass",
-                &assets.block,
-                &assets.armor,
-                Vec3::new(0.0, 1.02, 0.31),
-                Vec3::new(0.78, 0.72, 0.19),
-                Quat::IDENTITY,
-            );
+            // Keep the Crowley body material visible: Zargat's identity is
+            // carried by small shoulder accents, horns, wings and the integrated
+            // Hellblade rather than an opaque chest plate covering the source texture.
             for side in [-1.0_f32, 1.0] {
                 part(
                     "Pauldron",
                     &assets.sphere,
                     &assets.armor_edge,
                     Vec3::new(side * 0.49, 1.34, 0.04),
-                    Vec3::new(0.43, 0.31, 0.38),
+                    Vec3::new(0.29, 0.22, 0.27),
                     Quat::from_rotation_z(-side * 0.16),
                 );
                 part(
