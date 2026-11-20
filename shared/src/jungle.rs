@@ -35,7 +35,7 @@ pub fn camp_layout(map_size: f32) -> [(Point, JungleCampKind); CAMP_COUNT] {
 pub const WARDEN_CAMP_DAMAGE_MULTIPLIER: f32 = 1.35;
 /// Bosses are team objectives, so the jungler only gets a small edge there.
 pub const WARDEN_BOSS_DAMAGE_MULTIPLIER: f32 = 1.15;
-/// Extra gold and XP a Warden earns per ordinary camp kill.
+/// Extra gold and XP each starter jungler earns per ordinary camp kill.
 pub const WARDEN_CAMP_GOLD_MULTIPLIER: f32 = 1.4;
 pub const WARDEN_CAMP_XP_MULTIPLIER: f32 = 1.25;
 
@@ -66,16 +66,16 @@ mod tests {
     use crate::navigation::world_navigation;
 
     #[test]
-    fn both_selectable_junglers_farm_camps_faster_and_bosses_stay_team_objectives() {
+    fn both_starter_junglers_farm_camps_faster_and_bosses_stay_team_objectives() {
         for class in HeroClass::ALL {
-            let warden = matches!(class, HeroClass::Warden | HeroClass::Adventurer);
-            assert_eq!(neutral_damage_multiplier(class, false) > 1.0, warden);
+            let jungler = matches!(class, HeroClass::Warden | HeroClass::Adventurer);
+            assert_eq!(neutral_damage_multiplier(class, false) > 1.0, jungler);
             assert!(
                 neutral_damage_multiplier(class, true) <= neutral_damage_multiplier(class, false)
             );
             assert_eq!(neutral_kill_rewards(class, true, 150, 200), (150, 200));
             let (gold, xp) = neutral_kill_rewards(class, false, 52, 85);
-            assert_eq!((gold > 52, xp > 85), (warden, warden));
+            assert_eq!((gold > 52, xp > 85), (jungler, jungler));
         }
         assert_eq!(
             neutral_kill_rewards(HeroClass::Warden, false, 52, 85),
