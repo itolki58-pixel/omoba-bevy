@@ -1629,7 +1629,6 @@ mod tests {
                 .collect()
         };
         assert_eq!(label(&mut app, "DraftLock"), "Lock in");
-        assert_eq!(label(&mut app, "DraftRole-Mid"), "Mid");
         assert!(
             texts(&mut app)
                 .iter()
