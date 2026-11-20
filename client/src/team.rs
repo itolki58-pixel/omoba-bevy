@@ -1316,14 +1316,14 @@ fn spawn_hero_filter_button(
 
 fn sync_hero_filter(
     selection: Res<TeamSelection>,
-    mut cards: Query<(&HeroCardLane, &mut Visibility)>,
+    mut cards: Query<(&HeroCardLane, &mut Node)>,
     mut tabs: Query<(&HeroFilterTab, &mut ButtonStyle)>,
 ) {
-    for (card, mut visibility) in &mut cards {
-        *visibility = if selection.hero_filter.matches(card.0) {
-            Visibility::Inherited
+    for (card, mut node) in &mut cards {
+        node.display = if selection.hero_filter.matches(card.0) {
+            Display::Flex
         } else {
-            Visibility::Hidden
+            Display::None
         };
     }
     for (tab, mut style) in &mut tabs {
@@ -1355,6 +1355,7 @@ fn spawn_class_button(
         Node {
             width: Val::Px(width),
             height: Val::Px(height),
+            display: if filter.matches(hero.position) { Display::Flex } else { Display::None },
             flex_direction: if compact {
                 FlexDirection::Row
             } else {
@@ -1382,7 +1383,6 @@ fn spawn_class_button(
         UiAction(HeroSelectAction::Class(class)),
         ClassSelectButton,
         HeroCardLane(hero.position),
-        if filter.matches(hero.position) { Visibility::Inherited } else { Visibility::Hidden },
         TestId::new(format!("ClassButton-{}", class.id())),
     ))
     .with_children(|button| {
@@ -2360,9 +2360,9 @@ mod tests {
         assert_eq!(heroes.iter(app.world()).count(), 12);
         let mut filters = app.world_mut().query::<&HeroFilterTab>();
         assert_eq!(filters.iter(app.world()).count(), 6);
-        let mut visible_cards = app.world_mut().query::<(&HeroCardLane, &Visibility)>();
+        let mut visible_cards = app.world_mut().query::<(&HeroCardLane, &Node)>();
         assert_eq!(
-            visible_cards.iter(app.world()).filter(|(_, visibility)| **visibility == Visibility::Inherited).count(),
+            visible_cards.iter(app.world()).filter(|(_, node)| node.display != Display::None).count(),
             12
         );
         let mut avatars = app.world_mut().query::<&AvatarSelectButton>();
