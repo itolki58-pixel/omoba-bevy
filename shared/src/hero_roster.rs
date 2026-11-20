@@ -124,7 +124,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         archetype: HeroArchetype::Tank,
         display_name: "Cinderforge",
         position: Role::Solo,
-        avatar: "bao-samurai",
+        avatar: "cool-tiger",
         sprite_character: "origami-storm-heron",
         weapon: Some("forge-hammer"),
     },
