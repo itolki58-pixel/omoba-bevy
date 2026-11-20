@@ -117,6 +117,25 @@ jobs:
           blender --background --factory-startup --python scripts/rig_zargat_source.py
           test -s client/assets/avatars/zargat.glb
           test -s client/assets/avatars/zargat.png
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          path = Path("client/assets/avatars/zargat.glb")
+          raw = path.read_bytes()
+          magic, version, total = struct.unpack_from("<4sII", raw, 0)
+          assert magic == b"glTF" and version == 2 and total == len(raw)
+          length, kind = struct.unpack_from("<II", raw, 12)
+          assert kind == 0x4E4F534A
+          doc = json.loads(raw[20:20 + length].decode("utf-8"))
+          assert doc.get("skins"), "Zargat GLB has no skeleton skin"
+          assert len(doc["skins"][0].get("joints", [])) >= 25, "Zargat rig is incomplete"
+          animations = {item.get("name") for item in doc.get("animations", [])}
+          required = {"Idle", "Run", "Walk", "Attack", "Cast", "Death", "Hit",
+                      "TurnLeft", "TurnRight", "Stop", "Ultimate"}
+          assert required <= animations, f"Missing clips: {sorted(required - animations)}"
+          print(f"Validated Zargat: {len(doc['skins'][0]['joints'])} joints, "
+                f"{len(animations)} animation clips, {path.stat().st_size} bytes")
+          PY
       - name: Update Cargo.lock
         run: cargo run --quiet -p shared --example compatibility -- manifest
       - name: Test shared roster and protocol
