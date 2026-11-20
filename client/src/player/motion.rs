@@ -152,7 +152,7 @@ pub(super) fn move_player(
 
                 transform.rotation = transform
                     .rotation
-                    .slerp(target_rotation, time.delta_secs() * 10.0);
+                    .slerp(target_rotation, 1.0 - (-10.0 * time.delta_secs()).exp());
             }
         }
     }
