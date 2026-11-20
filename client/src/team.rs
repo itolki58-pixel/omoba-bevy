@@ -27,9 +27,11 @@ pub use shared::wire::CharacterChoice;
 
 const TEAM_BUTTON_SIZE: f32 = 64.0;
 const TEAM_BUTTON_GAP: f32 = 28.0;
-const CLASS_BUTTON_WIDTH: f32 = 190.0;
-const CLASS_BUTTON_HEIGHT: f32 = 60.0;
-const CLASS_BUTTON_GAP: f32 = 12.0;
+const CLASS_BUTTON_WIDTH: f32 = 164.0;
+const CLASS_BUTTON_HEIGHT: f32 = 112.0;
+const CLASS_BUTTON_GAP: f32 = 10.0;
+const COMPACT_CLASS_BUTTON_WIDTH: f32 = 108.0;
+const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 76.0;
 const AVATAR_BUTTON_WIDTH: f32 = 76.0;
 const AVATAR_BUTTON_HEIGHT: f32 = 92.0;
 const AVATAR_THUMBNAIL_SIZE: f32 = 56.0;
@@ -503,26 +505,29 @@ pub fn spawn_team_select_ui(
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                top: Val::Px(0.0),
-                bottom: Val::Px(0.0),
-                justify_content: JustifyContent::Center,
+                left: Val::Percent(if compact { 2.0 } else { 4.0 }),
+                top: Val::Percent(if compact { 3.0 } else { 5.0 }),
+                width: Val::Percent(if compact { 96.0 } else { 92.0 }),
+                height: Val::Percent(if compact { 94.0 } else { 90.0 }),
+                justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(if compact { 5.0 } else { 10.0 }),
-                // Room on the right for the live hero panel (3D mode only).
-                // Proportional, so a small window keeps both columns readable.
-                padding: UiRect::axes(Val::Px(18.0), Val::Px(18.0)).with_right(
-                    if visual_mode == PlayerVisualMode::Models3d {
-                        Val::Percent(HERO_PANEL_PERCENT + 2.0)
-                    } else {
-                        Val::Px(18.0)
-                    },
-                ),
+                row_gap: Val::Px(if compact { 4.0 } else { 10.0 }),
+                padding: UiRect::axes(
+                    Val::Px(if compact { 8.0 } else { 18.0 }),
+                    Val::Px(if compact { 8.0 } else { 18.0 }),
+                )
+                .with_right(if visual_mode == PlayerVisualMode::Models3d && !compact {
+                    Val::Percent(HERO_PANEL_PERCENT + 2.0)
+                } else {
+                    Val::Px(if compact { 8.0 } else { 18.0 })
+                }),
+                border: UiRect::all(Val::Px(1.0)),
+                border_radius: BorderRadius::all(Val::Px(16.0)),
                 ..default()
             },
-            BackgroundColor(TEAM_OVERLAY_COLOR),
+            BackgroundColor(crate::ui::theme::PANEL_OPAQUE),
+            BorderColor::all(crate::ui::theme::PANEL_EDGE),
             ZIndex(crate::ui::theme::SCREEN_Z),
             // Leaving hero select always takes the picker with it, whether the
             // player locked in, went back, or the session pulled the screen.
@@ -623,9 +628,11 @@ pub fn spawn_team_select_ui(
                         flex_direction: FlexDirection::Row,
                         flex_wrap: FlexWrap::Wrap,
                         justify_content: JustifyContent::Center,
+                        align_content: AlignContent::Center,
+                        width: Val::Percent(100.0),
                         max_width: Val::Percent(100.0),
-                        column_gap: Val::Px(CLASS_BUTTON_GAP),
-                        row_gap: Val::Px(CLASS_BUTTON_GAP),
+                        column_gap: Val::Px(if compact { 7.0 } else { CLASS_BUTTON_GAP }),
+                        row_gap: Val::Px(if compact { 7.0 } else { CLASS_BUTTON_GAP }),
                         ..default()
                     },
                     Name::new("ClassButtonsRow"),
@@ -635,7 +642,7 @@ pub fn spawn_team_select_ui(
                 ))
                 .with_children(|row| {
                     for hero in shared::hero_roster::STARTER_ROSTER {
-                        spawn_class_button(row, hero.class, selection.hero_class == hero.class);
+                        spawn_class_button(row, hero, selection.hero_class == hero.class, compact);
                     }
                 });
 
@@ -682,7 +689,7 @@ pub fn spawn_team_select_ui(
                 HeroSelectNotice,
                 Name::new("HeroSelectNotice"),
             ));
-            if visual_mode == PlayerVisualMode::Models3d {
+            if visual_mode == PlayerVisualMode::Models3d && !compact {
                 spawn_hero_panel(parent, selection, preview_image.clone());
             }
         })
@@ -1185,18 +1192,41 @@ fn spawn_avatar_group_hint(grid: &mut ChildSpawnerCommands, hint: impl crate::i1
     });
 }
 
-fn spawn_class_button(row: &mut ChildSpawnerCommands, class: HeroClass, selected: bool) {
+fn spawn_class_button(
+    row: &mut ChildSpawnerCommands,
+    hero: shared::hero_roster::HeroRosterEntry,
+    selected: bool,
+    compact: bool,
+) {
+    let class = hero.class;
+    let (name, _) = class_keys(class);
+    let width = if compact {
+        COMPACT_CLASS_BUTTON_WIDTH
+    } else {
+        CLASS_BUTTON_WIDTH
+    };
+    let height = if compact {
+        COMPACT_CLASS_BUTTON_HEIGHT
+    } else {
+        CLASS_BUTTON_HEIGHT
+    };
     row.spawn((
         Button,
         Node {
-            width: Val::Px(CLASS_BUTTON_WIDTH),
-            height: Val::Px(CLASS_BUTTON_HEIGHT),
-            flex_direction: FlexDirection::Column,
+            width: Val::Px(width),
+            height: Val::Px(height),
+            flex_direction: if compact {
+                FlexDirection::Row
+            } else {
+                FlexDirection::Column
+            },
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
-            row_gap: Val::Px(3.0),
-            padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
-            border_radius: BorderRadius::all(Val::Px(8.0)),
+            column_gap: Val::Px(6.0),
+            row_gap: Val::Px(4.0),
+            padding: UiRect::all(Val::Px(if compact { 5.0 } else { 8.0 })),
+            border: UiRect::all(Val::Px(if selected { 2.0 } else { 1.0 })),
+            border_radius: BorderRadius::all(Val::Px(9.0)),
             ..default()
         },
         BackgroundColor(if selected {
@@ -1204,6 +1234,7 @@ fn spawn_class_button(row: &mut ChildSpawnerCommands, class: HeroClass, selected
         } else {
             SELECT_BUTTON_COLOR
         }),
+        BorderColor::all(if selected { theme::GOLD } else { theme::PANEL_EDGE }),
         ButtonStyle {
             kind: ButtonKind::Tile,
             selected,
@@ -1213,17 +1244,53 @@ fn spawn_class_button(row: &mut ChildSpawnerCommands, class: HeroClass, selected
         TestId::new(format!("ClassButton-{}", class.id())),
     ))
     .with_children(|button| {
-        let (name, _) = class_keys(class);
-        button.spawn(crate::ui::widgets::icon_node(
-            crate::ui::widgets::game::class_icon(class),
-            24.0,
-            theme::GOLD,
+        button.spawn((
+            Node {
+                width: Val::Px(if compact { 38.0 } else { 66.0 }),
+                height: Val::Px(if compact { 38.0 } else { 66.0 }),
+                flex_shrink: 0.0,
+                border_radius: BorderRadius::all(Val::Px(7.0)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(crate::ui::theme::PANEL),
+            AvatarThumbnailSlot {
+                slug: hero.avatar.to_owned(),
+            },
+            Name::new(format!("HeroPortrait-{}", hero.avatar)),
         ));
         button.spawn((
-            Localized::new(name).into_text(),
-            theme::role_text(TextRole::Button),
-            TextColor(theme::IVORY),
-        ));
+            Node {
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: if compact { AlignItems::FlexStart } else { AlignItems::Center },
+                row_gap: Val::Px(2.0),
+                min_width: Val::Px(0.0),
+                ..default()
+            },
+            Name::new(format!("HeroCardText-{}", class.id())),
+        ))
+        .with_children(|labels| {
+            labels.spawn((
+                Localized::new(name).into_text(),
+                TextFont {
+                    font_size: (if compact { 10.0 } else { 14.0 }).into(),
+                    ..default()
+                },
+                TextColor(theme::IVORY),
+                TextLayout::justify(if compact { Justify::Start } else { Justify::Center }),
+            ));
+            labels.spawn((
+                Text::new(data::role(hero.position)),
+                TextFont {
+                    font_size: (if compact { 9.0 } else { 11.0 }).into(),
+                    ..default()
+                },
+                TextColor(theme::GOLD),
+                TextLayout::justify(if compact { Justify::Start } else { Justify::Center }),
+            ));
+        });
     });
 }
 
