@@ -1,7 +1,7 @@
 //! Pre-join selection flow: hero class -> roster avatar -> team.
 //!
-//! The roster avatars (CC0 VRM models under `assets/avatars/`) are the primary
-//! cosmetic path for the demo; the legacy SDK character stays in
+//! The roster avatars under `assets/avatars/` are the primary cosmetic path;
+//! the legacy SDK character stays in
 //! [`TeamSelection::character`] as the fallback model when no roster avatar is
 //! selected. Picking a team commits the join (class + avatar + team in one
 //! packet).
@@ -30,7 +30,7 @@ const TEAM_BUTTON_GAP: f32 = 28.0;
 const CLASS_BUTTON_WIDTH: f32 = 164.0;
 const CLASS_BUTTON_HEIGHT: f32 = 112.0;
 const CLASS_BUTTON_GAP: f32 = 10.0;
-const COMPACT_CLASS_BUTTON_WIDTH: f32 = 108.0;
+const COMPACT_CLASS_BUTTON_WIDTH: f32 = 92.0;
 const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 76.0;
 const AVATAR_BUTTON_WIDTH: f32 = 76.0;
 const AVATAR_BUTTON_HEIGHT: f32 = 92.0;
@@ -50,6 +50,7 @@ const SELECT_BUTTON_SELECTED_COLOR: Color = crate::ui::theme::TILE_SELECTED;
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum HeroSelectAction {
     Back,
+    Filter(HeroLaneFilter),
     Class(HeroClass),
     Avatar(String),
     Sprite(String),
@@ -57,6 +58,40 @@ enum HeroSelectAction {
     ConnectWallet,
     ConnectAccount,
     RefreshStudio,
+}
+
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum HeroLaneFilter {
+    #[default]
+    All,
+    Gold,
+    Experience,
+    Center,
+    Jungle,
+    Support,
+}
+impl HeroLaneFilter {
+    fn matches(self, role: shared::prematch::Role) -> bool {
+        match self {
+            Self::All => true,
+            Self::Gold => role == shared::prematch::Role::Carry,
+            Self::Experience => role == shared::prematch::Role::Solo,
+            Self::Center => role == shared::prematch::Role::Mid,
+            Self::Jungle => role == shared::prematch::Role::Jungle,
+            Self::Support => role == shared::prematch::Role::Support,
+        }
+    }
+    fn label_key(self) -> &'static str {
+        match self {
+            Self::All => "draft.filter.all",
+            Self::Gold => "draft.filter.gold",
+            Self::Experience => "draft.filter.experience",
+            Self::Center => "draft.filter.center",
+            Self::Jungle => "draft.filter.jungle",
+            Self::Support => "draft.filter.support",
+        }
+    }
 }
 
 #[derive(Resource)]
@@ -71,6 +106,7 @@ pub struct TeamSelection {
     pub avatar: Option<String>,
     /// Selected 2D sprite character, preserved independently of the 3D avatar.
     pub sprite_character: String,
+    hero_filter: HeroLaneFilter,
 }
 
 impl Default for TeamSelection {
@@ -87,6 +123,7 @@ impl Default for TeamSelection {
             sprite_character: shared::hero_roster::profile(HeroClass::Warrior)
                 .map(|hero| hero.sprite_character.to_owned())
                 .unwrap_or_else(|| shared::DEFAULT_SPRITE_CHARACTER_ID.to_owned()),
+            hero_filter: HeroLaneFilter::All,
         }
     }
 }
@@ -123,6 +160,7 @@ impl Plugin for TeamSelectPlugin {
                         .after(UiSet::Dispatch)
                         .before(crate::net::ClientNetPipeline::SendCommands),
                     sync_hero_panel,
+                    sync_hero_filter,
                     sync_hero_select_status,
                     apply_phone_copy,
                 )
@@ -624,6 +662,37 @@ pub fn spawn_team_select_ui(
             parent
                 .spawn((
                     Node {
+                        width: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Row,
+                        flex_wrap: FlexWrap::Wrap,
+                        justify_content: JustifyContent::Center,
+                        column_gap: Val::Px(6.0),
+                        row_gap: Val::Px(6.0),
+                        ..default()
+                    },
+                    Name::new("HeroLaneFilterTabs"),
+                ))
+                .with_children(|tabs| {
+                    for filter in [
+                        HeroLaneFilter::All,
+                        HeroLaneFilter::Gold,
+                        HeroLaneFilter::Experience,
+                        HeroLaneFilter::Center,
+                        HeroLaneFilter::Jungle,
+                        HeroLaneFilter::Support,
+                    ] {
+                        spawn_hero_filter_button(
+                            tabs,
+                            filter,
+                            selection.hero_filter == filter,
+                            compact,
+                        );
+                    }
+                });
+
+            parent
+                .spawn((
+                    Node {
                         flex_direction: FlexDirection::Row,
                         flex_wrap: FlexWrap::Wrap,
                         justify_content: JustifyContent::Center,
@@ -641,7 +710,13 @@ pub fn spawn_team_select_ui(
                 ))
                 .with_children(|row| {
                     for hero in shared::hero_roster::STARTER_ROSTER {
-                        spawn_class_button(row, hero, selection.hero_class == hero.class, compact);
+                        spawn_class_button(
+                            row,
+                            hero,
+                            selection.hero_class == hero.class,
+                            selection.hero_filter,
+                            compact,
+                        );
                     }
                 });
 
@@ -1191,10 +1266,79 @@ fn spawn_avatar_group_hint(grid: &mut ChildSpawnerCommands, hint: impl crate::i1
     });
 }
 
+
+#[derive(Component)]
+struct HeroFilterTab(HeroLaneFilter);
+
+#[derive(Component)]
+struct HeroCardLane(shared::prematch::Role);
+
+fn spawn_hero_filter_button(
+    parent: &mut ChildSpawnerCommands,
+    filter: HeroLaneFilter,
+    selected: bool,
+    compact: bool,
+) {
+    let (text, localized) = Localized::new(filter.label_key()).into_text();
+    parent.spawn((
+        Button,
+        Node {
+            width: Val::Px(if compact { 92.0 } else { 112.0 }),
+            min_width: Val::Px(if compact { 92.0 } else { 112.0 }),
+            height: Val::Px(if compact { 32.0 } else { 36.0 }),
+            min_height: Val::Px(if compact { 32.0 } else { 36.0 }),
+            flex_shrink: 0.0,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            padding: UiRect::all(Val::Px(4.0)),
+            border: UiRect::all(Val::Px(1.0)),
+            border_radius: BorderRadius::all(Val::Px(6.0)),
+            ..default()
+        },
+        BackgroundColor(if selected { SELECT_BUTTON_SELECTED_COLOR } else { SELECT_BUTTON_COLOR }),
+        BorderColor::all(if selected { theme::GOLD } else { theme::PANEL_EDGE }),
+        ButtonStyle { kind: ButtonKind::Tile, selected },
+        UiAction(HeroSelectAction::Filter(filter)),
+        HeroFilterTab(filter),
+        TestId::new(format!("HeroFilter-{}", filter.label_key())),
+        Name::new(format!("HeroFilter-{}", filter.label_key())),
+    ))
+    .with_children(|button| {
+        button.spawn((
+            text,
+            localized,
+            TextFont { font_size: (if compact { 10.0 } else { 11.0 }).into(), ..default() },
+            TextColor(theme::IVORY),
+            TextLayout::justify(Justify::Center),
+        ));
+    });
+}
+
+fn sync_hero_filter(
+    selection: Res<TeamSelection>,
+    mut cards: Query<(&HeroCardLane, &mut Visibility)>,
+    mut tabs: Query<(&HeroFilterTab, &mut ButtonStyle)>,
+) {
+    if !selection.is_changed() {
+        return;
+    }
+    for (card, mut visibility) in &mut cards {
+        *visibility = if selection.hero_filter.matches(card.0) {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+    }
+    for (tab, mut style) in &mut tabs {
+        style.selected = selection.hero_filter == tab.0;
+    }
+}
+
 fn spawn_class_button(
     row: &mut ChildSpawnerCommands,
     hero: shared::hero_roster::HeroRosterEntry,
     selected: bool,
+    filter: HeroLaneFilter,
     compact: bool,
 ) {
     let class = hero.class;
@@ -1240,6 +1384,8 @@ fn spawn_class_button(
         },
         UiAction(HeroSelectAction::Class(class)),
         ClassSelectButton,
+        HeroCardLane(hero.position),
+        if filter.matches(hero.position) { Visibility::Inherited } else { Visibility::Hidden },
         TestId::new(format!("ClassButton-{}", class.id())),
     ))
     .with_children(|button| {
@@ -1279,15 +1425,6 @@ fn spawn_class_button(
                 },
                 TextColor(theme::IVORY),
                 TextLayout::justify(Justify::Center),
-            ));
-            labels.spawn((
-                Text::new(data::role(hero.position)),
-                TextFont {
-                    font_size: (if compact { 9.0 } else { 11.0 }).into(),
-                    ..default()
-                },
-                TextColor(theme::GOLD),
-                TextLayout::justify(if compact { Justify::Start } else { Justify::Center }),
             ));
         });
     });
@@ -1453,6 +1590,9 @@ fn team_select_ui_system(
                     screen.set(AppScreen::Home);
                     return;
                 }
+            }
+            HeroSelectAction::Filter(filter) => {
+                selection.hero_filter = *filter;
             }
             HeroSelectAction::Class(class) => {
                 if let Some(hero) = shared::hero_roster::profile(*class) {
