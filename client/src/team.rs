@@ -230,12 +230,13 @@ fn class_line(class: HeroClass) -> String {
     let role = data::role(class.primary_role());
     let weapon = shared::hero_roster::profile(class)
         .map_or(tr("team.weapon.default"), |hero| match hero.weapon {
-            "forge-sword" => tr("team.weapon.sword"),
-            "forge-hammer" => tr("team.weapon.hammer"),
-            "dawn-scepter" => tr("team.weapon.scepter"),
-            "dagger" => tr("team.weapon.dagger"),
-            "wild-repeater" => tr("team.weapon.repeater"),
-            "verdant-bow" => tr("team.weapon.bow"),
+            None => tr("team.weapon.integrated"),
+            Some("forge-sword") => tr("team.weapon.sword"),
+            Some("forge-hammer") => tr("team.weapon.hammer"),
+            Some("dawn-scepter") => tr("team.weapon.scepter"),
+            Some("dagger") => tr("team.weapon.dagger"),
+            Some("wild-repeater") => tr("team.weapon.repeater"),
+            Some("verdant-bow") => tr("team.weapon.bow"),
             _ => tr("team.weapon.default"),
         });
     format!("{role} · {weapon}")
