@@ -97,10 +97,12 @@ scene.render.image_settings.file_format = "PNG"
 scene.render.film_transparent = False
 view_transforms = bpy.types.ColorManagedViewSettings.bl_rna.properties["view_transform"].enum_items.keys()
 scene.view_settings.view_transform = "AgX" if "AgX" in view_transforms else "Standard"
+scene.view_settings.exposure = -1.25
+scene.view_settings.gamma = 1.0
 scene.world = bpy.data.worlds.new("Zaragat Studio World") if not scene.world else scene.world
 scene.world.use_nodes = True
 scene.world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.025, 0.03, 0.045, 1)
-scene.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.45
+scene.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.25
 
 def aim(obj, target):
     obj.rotation_euler = (Vector(target) - obj.location).to_track_quat("-Z", "Y").to_euler()
@@ -111,7 +113,7 @@ scene.collection.objects.link(camera)
 camera.location = center + Vector((radius * 2.8, radius * 1.7, radius * 3.2))
 aim(camera, center)
 camera.data.type = "ORTHO"
-camera.data.ortho_scale = max(max(dims) * 1.65, 2.0)
+camera.data.ortho_scale = max(max(dims) * 1.35, 1.5)
 scene.camera = camera
 
 def add_area(name, offset, energy, size):
@@ -122,9 +124,9 @@ def add_area(name, offset, energy, size):
     obj.location = center + Vector(offset)
     aim(obj, center)
 
-add_area("Key Light", (radius*2, radius*2, radius*2.5), 1800, radius*2.2)
-add_area("Fill Light", (-radius*2, radius*.7, radius), 900, radius*2.5)
-add_area("Rim Light", (radius*.4, -radius*2.2, radius*2), 2200, radius*1.6)
+add_area("Key Light", (radius*2, radius*2, radius*2.5), 260, radius*2.2)
+add_area("Fill Light", (-radius*2, radius*.7, radius), 90, radius*2.5)
+add_area("Rim Light", (radius*.4, -radius*2.2, radius*2), 320, radius*1.6)
 scene.render.filepath = os.path.join(out_dir, "zargat-preview.png")
 bpy.ops.render.render(write_still=True)
 print("ZARAGAT_INSPECTION_OK")
