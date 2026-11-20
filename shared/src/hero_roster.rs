@@ -116,7 +116,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         display_name: "Chainkeeper",
         position: Role::Support,
         avatar: "orion",
-        sprite_character: "orchard-comet-centaur",
+        sprite_character: "aurora-magnet-ram",
         weapon: Some("dawn-scepter"),
     },
     HeroRosterEntry {
