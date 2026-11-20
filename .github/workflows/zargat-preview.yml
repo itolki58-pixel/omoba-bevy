@@ -6,15 +6,16 @@ on:
     branches:
       - zargat-high-detail-preview
     paths:
-      - 'scripts/generate_zargat.py'
+      - 'scripts/rig_zargat_source.py'
       - '.github/workflows/zargat-preview.yml'
+      - 'client/assets/avatars/demon knight 3d model.glb'
 
 permissions:
   contents: read
 
 jobs:
   preview:
-    name: Generate Zargat preview (no APK)
+    name: Rig supplied Zaragat model and render preview
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -25,10 +26,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y blender python3-numpy libegl1 libgl1 libglib2.0-0
-      - name: Generate model and portrait
+      - name: Rig the exact uploaded model and render in Blender
         run: |
           export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
-          blender --background --python scripts/generate_zargat.py
+          blender --background --python scripts/rig_zargat_source.py
       - name: Validate preview files
         run: |
           python3 - <<'PY'
@@ -36,7 +37,7 @@ jobs:
           from pathlib import Path
           glb = Path("client/assets/avatars/zargat.glb")
           png = Path("client/assets/avatars/zargat.png")
-          assert glb.is_file() and glb.stat().st_size > 20000
+          assert glb.is_file() and glb.stat().st_size > 100000
           assert png.is_file() and png.stat().st_size > 10000
           data = glb.read_bytes()
           magic, version, total = struct.unpack_from("<4sII", data, 0)
@@ -47,20 +48,21 @@ jobs:
           names = {a.get("name", "") for a in doc.get("animations", [])}
           required = {"Idle","Run","Walk","Attack","Cast","Death","Hit","TurnLeft","TurnRight","Stop","Ultimate"}
           assert required <= names, f"Missing clips: {sorted(required-names)}"
-          print(f"Preview validated: {glb.stat().st_size} bytes GLB, {png.stat().st_size} bytes PNG")
+          assert doc.get("skins"), "No exported skin/skeleton"
+          print(f"Validated source-based rig: {glb.stat().st_size} bytes GLB, {png.stat().st_size} bytes Blender PNG")
           PY
       - name: Package preview
         run: |
           mkdir -p dist/zargat-preview
           cp client/assets/avatars/zargat.glb client/assets/avatars/zargat.png dist/zargat-preview/
           cat > dist/zargat-preview/README.txt <<'EOF'
-          Zargat character preview generated from scripts/generate_zargat.py.
-          Files: zargat.glb (rigged model with animation clips), zargat.png (portrait).
-          This workflow does NOT build or publish an APK.
+          Zaragat preview generated from the user's uploaded demon knight GLB.
+          zargat.glb: original source geometry with an automatically generated armature and animation clips.
+          zargat.png: rendered by Blender. This workflow does NOT build or publish an APK.
           EOF
           cd dist && zip -r zargat-preview.zip zargat-preview
       - uses: actions/upload-artifact@v4
         with:
-          name: zargat-preview
+          name: zargat-source-rig-preview
           path: dist/zargat-preview.zip
           if-no-files-found: error
