@@ -40,7 +40,7 @@ body.data.update()
 # Reduce mobile texture memory while preserving the authored skin.
 # Base colour is JPEG; normal and packed metallic/roughness maps stay lossless.
 for image in bpy.data.images:
-    if image.source != "FILE" or not image.has_data:
+    if not image.has_data:
         continue
     width, height = map(int, image.size)
     if width <= 0 or height <= 0:
@@ -53,6 +53,8 @@ for image in bpy.data.images:
         token in image.name.lower() for token in ("normal", "roughness", "metallic", "_rm")
     ) else "JPEG"
     image.pack()
+    if max(map(int, image.size)) > 2048:
+        raise RuntimeError("Zargat texture was not reduced to the mobile 2K limit: " + image.name)
     print("Zargat texture prepared:", image.name, tuple(map(int, image.size)), image.file_format)
 
 # Keep the supplied painted base-colour texture intact. The source atlas already
