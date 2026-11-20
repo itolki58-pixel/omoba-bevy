@@ -21,7 +21,8 @@ pub struct HeroRosterEntry {
     pub position: Role,
     pub avatar: &'static str,
     pub sprite_character: &'static str,
-    /// `None` means the weapon is authored directly into the hero model.\n    pub weapon: Option<&'static str>,
+    /// `None` means the weapon is authored directly into the hero model.
+    pub weapon: Option<&'static str>,
 }
 
 /// First playable roster: two warriors, two mages, two ranged heroes,
