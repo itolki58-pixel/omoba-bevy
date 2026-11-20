@@ -1319,9 +1319,6 @@ fn sync_hero_filter(
     mut cards: Query<(&HeroCardLane, &mut Visibility)>,
     mut tabs: Query<(&HeroFilterTab, &mut ButtonStyle)>,
 ) {
-    if !selection.is_changed() {
-        return;
-    }
     for (card, mut visibility) in &mut cards {
         *visibility = if selection.hero_filter.matches(card.0) {
             Visibility::Inherited
