@@ -34,7 +34,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         archetype: HeroArchetype::Warrior,
         display_name: "Zargat",
         position: Role::Solo,
-        avatar: "crowley",
+        avatar: "zargat",
         sprite_character: "mossback-teapot",
         weapon: None,
     },
