@@ -41,7 +41,6 @@ const SPRITE_GRID_MAX_COLUMNS: usize = 5;
 #[allow(dead_code)]
 const SPRITE_GRID_WIDTH_PERCENT: f32 = 92.0;
 // Opaque: the match world must not be visible while a hero is being picked.
-const TEAM_OVERLAY_COLOR: Color = crate::ui::theme::BACKDROP;
 const SELECT_BUTTON_COLOR: Color = crate::ui::theme::TILE;
 const SELECT_BUTTON_SELECTED_COLOR: Color = crate::ui::theme::TILE_SELECTED;
 
@@ -354,9 +353,9 @@ fn setup_team_select_ui(
 
 /// A short window gets the compact picker layout.
 fn is_compact(windows: &Query<&Window, With<bevy::window::PrimaryWindow>>) -> bool {
-    windows
-        .single()
-        .is_ok_and(|window| window.resolution.height() < COMPACT_HEIGHT)
+    windows.single().is_ok_and(|window| {
+        window.resolution.width() < 900.0 || window.resolution.height() < COMPACT_HEIGHT
+    })
 }
 
 /// Avatar thumbnails are used outside the picker (profile card, collection),
@@ -1279,7 +1278,7 @@ fn spawn_class_button(
                     ..default()
                 },
                 TextColor(theme::IVORY),
-                TextLayout::justify(if compact { Justify::Start } else { Justify::Center }),
+                TextLayout::justify(Justify::Center),
             ));
             labels.spawn((
                 Text::new(data::role(hero.position)),
