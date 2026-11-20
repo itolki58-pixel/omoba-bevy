@@ -154,6 +154,7 @@ mod tests {
     #[test]
     fn starter_roster_has_twelve_unique_heroes_and_bundled_identity_assets() {
         assert_eq!(STARTER_ROSTER.len(), 12);
+        assert_eq!(profile(HeroClass::Warrior).unwrap().avatar, "zargat");
         for (index, entry) in STARTER_ROSTER.iter().enumerate() {
             assert!(STARTER_ROSTER[..index].iter().all(|other| other.class != entry.class));
             assert!(!entry.avatar.is_empty());
