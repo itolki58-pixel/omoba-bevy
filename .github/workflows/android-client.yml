@@ -1,4 +1,4 @@
-# Rebuild after Zargat rig bone validation fix
+# Build Android client with the user-supplied, rigged Zaragat source model.
 name: Android client APK
 
 on:
@@ -16,6 +16,7 @@ on:
       - "client/**"
       - "shared/**"
       - "scripts/release.py"
+      - "scripts/rig_zargat_source.py"
       - "mobile/android/**"
       - "Cargo.toml"
       - "Cargo.lock"
@@ -58,24 +59,15 @@ jobs:
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$sdkmanager" --licenses >/dev/null || true
           echo "ANDROID_NDK_HOME=${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}" >> "$GITHUB_ENV"
-      - name: Generate standalone Zaragat model and rig
+      - name: Rig the uploaded Zaragat source model
         run: |
           sudo apt-get update
           sudo apt-get install -y blender python3-numpy libegl1 libgl1 libglib2.0-0
           export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
-          rm -f client/assets/avatars/zargat.glb
-          blender --background --python scripts/generate_zargat.py
+          rm -f client/assets/avatars/zargat.glb client/assets/avatars/zargat.png
+          blender --background --python scripts/rig_zargat_source.py
           test -s client/assets/avatars/zargat.glb
           test -s client/assets/avatars/zargat.png
-          python3 - <<'PY'
-          import struct
-          from pathlib import Path
-          data = Path("client/assets/avatars/zargat.png").read_bytes()
-          assert data[:8] == bytes([137, 80, 78, 71, 13, 10, 26, 10]), "Invalid Zargat portrait PNG"
-          width, height = struct.unpack_from(">II", data, 16)
-          assert width >= 512 and height >= 512, f"Portrait is too small: {width}x{height}"
-          print(f"Validated Zargat portrait: {width}x{height}")
-          PY
           python3 - <<'PY'
           import json, struct
           from pathlib import Path
@@ -86,17 +78,23 @@ jobs:
           chunk_len, chunk_type = struct.unpack_from("<II", data, 12)
           assert chunk_type == 0x4E4F534A, "Missing GLB JSON chunk"
           doc = json.loads(data[20:20 + chunk_len].decode("utf-8"))
-          assert doc.get("meshes"), "Zaragat GLB has no meshes"
-          assert doc.get("skins"), "Zaragat GLB has no independent armature/skin"
-          names = [a.get("name", "") for a in doc.get("animations", [])]
+          assert doc.get("meshes") and doc.get("skins"), "Missing mesh or skeleton"
+          names = {a.get("name", "") for a in doc.get("animations", [])}
           required = {"Idle", "Run", "Walk", "Attack", "Cast", "Death", "Hit", "TurnLeft", "TurnRight", "Stop", "Ultimate"}
-          missing = required - set(names)
-          assert not missing, f"Missing Zaragat animation clips: {sorted(missing)}"
+          assert required <= names, f"Missing animation clips: {sorted(required-names)}"
           node_names = {node.get("name", "") for node in doc.get("nodes", [])}
           required_bones = {"jaw", "neck", "finger.1.L", "finger.2.L", "finger.3.L", "finger.1.R", "finger.2.R", "finger.3.R"}
-          missing_bones = required_bones - node_names
-          assert not missing_bones, f"Missing Zaragat rig bones: {sorted(missing_bones)}"
-          print(f"Validated Zaragat GLB: {path.stat().st_size} bytes; meshes={len(doc['meshes'])}; skins={len(doc['skins'])}; bones={len(node_names)}; animations={names}")
+          assert required_bones <= node_names, f"Missing rig bones: {sorted(required_bones-node_names)}"
+          print(f"Validated source Zaragat: {path.stat().st_size} bytes; bones={len(node_names)}; clips={sorted(names)}")
+          PY
+          python3 - <<'PY'
+          import struct
+          from pathlib import Path
+          data = Path("client/assets/avatars/zargat.png").read_bytes()
+          assert data[:8] == bytes([137, 80, 78, 71, 13, 10, 26, 10]), "Invalid Blender portrait PNG"
+          width, height = struct.unpack_from(">II", data, 16)
+          assert width >= 512 and height >= 512, f"Portrait is too small: {width}x{height}"
+          print(f"Validated Blender portrait: {width}x{height}")
           PY
       - name: Refresh compatibility manifest and lockfile
         run: cargo run --quiet -p shared --example compatibility -- manifest
