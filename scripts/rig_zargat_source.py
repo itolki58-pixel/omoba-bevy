@@ -37,6 +37,17 @@ for v in body.data.vertices:
     v.co.z += 1.175
 body.data.update()
 
+# The uploaded sculpt has ~225k vertices. Reduce it before skinning so the
+# mobile client draws a compact mesh while retaining UVs, materials and shape.
+decimate = body.modifiers.new("Zargat_Mobile_Decimate", "DECIMATE")
+decimate.decimate_type = "COLLAPSE"
+decimate.ratio = 0.35
+bpy.context.view_layer.objects.active = body
+bpy.ops.object.modifier_apply(modifier=decimate.name)
+print("Zargat mobile mesh:", len(body.data.vertices), "vertices")
+if len(body.data.vertices) > 100000:
+    raise RuntimeError("Zargat mesh exceeds the 100k mobile vertex budget")
+
 # Reduce mobile texture memory while preserving the authored skin.
 # Base colour is JPEG; normal and packed metallic/roughness maps stay lossless.
 for image in bpy.data.images:
