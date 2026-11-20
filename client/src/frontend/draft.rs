@@ -783,7 +783,7 @@ fn render_draft(
                             })
                             .with_children(|tabs| {
                                 for (tab, key, id) in [
-                                    (PickerTab::Classes, "draft.tab.classes", "DraftTabHeroes"),
+                                    (PickerTab::Classes, "draft.title", "DraftTabHeroes"),
                                     (PickerTab::Avatars, "draft.tab.avatars", "DraftTabAvatars"),
                                 ] {
                                     action_button(
@@ -832,10 +832,9 @@ fn render_draft(
                                 shared::catalog::hero_selection_info(selected.hero_class);
                             picker.spawn(widgets::label(
                                 format!(
-                                    "{} · {} · {}: {}",
+                                    "{} · {} · {}",
                                     data::hero_name(selected.hero_class),
                                     data::role(role),
-                                    tr("draft.hero.attack_range"),
                                     range,
                                 ),
                                 12.0,
