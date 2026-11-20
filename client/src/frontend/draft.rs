@@ -582,10 +582,7 @@ pub(super) fn roster_row(
                     12.0,
                     theme::GOLD,
                 ));
-                text.spawn((
-                    widgets::label(&avatar_name(player.avatar.as_deref()), 11.0, theme::MUTED),
-                    TextLayout::justify(Justify::Left).with_linebreak(LineBreak::NoWrap),
-                ));
+
             });
             row.spawn(widgets::label(
                 if loading {
@@ -804,7 +801,7 @@ fn render_draft(
                     Name::new("DraftPicker"),
                 ))
                 .with_children(|picker| {
-                    if compact {
+                    if false {
                         picker
                             .spawn(Node {
                                 column_gap: Val::Px(4.0),
@@ -829,7 +826,7 @@ fn render_draft(
                                 }
                             });
                     }
-                    if !compact || state.picker_tab == PickerTab::Weapons {
+                    if false {
                         picker.spawn(widgets::label(tr("collection.weapons"), 12.0, theme::MUTED));
                         if let Some(status) = choice
                             .and_then(|choice| super::collection::handheld_status(&choice.handheld))
@@ -863,7 +860,7 @@ fn render_draft(
                                 }
                             });
                     }
-                    if !compact || state.picker_tab == PickerTab::Classes {
+                    if true {
                         picker
                             .spawn(Node {
                                 column_gap: Val::Px(4.0),
@@ -892,6 +889,7 @@ fn render_draft(
                             });
                         picker
                             .spawn(Node {
+                                display: Display::None,
                                 column_gap: Val::Px(4.0),
                                 ..default()
                             })
@@ -910,7 +908,7 @@ fn render_draft(
                                 }
                             });
                     }
-                    if !compact || state.picker_tab == PickerTab::Avatars {
+                    if false {
                         picker
                             .spawn((
                                 Node {
