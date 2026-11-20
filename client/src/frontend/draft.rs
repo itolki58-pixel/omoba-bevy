@@ -167,7 +167,7 @@ fn sync_draft(
     let local = draft.players.iter().find(|p| p.player_id == game.your_id);
     if let Some(local) = local {
         if let Some(selection) = selection.as_mut() {
-            if selection.handheld != local.handheld {
+            if selection.handheld != shared::handheld::HandheldSelection::ClassDefault {
                 selection.handheld = shared::handheld::HandheldSelection::ClassDefault;
             }
         }
@@ -199,7 +199,7 @@ fn sync_draft(
         || draft.phase != PrematchPhase::Draft
         || (local.is_some_and(|player| player.locked) && state.pending.is_none())
     {
-        state.choice = local.map(Choice::from);
+        state.choice = local.map(fixed_choice);
     }
     if local.is_some_and(|local| Some(local.locked) == state.desired_lock) {
         state.desired_lock = None;
