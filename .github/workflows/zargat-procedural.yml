@@ -23,7 +23,7 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender xvfb libegl1 libgl1-mesa-dri
+          sudo apt-get install -y blender xvfb libegl1 libgl1-mesa-dri python3-numpy
       - name: Generate Zargat GLB and render preview
         run: |
           mkdir -p dist
