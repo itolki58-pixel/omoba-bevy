@@ -242,9 +242,15 @@ def locomotion(f,amount):
     t=(f-1)/24*math.tau
     for suf,phase in [("L",0),("R",math.pi)]:
         a=math.sin(t+phase)
-        rot("Thigh_"+suf,.55*amount*a); rot("Shin_"+suf,.45*amount*max(0,-a))
-        rot("UpperArm_"+suf,-.30*amount*a)
-    rot("Spine_01",.04*amount*math.sin(2*t)); rot("Spine_02",.025*amount*math.sin(2*t+1))
+        rot("Thigh_"+suf,.66*amount*a); rot("Shin_"+suf,.82*amount*max(0,-a))
+        rot("Foot_"+suf,-.16*amount*max(0,a))
+        rot("UpperArm_"+suf,-.54*amount*a)
+        rot("Forearm_"+suf,.22*amount*max(0,a))
+    pelvis = rig.pose.bones.get("Pelvis")
+    if pelvis:
+        pelvis.location.z = .045*amount*(1-math.cos(2*t))
+    rot("Pelvis",.045*amount*math.sin(t))
+    rot("Spine_01",.075*amount*math.sin(2*t)); rot("Spine_02",.035*amount*math.sin(2*t+1))
     for suf,s in [("L",1),("R",-1)]: rot("Wing_Root_"+suf,s*.12*amount*math.sin(2*t))
     for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.20)]:
         rot(n,k*math.sin(t+.5))
