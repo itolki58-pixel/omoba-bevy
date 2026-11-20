@@ -1750,7 +1750,7 @@ mod tests {
                 hero_class: HeroClass::Warrior,
                 avatar: None,
                 sprite_character: None,
-                role: Role::Mid,
+                role: Role::Solo,
                 is_bot: false,
                 locked: false,
                 loaded: false,
