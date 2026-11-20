@@ -95,7 +95,8 @@ scene.render.resolution_y = 1200
 scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = "PNG"
 scene.render.film_transparent = False
-view_transforms = bpy.types.ColorManagedViewSettings.bl_rna.properties["view_transform"].enum_items.keys()\nscene.view_settings.view_transform = "AgX" if "AgX" in view_transforms else "Standard"
+view_transforms = bpy.types.ColorManagedViewSettings.bl_rna.properties["view_transform"].enum_items.keys()
+scene.view_settings.view_transform = "AgX" if "AgX" in view_transforms else "Standard"
 scene.world = bpy.data.worlds.new("Zaragat Studio World") if not scene.world else scene.world
 scene.world.use_nodes = True
 scene.world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.025, 0.03, 0.045, 1)
