@@ -887,9 +887,40 @@ struct HeroPanelAvatarName;
 #[derive(Component)]
 struct HeroPanelClassName;
 
+#[derive(Component)]
+struct HeroPanelMetadata;
+
 /// One ability row in the live hero panel, by slot index.
 #[derive(Component)]
 struct HeroPanelAbility(usize);
+
+fn hero_difficulty(class: HeroClass) -> &'static str {
+    match class {
+        HeroClass::Warrior | HeroClass::Ranger | HeroClass::Cleric | HeroClass::Warden => "Easy",
+        HeroClass::Mage
+        | HeroClass::Dawnweaver
+        | HeroClass::Cinderforge
+        | HeroClass::Frostguard => "Medium",
+        HeroClass::Wildspark
+        | HeroClass::Edgeweaver
+        | HeroClass::Stormfist
+        | HeroClass::Veilstalker
+        | HeroClass::Emberveil
+        | HeroClass::Orbitwright
+        | HeroClass::Riftshot
+        | HeroClass::Chainkeeper
+        | HeroClass::Adventurer => "Hard",
+    }
+}
+
+fn hero_metadata_line(class: HeroClass) -> String {
+    let role = data::role(class.primary_role());
+    let range = shared::basic_attack_for_class(class).range;
+    format!(
+        "Role: {role}  ·  Difficulty: {}  ·  Attack range: {range:.1}",
+        hero_difficulty(class)
+    )
+}
 
 /// Shows what the player is about to lock in: the avatar in 3D, the class and
 /// the kit that class brings. Everything here is read-only; selection stays
@@ -965,6 +996,17 @@ fn spawn_hero_panel(
                         TextLayout::justify(Justify::Center),
                         HeroPanelClassName,
                         Name::new("HeroSelectClassName"),
+                    ));
+                    caption.spawn((
+                        Text::new(hero_metadata_line(class)),
+                        TextFont {
+                            font_size: 11.0.into(),
+                            ..default()
+                        },
+                        TextColor(theme::MUTED),
+                        TextLayout::justify(Justify::Center),
+                        HeroPanelMetadata,
+                        Name::new("HeroSelectMetadata"),
                     ));
                 });
             panel
@@ -1047,9 +1089,17 @@ fn sync_hero_panel(
     mut preview: ResMut<crate::frontend::preview::AvatarPreview>,
     mut names: Query<&mut Text, (With<HeroPanelAvatarName>, Without<HeroPanelClassName>)>,
     mut classes: Query<&mut Text, (With<HeroPanelClassName>, Without<HeroPanelAvatarName>)>,
+    mut metadata: Query<
+        &mut Text,
+        (With<HeroPanelMetadata>, Without<HeroPanelAvatarName>, Without<HeroPanelClassName>),
+    >,
     mut abilities: Query<
         (&HeroPanelAbility, &mut Text),
-        (Without<HeroPanelAvatarName>, Without<HeroPanelClassName>),
+        (
+            Without<HeroPanelAvatarName>,
+            Without<HeroPanelClassName>,
+            Without<HeroPanelMetadata>,
+        ),
     >,
 ) {
     if !selection.is_changed() && !locale_changed(&locale) {
@@ -1071,6 +1121,12 @@ fn sync_hero_panel(
     for mut text in &mut classes {
         if text.0 != class_line {
             text.0.clone_from(&class_line);
+        }
+    }
+    let metadata_line = hero_metadata_line(class);
+    for mut text in &mut metadata {
+        if text.0 != metadata_line {
+            text.0.clone_from(&metadata_line);
         }
     }
     let kit = class.abilities();
