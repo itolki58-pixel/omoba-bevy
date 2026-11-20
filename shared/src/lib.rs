@@ -16,6 +16,7 @@ pub mod device_account;
 pub mod forest_pickups;
 pub mod handheld;
 pub mod hero_balance;
+pub mod hero_roster;
 pub mod jungle;
 pub mod live_score;
 pub mod loadout;
