@@ -21,7 +21,7 @@ pub struct HeroRosterEntry {
     pub position: Role,
     pub avatar: &'static str,
     pub sprite_character: &'static str,
-    pub weapon: &'static str,
+    /// `None` means the weapon is authored directly into the hero model.\n    pub weapon: Option<&'static str>,
 }
 
 /// First playable roster: two warriors, two mages, two ranged heroes,
@@ -35,7 +35,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Solo,
         avatar: "crowley",
         sprite_character: "mossback-teapot",
-        weapon: "forge-sword",
+        weapon: None,
     },
     HeroRosterEntry {
         class: HeroClass::Edgeweaver,
@@ -44,7 +44,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Solo,
         avatar: "good-knight",
         sprite_character: "origami-storm-heron",
-        weapon: "dagger",
+        weapon: Some("dagger"),
     },
     HeroRosterEntry {
         class: HeroClass::Mage,
@@ -53,7 +53,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Mid,
         avatar: "anna",
         sprite_character: "clockwork-turnip-oracle",
-        weapon: "dawn-scepter",
+        weapon: Some("dawn-scepter"),
     },
     HeroRosterEntry {
         class: HeroClass::Dawnweaver,
@@ -62,7 +62,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Mid,
         avatar: "mega-angel",
         sprite_character: "void-jelly-astronaut",
-        weapon: "dawn-scepter",
+        weapon: Some("dawn-scepter"),
     },
     HeroRosterEntry {
         class: HeroClass::Ranger,
@@ -71,7 +71,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Carry,
         avatar: "megan-the-fox",
         sprite_character: "neon-axolotl-courier",
-        weapon: "verdant-bow",
+        weapon: Some("verdant-bow"),
     },
     HeroRosterEntry {
         class: HeroClass::Riftshot,
@@ -80,7 +80,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Carry,
         avatar: "lady-koi",
         sprite_character: "tidal-typewriter-crab",
-        weapon: "verdant-bow",
+        weapon: Some("verdant-bow"),
     },
     HeroRosterEntry {
         class: HeroClass::Warden,
@@ -89,7 +89,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Jungle,
         avatar: "sport-mecha",
         sprite_character: "cathedral-moth-bellringer",
-        weapon: "forge-hammer",
+        weapon: Some("forge-hammer"),
     },
     HeroRosterEntry {
         class: HeroClass::Adventurer,
@@ -98,7 +98,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Jungle,
         avatar: "pirate-bot",
         sprite_character: "lunar-marionette-giraffe",
-        weapon: "dagger",
+        weapon: Some("dagger"),
     },
     HeroRosterEntry {
         class: HeroClass::Cleric,
@@ -107,7 +107,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Support,
         avatar: "agnes",
         sprite_character: "aurora-magnet-ram",
-        weapon: "dawn-scepter",
+        weapon: Some("dawn-scepter"),
     },
     HeroRosterEntry {
         class: HeroClass::Chainkeeper,
@@ -116,7 +116,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Support,
         avatar: "orion",
         sprite_character: "orchard-comet-centaur",
-        weapon: "dawn-scepter",
+        weapon: Some("dawn-scepter"),
     },
     HeroRosterEntry {
         class: HeroClass::Cinderforge,
@@ -125,7 +125,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Solo,
         avatar: "bao-samurai",
         sprite_character: "origami-storm-heron",
-        weapon: "forge-hammer",
+        weapon: Some("forge-hammer"),
     },
     HeroRosterEntry {
         class: HeroClass::Frostguard,
@@ -134,7 +134,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
         position: Role::Support,
         avatar: "stitch-witch",
         sprite_character: "cathedral-moth-bellringer",
-        weapon: "forge-hammer",
+        weapon: Some("forge-hammer"),
     },
 ];
 
@@ -157,7 +157,7 @@ mod tests {
             assert!(STARTER_ROSTER[..index].iter().all(|other| other.class != entry.class));
             assert!(!entry.avatar.is_empty());
             assert!(!entry.sprite_character.is_empty());
-            assert!(!entry.weapon.is_empty());
+            assert!(entry.weapon.is_some() || entry.class == HeroClass::Warrior);
             assert_eq!(profile(entry.class), Some(entry));
         }
     }
