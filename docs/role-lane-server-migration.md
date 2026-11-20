@@ -35,7 +35,7 @@ player.draft.role = profile.position;
 
 Do not copy a client-supplied avatar or sprite over these values. The join admission path must reject a `hero_class` that is not in `shared::hero_roster` before calling this function.
 
-The 12 roster avatars are bundled, free CC0 models. They do not need a Studio ownership ticket.
+The 12 selectable heroes use canonical avatar slugs. Zargat uses the user's supplied demon-knight source model at `art/zargat/demon-knight-source.glb`; the Android build generates the rigged `client/assets/avatars/zargat.glb` and `zargat.png` before packaging. This is user-provided content, not a CC0 asset. The server does not load the GLB, but its compiled/runtime avatar manifest must include the `zargat` entry from `client/assets/avatars/manifest.json`, or the join validator will strip/reject that avatar slug. It does not need a Studio ownership ticket.
 
 ## 2. Enforce fixed hero identity in prematch
 
