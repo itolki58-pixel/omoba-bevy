@@ -151,19 +151,52 @@ try:
 except Exception as exc:
     print("Automatic weights unavailable; using fallback:",exc)
 if not auto_ok:
+    # Region-constrained nearest-segment weights. Unlike global nearest-bone
+    # weighting, this prevents a hand vertex from blending into a nearby thigh,
+    # and prevents wings/tail from leaking into the torso/legs.
     for mod in list(body.modifiers):
         if mod.type=="ARMATURE": body.modifiers.remove(mod)
     body.parent=None
     for group in list(body.vertex_groups):
         body.vertex_groups.remove(group)
-    bone_points={name:(bone.head_local+bone.tail_local)*.5 for name,bone in ad.bones.items()}
-    groups={name:body.vertex_groups.new(name=name) for name in bone_points}
+    bone_names=list(ad.bones.keys())
+    groups={name:body.vertex_groups.new(name=name) for name in bone_names}
+    def allowed_bones(v):
+        z=(v.co.z-zmin)/height
+        x=(v.co.x-center_x)/height
+        y=(v.co.y-center_y)/height
+        if y > .13 and z < .66:
+            return [f"Tail_{i:02d}" for i in range(1,5)]+["Pelvis"]
+        if z > .64 and abs(x) > .12:
+            side="L" if x > 0 else "R"
+            return [f"Wing_Root_{side}",f"Wing_Mid_{side}",f"Wing_Tip_{side}","Spine_02"]
+        if z < .53 and abs(x) > .045:
+            side="L" if x > 0 else "R"
+            return [f"Thigh_{side}",f"Shin_{side}",f"Foot_{side}","Pelvis"]
+        if z > .52 and abs(x) > .12:
+            side="L" if x > 0 else "R"
+            return [f"Clavicle_{side}",f"UpperArm_{side}",f"Forearm_{side}",f"Hand_{side}","Spine_02"]
+        if z > .84: return ["Head","Neck","Spine_02"]
+        if z > .72: return ["Neck","Spine_02","Spine_01"]
+        return ["Pelvis","Spine_01","Spine_02","Neck"]
+    segments={}
+    for name,bone in ad.bones.items():
+        a=bone.head_local.copy(); b=bone.tail_local.copy()
+        segments[name]=(a,b)
     for i,v in enumerate(body.data.vertices):
-        ranked=sorted(((v.co-p).length,name) for name,p in bone_points.items())
-        first,second=ranked[:2]
-        d0=max(first[0],.0001); d1=max(second[0],.0001)
-        groups[first[1]].add([i],d1/(d0+d1),"REPLACE")
-        groups[second[1]].add([i],d0/(d0+d1),"REPLACE")
+        candidates=allowed_bones(v)
+        ranked=[]
+        for name in candidates:
+            a,b=segments[name]; ab=b-a
+            t=max(0.0,min(1.0,(v.co-a).dot(ab)/max(ab.length_squared,1e-10)))
+            distance=(v.co-(a+t*ab)).length
+            ranked.append((distance,name))
+        ranked.sort(key=lambda item:item[0])
+        nearest=ranked[:min(3,len(ranked))]
+        inv=[1.0/max(d,0.015)**2 for d,_ in nearest]
+        total=sum(inv)
+        for weight,(_,name) in zip(inv,nearest):
+            groups[name].add([i],weight/total,"REPLACE")
     body.parent=rig
     mod=body.modifiers.new("DemonKnight_Armature","ARMATURE")
     mod.object=rig
@@ -262,6 +295,35 @@ clip("TurnLeft",[1,5,9,13,17],lambda f:turn(f,1))
 clip("TurnRight",[1,5,9,13,17],lambda f:turn(f,-1))
 clip("Stop",[1,4,7,11],stop)
 clip("Ultimate",[1,8,16,24,31],ultimate)
+# Turn the complete model 180 degrees around its grounded origin. The
+# authoritative player root still owns world movement/yaw; this local asset
+# correction fixes the imported model's forward axis only.
+root=bpy.data.objects.new("Zargat_Root_180",None)
+bpy.context.scene.collection.objects.link(root)
+root.rotation_euler[2]=math.pi
+body.parent=root
+rig.parent=root
+
+# Extend the authored action set so wing/tail anatomy participates in combat.
+def add_combat_secondary(f, amount, phase=0.0):
+    wave=math.sin((f-1)/30*math.pi+phase)*amount
+    rot("Wing_Root_L",wave); rot("Wing_Root_R",-wave)
+    for idx,k in enumerate((.10,.14,.18,.22),1):
+        rot(f"Tail_{idx:02d}",k*math.sin((f-1)/24*math.tau+phase))
+# Blend wing spread into the existing cast/ultimate and tail response into attacks.
+old_attack=attack
+def attack(f):
+    old_attack(f); add_combat_secondary(f,.24,.35)
+old_cast=cast
+def cast(f):
+    old_cast(f); add_combat_secondary(f,.48,0.0)
+old_death=death
+def death(f):
+    old_death(f); add_combat_secondary(f,.32,1.1)
+old_ultimate=ultimate
+def ultimate(f):
+    old_ultimate(f); add_combat_secondary(f,.78,0.0)
+
 bpy.context.scene.frame_set(1)
 
 os.makedirs(os.path.dirname(OUT),exist_ok=True)
@@ -289,6 +351,44 @@ bpy.context.view_layer.objects.active=rig
 bpy.ops.export_scene.gltf(filepath=OUT,export_format="GLB",use_selection=True,
     export_apply=False,export_animations=True,export_nla_strips=True,export_skins=True,export_yup=True)
 if not os.path.isfile(OUT) or os.path.getsize(OUT)<100000: raise RuntimeError("Rigged Zaragat export failed")
+
+# Attach optional VRM 0 humanoid semantics to the GLB. OMOBA's runtime
+# retargeter intentionally binds by these semantic node indices, not by names.
+import json, struct
+raw=open(OUT,"rb").read()
+magic,version,total=struct.unpack_from("<4sII",raw,0)
+if magic!=b"glTF" or version!=2 or total!=len(raw): raise RuntimeError("Invalid exported GLB container")
+json_len,json_type=struct.unpack_from("<II",raw,12)
+if json_type!=0x4E4F534A: raise RuntimeError("Exported GLB has no JSON chunk")
+doc=json.loads(raw[20:20+json_len].decode("utf-8").rstrip(" \\t\\r\\n\\0"))
+nodes=doc.get("nodes",[])
+by_name={node.get("name"):i for i,node in enumerate(nodes) if node.get("name")}
+semantic={
+ "hips":"Pelvis","spine":"Spine_01","chest":"Spine_02","neck":"Neck","head":"Head",
+ "leftUpperArm":"UpperArm_L","leftLowerArm":"Forearm_L","leftHand":"Hand_L",
+ "rightUpperArm":"UpperArm_R","rightLowerArm":"Forearm_R","rightHand":"Hand_R",
+ "leftUpperLeg":"Thigh_L","leftLowerLeg":"Shin_L","leftFoot":"Foot_L",
+ "rightUpperLeg":"Thigh_R","rightLowerLeg":"Shin_R","rightFoot":"Foot_R"
+}
+missing=[name for name in semantic.values() if name not in by_name]
+if missing: raise RuntimeError("VRM semantic bones missing from GLB: "+", ".join(missing))
+doc.setdefault("extensionsUsed",[])
+if "VRM" not in doc["extensionsUsed"]: doc["extensionsUsed"].append("VRM")
+doc.setdefault("extensions",{})["VRM"]={
+ "specVersion":"0.0",
+ "meta":{"title":"Zargat","version":"1.0","author":"OMOBA","licenseName":"CC0"},
+ "humanoid":{"humanBones":[{"bone":name,"node":by_name[node]} for name,node in semantic.items()]}
+}
+encoded=json.dumps(doc,separators=(",",":"),ensure_ascii=False).encode("utf-8")
+encoded+=b" "*((4-len(encoded)%4)%4)
+chunks=[struct.pack("<II",len(encoded),0x4E4F534A)+encoded]
+offset=20+json_len
+while offset<len(raw):
+    length,kind=struct.unpack_from("<II",raw,offset)
+    chunks.append(raw[offset:offset+8+length]); offset+=8+length
+rebuilt=b"glTF"+struct.pack("<II",2,12+sum(map(len,chunks)))+b"".join(chunks)
+open(OUT,"wb").write(rebuilt)
+print("VRM humanoid metadata added:",semantic)
 # Render a true Blender preview of the supplied model.
 scene=bpy.context.scene
 engines={x.identifier for x in scene.render.bl_rna.properties["engine"].enum_items}
