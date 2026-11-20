@@ -49,7 +49,11 @@ for image in bpy.data.images:
     if largest > 2048:
         factor = 2048.0 / largest
         image.scale(max(1, round(width * factor)), max(1, round(height * factor)))
-    image.file_format = "JPEG"
+    # Normal and metallic/roughness maps are data, not colour: keep them
+    # lossless. Only the painted base-colour map uses JPEG compression.
+    image.file_format = "PNG" if any(
+        token in image.name.lower() for token in ("normal", "roughness", "metallic", "_rm")
+    ) else "JPEG"
     image.pack()
     print("Zargat texture prepared:", image.name, tuple(map(int, image.size)), image.file_format)
 
