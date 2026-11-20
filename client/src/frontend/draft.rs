@@ -1,6 +1,6 @@
 //! Shared pre-match choices. The server owns accepted selections and lock state.
 //!
-//! Text comes from the `draft` dictionary (hero, role and avatar names through
+//! Text comes from the `draft` dictionary (hero and position names through
 //! `i18n::data`); the render key includes the locale generation. Server-authored
 //! draft errors stay English.
 // i18n-strict
@@ -90,7 +90,7 @@ struct Choice {
 impl Choice {
     /// A hero owns its position, avatar and signature weapon. None of these
     /// are independently selectable in the revised draft.
-    fn pick_class(&mut self, class: HeroClass) {
+    fn pick_hero(&mut self, class: HeroClass) {
         let Some(hero) = shared::hero_roster::profile(class) else {
             return;
         };
@@ -289,7 +289,7 @@ fn draft_actions(
             }
             DraftAction::Hero(class) => {
                 if let Some(choice) = &mut state.choice {
-                    choice.pick_class(*class);
+                    choice.pick_hero(*class);
                 }
                 state.notice = None;
             }
@@ -1563,10 +1563,10 @@ mod tests {
             sprite_character: None,
             role: Role::Mid,
         };
-        choice.pick_class(HeroClass::Warden);
+        choice.pick_hero(HeroClass::Warden);
         assert_eq!(choice.role, Role::Jungle);
         choice.role = Role::Support;
-        choice.pick_class(HeroClass::Warrior);
+        choice.pick_hero(HeroClass::Warrior);
         assert_eq!(
             (choice.hero_class, choice.role),
             (HeroClass::Warrior, Role::Support)
