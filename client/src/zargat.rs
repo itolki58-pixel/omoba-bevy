@@ -127,7 +127,7 @@ pub(crate) fn attach_zargat_visuals(
                             position: Vec3,
                             scale: Vec3,
                             rotation: Quat| {
-                parent.spawn((
+                let mut spawned = parent.spawn((
                     Mesh3d(mesh.clone()),
                     MeshMaterial3d(material.clone()),
                     Transform {
@@ -137,7 +137,14 @@ pub(crate) fn attach_zargat_visuals(
                     },
                     Visibility::default(),
                     Name::new(format!("Zargat-{name}")),
-                )).id()
+                ));
+                if name == "BatWing" {
+                    spawned.insert(ZargatWing {
+                        rest: rotation,
+                        side: position.x.signum(),
+                    });
+                }
+                spawned.id()
             };
 
             // Dark infernal cuirass and layered shoulder plates.
@@ -179,7 +186,7 @@ pub(crate) fn attach_zargat_visuals(
 
                 // Two broad bat-wing panels with animated shoulder pivots.
                 let wing_rotation = Quat::from_rotation_z(side * 0.27);
-                let wing_entity = part(
+                part(
                     "BatWing",
                     &assets.block,
                     &assets.wing,
@@ -187,10 +194,6 @@ pub(crate) fn attach_zargat_visuals(
                     Vec3::new(0.92, 0.11, 0.48),
                     wing_rotation,
                 );
-                commands.entity(wing_entity).insert(ZargatWing {
-                    rest: wing_rotation,
-                    side,
-                });
                 part(
                     "WingTip",
                     &assets.cone,
