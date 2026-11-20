@@ -459,7 +459,7 @@ pub(super) fn action_button<T: UiActionT>(
             TestId::new(name.to_owned()),
         ))
         .with_children(|button| {
-            button.spawn(widgets::label(label, 13.0, theme::IVORY));
+            button.spawn(widgets::label(label, if width < 82.0 { 10.0 } else { 13.0 }, theme::IVORY));
         });
 }
 
@@ -835,10 +835,17 @@ fn render_draft(
                         .spawn(Node {
                             width: Val::Percent(100.0),
                             flex_direction: FlexDirection::Row,
+                            flex_wrap: FlexWrap::Wrap,
                             column_gap: Val::Px(4.0),
+                            row_gap: Val::Px(4.0),
                             ..default()
                         })
                         .with_children(|tabs| {
+                            let tab_width = if picker_width < 420.0 {
+                                ((picker_width - 8.0) / 3.0).max(40.0)
+                            } else {
+                                ((picker_width - 20.0) / 6.0).max(52.0)
+                            };
                             for filter in [
                                 HeroFilter::All,
                                 HeroFilter::Gold,
@@ -852,7 +859,7 @@ fn render_draft(
                                     tr(filter.label()),
                                     DraftAction::Filter(filter),
                                     filter.label(),
-                                    ((picker_width - 20.0) / 6.0).max(40.0),
+                                    tab_width,
                                     false,
                                     state.filter == filter,
                                 );
