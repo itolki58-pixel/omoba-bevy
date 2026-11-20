@@ -69,7 +69,6 @@ enum CollectionAction {
     ConnectAccount,
     ConnectWallet,
     Filter(CollectionFilter),
-    Handheld(shared::handheld::HandheldSelection),
 }
 
 #[derive(Resource, Default, Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,7 +77,6 @@ enum CollectionFilter {
     All,
     Included,
     Studio,
-    Weapons,
 }
 
 #[derive(Component)]
@@ -183,7 +181,6 @@ fn spawn_catalogue_grid(
     thumbnails: &AvatarThumbnails,
     phone: bool,
     filter: CollectionFilter,
-    handheld: &shared::handheld::HandheldSelection,
 ) {
     grid.spawn(Node {
         flex_wrap: FlexWrap::Wrap,
@@ -195,11 +192,6 @@ fn spawn_catalogue_grid(
     .with_children(|tabs| {
         for (value, label, id) in [
             (CollectionFilter::All, "collection.all", "CollectionAll"),
-            (
-                CollectionFilter::Weapons,
-                "collection.weapons",
-                "CollectionWeapons",
-            ),
             (
                 CollectionFilter::Included,
                 "collection.included",
@@ -236,50 +228,6 @@ fn spawn_catalogue_grid(
         Name::new("CollectionCatalogueScroll"),
     ))
     .with_children(|grid| {
-        if filter == CollectionFilter::Weapons {
-            grid.spawn(widgets::heading(tr("collection.weapons"), 17.0));
-            grid.spawn(widgets::label(
-                tr("collection.weapons_hint"),
-                12.0,
-                theme::MUTED,
-            ));
-            screen_button(
-                grid,
-                tr("collection.button.refresh"),
-                ButtonKind::Secondary,
-                CollectionAction::Refresh,
-                "CollectionRefreshWeapons",
-            );
-            let (_, status, _) = omoba_passport::weapon_store::snapshot();
-            let key = match status {
-                omoba_passport::store::CatalogueStatus::Loading { .. } => {
-                    "collection.weapons_loading"
-                }
-                omoba_passport::store::CatalogueStatus::Empty => "collection.weapons_empty",
-                omoba_passport::store::CatalogueStatus::Unavailable { .. } => {
-                    "collection.weapons_unavailable"
-                }
-                omoba_passport::store::CatalogueStatus::Ready { .. } => "collection.weapons_ready",
-            };
-            grid.spawn(widgets::label(tr(key), 12.0, theme::MUTED));
-            if let Some(status) = handheld_status(handheld) {
-                grid.spawn((
-                    widgets::label(status, 12.0, theme::GOLD),
-                    Name::new("SelectedWeaponStatus"),
-                ));
-            }
-            for (choice, name, id) in handheld_choices() {
-                compact_screen_tile(
-                    grid,
-                    name,
-                    *handheld == choice,
-                    CollectionAction::Handheld(choice),
-                    id,
-                    phone,
-                );
-            }
-            return;
-        }
         if filter != CollectionFilter::Studio {
             grid.spawn(widgets::heading(tr("collection.included"), 17.0));
         }
@@ -411,8 +359,6 @@ fn refresh_collection_catalogue(
     locale: Option<Res<Locale>>,
     mut language: Local<Option<u32>>,
     filter: Res<CollectionFilter>,
-    selection: Res<TeamSelection>,
-    mut weapon_revision: Local<u64>,
 ) {
     crate::passport::poll_account();
     crate::passport::poll_wallet();
@@ -421,15 +367,10 @@ fn refresh_collection_catalogue(
     let generation = locale.as_ref().map(|locale| locale.generation());
     let relocalize = language.is_some() && *language != generation;
     *language = generation;
-    let next_weapons = omoba_passport::weapon_store::snapshot().0;
-    let weapons_changed = next_weapons != *weapon_revision;
-    *weapon_revision = next_weapons;
     for (grid, mut revision) in &mut grids {
         if revision.0 == catalogue.revision
             && !relocalize
             && !filter.is_changed()
-            && !weapons_changed
-            && !selection.is_changed()
         {
             continue;
         }
@@ -448,7 +389,6 @@ fn refresh_collection_catalogue(
                     &thumbnails,
                     platform.is_mobile(),
                     *filter,
-                    &selection.handheld,
                 );
             });
     }
@@ -574,7 +514,6 @@ fn spawn_collection(
                         &thumbnails,
                         phone,
                         *filter,
-                        &selection.handheld,
                     );
                 });
 
@@ -741,16 +680,6 @@ fn collection_actions(
             CollectionAction::Back => next.set(AppScreen::Home),
             CollectionAction::Refresh => {
                 crate::passport::refresh_avatar_catalogue();
-                omoba_passport::weapon_store::refresh(true);
-            }
-            CollectionAction::Handheld(choice) => {
-                if let shared::handheld::HandheldSelection::Item(id) = choice {
-                    if !omoba_passport::weapon_store::eligible(id) {
-                        continue;
-                    }
-                    omoba_passport::weapon_store::model_state(id);
-                }
-                selection.handheld = choice.clone();
             }
             CollectionAction::ConnectAccount => crate::passport::connect_account(),
             CollectionAction::ConnectWallet => crate::passport::connect(),
@@ -1147,55 +1076,6 @@ fn clip_display(name: &str) -> String {
         .collect();
     crate::i18n::lookup(&format!("collection.clip.{key}"))
         .map_or_else(|| AvatarPreview::clip_label(name), str::to_owned)
-}
-
-/// Identical cosmetic choices in the collection and the authoritative draft.
-pub(super) fn handheld_choices() -> Vec<(shared::handheld::HandheldSelection, String, String)> {
-    use shared::handheld::HandheldSelection as H;
-    let mut result = vec![
-        (
-            H::ClassDefault,
-            tr("collection.weapon_default").into(),
-            "Handheld-default".into(), // i18n-allow: stable test id, never displayed
-        ),
-        (
-            H::Unequipped,
-            tr("collection.weapon_empty").into(),
-            "Handheld-empty".into(), // i18n-allow: stable test id, never displayed
-        ),
-    ];
-    result.extend(omoba_passport::weapons::catalog().items.iter().map(|w| {
-        (
-            H::Item(w.id.clone()),
-            w.name.clone(),
-            format!("Handheld-{}", w.id), // i18n-allow: stable test id, never displayed
-        )
-    }));
-    result.extend(
-        omoba_passport::weapon_store::snapshot()
-            .2
-            .into_iter()
-            .map(|w| (H::Item(w.id.clone()), w.name, format!("Handheld-{}", w.id))), // i18n-allow: stable test id, never displayed
-    );
-    result
-}
-
-/// Selection feedback shares the same installer state used by the renderer.
-pub(super) fn handheld_status(
-    choice: &shared::handheld::HandheldSelection,
-) -> Option<&'static str> {
-    use omoba_passport::store::ModelState;
-    let shared::handheld::HandheldSelection::Item(id) = choice else {
-        return None;
-    };
-    if !omoba_passport::weapon_store::eligible(id) {
-        return Some(tr("collection.weapon_not_available"));
-    }
-    Some(tr(match omoba_passport::weapon_store::model_state(id) {
-        ModelState::Pending => "collection.weapon_download_pending",
-        ModelState::Unavailable => "collection.weapon_download_failed",
-        ModelState::Ready => "collection.weapon_download_ready",
-    }))
 }
 
 #[cfg(test)]
