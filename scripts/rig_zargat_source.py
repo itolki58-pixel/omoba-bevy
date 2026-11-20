@@ -101,6 +101,7 @@ def add(name,head,tail,parent=None,connect=False):
         bone.parent=eb[parent]
         bone.use_connect=connect
     eb[name]=bone
+    return bone
 add("Root",(center_x,center_y,zmin),(center_x,center_y,zmin+height*.08))
 pelvis=add("Pelvis",(center_x,center_y,z_at(.50)),(center_x,center_y,z_at(.56)),"Root")
 spine1=add("Spine_01",pelvis.tail,(center_x,center_y,z_at(.65)),"Pelvis",True)
