@@ -1509,22 +1509,27 @@ fn lock_in(
     if connection == ClientConnectionState::Disconnected {
         return LockIn::Reconnect;
     }
-    let sprite_character = Some(selection.sprite_character.clone());
+    let hero = shared::hero_roster::profile(selection.hero_class)
+        .or_else(|| shared::hero_roster::profile(HeroClass::Warrior))
+        .expect("starter roster contains Zargat");
+    let handheld = shared::handheld::HandheldSelection::ClassDefault;
+    let avatar = Some(hero.avatar.to_owned());
+    let sprite_character = Some(hero.sprite_character.to_owned());
     let command = if sandbox || offline {
         NetworkCommand::Join {
-            handheld: selection.handheld.clone(),
+            handheld,
             team,
             character: selection.character,
-            hero_class: selection.hero_class,
-            avatar: selection.avatar.clone(),
+            hero_class: hero.class,
+            avatar,
             sprite_character,
         }
     } else {
         NetworkCommand::JoinPrematch {
-            handheld: selection.handheld.clone(),
+            handheld,
             character: selection.character,
-            hero_class: selection.hero_class,
-            avatar: selection.avatar.clone(),
+            hero_class: hero.class,
+            avatar,
             sprite_character,
         }
     };
