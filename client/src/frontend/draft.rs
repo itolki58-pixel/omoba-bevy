@@ -16,8 +16,7 @@ pub(super) mod stage;
 use crate::{
     i18n::{Locale, data, tr, trf},
     net::{ClientSession, GameStateSnapshot, NetworkCommand, SessionUiCommand},
-    passport::{AvatarCatalogueSource, TicketPoll},
-    persistence::ClientSessionId,
+    passport,
     team::{AvatarThumbnails, CharacterChoice},
     ui::{
         Activated, TestId, UiAction, UiActionAppExt, UiSet,
@@ -123,20 +122,11 @@ struct PendingRequest {
     last_sent: f64,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum PickerTab {
-    Avatars,
-    #[default]
-    Heroes,
-    Weapons,
-}
-
 #[derive(Resource, Default)]
 pub(super) struct DraftClient {
     namespace: Option<(u64, u64, u64)>,
     next_request_id: u64,
     choice: Option<Choice>,
-    picker_tab: PickerTab,
     pending: Option<PendingRequest>,
     desired_lock: Option<bool>,
     wants_loaded: bool,
@@ -226,15 +216,9 @@ fn sync_draft(
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum DraftAction {
-    Picker(PickerTab),
     Hero(HeroClass),
-    Role(Role),
-    Avatar(String),
-    Handheld(shared::handheld::HandheldSelection),
     Lock,
     Leave,
-    Refresh,
-    Connect,
 }
 
 fn draft_actions(
@@ -244,7 +228,6 @@ fn draft_actions(
     mut session: MessageWriter<SessionUiCommand>,
 ) {
     let pressed: Vec<DraftAction> = activated.read().map(|a| a.action.clone()).collect();
-    // Leaving remains available when transport teardown removed the roster.
     if pressed.contains(&DraftAction::Leave) {
         state.reset();
         session.write(SessionUiCommand::LeaveMatch);
@@ -262,12 +245,6 @@ fn draft_actions(
                 state.reset();
                 session.write(SessionUiCommand::LeaveMatch);
             }
-            DraftAction::Refresh => {
-                crate::passport::refresh_avatar_catalogue();
-                omoba_passport::weapon_store::refresh(true);
-            }
-            DraftAction::Connect => crate::passport::connect_account(),
-            DraftAction::Picker(tab) => state.picker_tab = *tab,
             DraftAction::Lock if draft.phase == PrematchPhase::Draft => {
                 state.notice = None;
                 state.desired_lock = Some(!local.locked);
@@ -275,39 +252,9 @@ fn draft_actions(
             _ if draft.phase != PrematchPhase::Draft || local.locked => {
                 state.notice = Some(tr("draft.notice.unlock_first").into());
             }
-            DraftAction::Avatar(slug) => {
-                if omoba_passport::avatars::avatar_definition(slug)
-                    .is_none_or(|avatar| !crate::passport::can_select(avatar))
-                {
-                    state.notice = Some(tr("draft.notice.avatar_unavailable").into());
-                    continue;
-                }
-                if let Some(choice) = &mut state.choice {
-                    choice.avatar = Some(slug.clone());
-                }
-                state.notice = None;
-            }
             DraftAction::Hero(class) => {
                 if let Some(choice) = &mut state.choice {
                     choice.pick_hero(*class);
-                }
-                state.notice = None;
-            }
-            DraftAction::Handheld(value) => {
-                if let shared::handheld::HandheldSelection::Item(id) = value {
-                    if !omoba_passport::weapon_store::eligible(id) {
-                        continue;
-                    }
-                    omoba_passport::weapon_store::model_state(id);
-                }
-                state
-                    .choice
-                    .get_or_insert_with(|| Choice::from(local))
-                    .handheld = value.clone();
-            }
-            DraftAction::Role(role) => {
-                if let Some(choice) = &mut state.choice {
-                    choice.role = *role;
                 }
                 state.notice = None;
             }
@@ -319,7 +266,6 @@ fn draft_actions(
 fn send_requests(
     game: Res<GameStateSnapshot>,
     session: Res<ClientSession>,
-    identity: Res<ClientSessionId>,
     time: Res<Time<Real>>,
     mut state: ResMut<DraftClient>,
     mut writer: MessageWriter<NetworkCommand>,
@@ -335,7 +281,6 @@ fn send_requests(
     };
     let now = time.elapsed_secs_f64();
     if let Some(pending) = &mut state.pending {
-        // Packet loss repeats the exact request identity, never a new purchase/select.
         if now - pending.last_sent >= 0.6 {
             pending.last_sent = now;
             writer.write(NetworkCommand::Prematch(pending.request.clone()));
@@ -353,34 +298,16 @@ fn send_requests(
                 .as_ref()
                 .is_some_and(|choice| *choice != Choice::from(local))
         {
-            let choice = desired.unwrap();
-            let ticket = match if choice.avatar == local.avatar {
-                TicketPoll::Free
-            } else {
-                crate::passport::ticket_for_slug(choice.avatar.as_deref(), &identity.0)
-            } {
-                TicketPoll::Free => None,
-                TicketPoll::Ready(ticket) => Some(ticket),
-                TicketPoll::Pending => {
-                    state.notice = Some(tr("draft.notice.verifying").into());
-                    return;
-                }
-                TicketPoll::Denied(_) => {
-                    state.choice = Some(Choice::from(local));
-                    state.desired_lock = None;
-                    state.notice = Some(tr("draft.notice.verification_failed").into());
-                    return;
-                }
-            };
+            let choice = desired.expect("checked above");
             state.notice = None;
             Some(PrematchAction::Select {
-                handheld: choice.handheld.clone(),
+                handheld: shared::handheld::HandheldSelection::ClassDefault,
                 character: choice.character,
                 hero_class: choice.hero_class,
                 avatar: choice.avatar,
                 sprite_character: choice.sprite_character,
                 role: choice.role,
-                passport_ticket: ticket,
+                passport_ticket: None,
             })
         } else {
             state
@@ -492,10 +419,6 @@ pub(super) fn action_button<T: UiActionT>(
         .with_children(|button| {
             button.spawn(widgets::label(label, 13.0, theme::IVORY));
         });
-}
-
-pub(super) fn avatar_name(slug: Option<&str>) -> String {
-    crate::passport::avatar_display_name(slug)
 }
 
 pub(super) fn roster_row(
