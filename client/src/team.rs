@@ -2224,6 +2224,16 @@ mod tests {
         assert_eq!(heroes.iter(app.world()).count(), 12);
         let mut avatars = app.world_mut().query::<&AvatarSelectButton>();
         assert_eq!(avatars.iter(app.world()).count(), 0);
+        let mut portrait_slots = app.world_mut().query::<&AvatarThumbnailSlot>();
+        assert_eq!(portrait_slots.iter(app.world()).count(), 12);
+        let root = app
+            .world_mut()
+            .query_filtered::<(&Node, &Name), With<TeamSelectRoot>>()
+            .single(app.world())
+            .unwrap();
+        assert_eq!(root.0.width, Val::Percent(92.0));
+        assert_eq!(root.0.height, Val::Percent(90.0));
+        assert_eq!(root.1.as_str(), "TeamSelectOverlay");
         let mut model_grids = app
             .world_mut()
             .query_filtered::<&Node, With<ModelAvatarGrid>>();
