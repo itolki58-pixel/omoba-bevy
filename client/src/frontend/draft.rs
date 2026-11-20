@@ -844,6 +844,7 @@ fn remember_scroll(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::persistence::ClientSessionId;
     use bevy::input::touch::{TouchInput, TouchPhase};
 
     #[test]
