@@ -4,8 +4,19 @@
 use crate::{HeroClass, prematch::Role};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeroArchetype {
+    Warrior,
+    Mage,
+    Ranged,
+    Jungler,
+    Healer,
+    Tank,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct HeroRosterEntry {
     pub class: HeroClass,
+    pub archetype: HeroArchetype,
     pub display_name: &'static str,
     pub position: Role,
     pub avatar: &'static str,
@@ -19,6 +30,7 @@ pub struct HeroRosterEntry {
 pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     HeroRosterEntry {
         class: HeroClass::Warrior,
+        archetype: HeroArchetype::Warrior,
         display_name: "Zargat",
         position: Role::Solo,
         avatar: "crowley",
@@ -27,6 +39,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Edgeweaver,
+        archetype: HeroArchetype::Warrior,
         display_name: "Edgeweaver",
         position: Role::Solo,
         avatar: "good-knight",
@@ -35,6 +48,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Mage,
+        archetype: HeroArchetype::Mage,
         display_name: "Mage",
         position: Role::Mid,
         avatar: "anna",
@@ -43,6 +57,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Dawnweaver,
+        archetype: HeroArchetype::Mage,
         display_name: "Dawnweaver",
         position: Role::Mid,
         avatar: "mega-angel",
@@ -51,6 +66,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Ranger,
+        archetype: HeroArchetype::Ranged,
         display_name: "Ranger",
         position: Role::Carry,
         avatar: "megan-the-fox",
@@ -59,6 +75,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Riftshot,
+        archetype: HeroArchetype::Ranged,
         display_name: "Riftshot",
         position: Role::Carry,
         avatar: "lady-koi",
@@ -67,6 +84,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Warden,
+        archetype: HeroArchetype::Jungler,
         display_name: "Warden",
         position: Role::Jungle,
         avatar: "sport-mecha",
@@ -75,6 +93,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Adventurer,
+        archetype: HeroArchetype::Jungler,
         display_name: "Adventurer",
         position: Role::Jungle,
         avatar: "pirate-bot",
@@ -83,6 +102,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Cleric,
+        archetype: HeroArchetype::Healer,
         display_name: "Cleric",
         position: Role::Support,
         avatar: "agnes",
@@ -91,6 +111,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Chainkeeper,
+        archetype: HeroArchetype::Healer,
         display_name: "Chainkeeper",
         position: Role::Support,
         avatar: "orion",
@@ -99,6 +120,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Cinderforge,
+        archetype: HeroArchetype::Tank,
         display_name: "Cinderforge",
         position: Role::Solo,
         avatar: "bao-samurai",
@@ -107,6 +129,7 @@ pub const STARTER_ROSTER: [HeroRosterEntry; 12] = [
     },
     HeroRosterEntry {
         class: HeroClass::Frostguard,
+        archetype: HeroArchetype::Tank,
         display_name: "Frostguard",
         position: Role::Support,
         avatar: "stitch-witch",
@@ -149,5 +172,19 @@ mod tests {
         assert_eq!(STARTER_ROSTER.iter().filter(|e| e.position == Role::Carry).count(), 2);
         assert_eq!(STARTER_ROSTER.iter().filter(|e| e.position == Role::Jungle).count(), 2);
         assert_eq!(STARTER_ROSTER.iter().filter(|e| e.position == Role::Support).count(), 3);
+        for archetype in [
+            HeroArchetype::Warrior,
+            HeroArchetype::Mage,
+            HeroArchetype::Ranged,
+            HeroArchetype::Jungler,
+            HeroArchetype::Healer,
+            HeroArchetype::Tank,
+        ] {
+            assert_eq!(
+                STARTER_ROSTER.iter().filter(|entry| entry.archetype == archetype).count(),
+                2,
+                "{archetype:?}"
+            );
+        }
     }
 }
