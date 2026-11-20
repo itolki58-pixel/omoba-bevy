@@ -259,13 +259,8 @@ def clip(name, frames, fn):
         for p in rig.pose.bones:
             p.keyframe_insert(data_path="rotation_euler",frame=f,group=p.name)
             if p.name=="Pelvis": p.keyframe_insert(data_path="location",frame=f,group=p.name)
-    # Auto-clamped Bezier handles smooth the transitions without overshooting
-    # at the cape tips or creating sharp changes at cycle boundaries.
-    for curve in act.fcurves:
-        for point in curve.keyframe_points:
-            point.interpolation="BEZIER"
-            point.handle_left_type="AUTO_CLAMPED"
-            point.handle_right_type="AUTO_CLAMPED"
+    # Blender 5.x uses layered Actions without the legacy Action.fcurves API.
+    # Keyframes already use Bezier interpolation by default; leave handles at defaults.
     rig.animation_data.action=None
     track=rig.animation_data.nla_tracks.new(); track.name=name
     strip=track.strips.new(name,frames[0],act); strip.name=name; strip.blend_type="REPLACE"
