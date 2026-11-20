@@ -160,7 +160,7 @@ impl Plugin for TeamSelectPlugin {
                         .after(UiSet::Dispatch)
                         .before(crate::net::ClientNetPipeline::SendCommands),
                     sync_hero_panel,
-                    sync_hero_filter,
+                    sync_hero_filter.after(team_select_ui_system),
                     sync_hero_select_status,
                     apply_phone_copy,
                 )
