@@ -196,11 +196,6 @@ fn spawn_catalogue_grid(
         for (value, label, id) in [
             (CollectionFilter::All, "collection.all", "CollectionAll"),
             (
-                CollectionFilter::Weapons,
-                "collection.weapons",
-                "CollectionWeapons",
-            ),
-            (
                 CollectionFilter::Included,
                 "collection.included",
                 "CollectionIncluded",
@@ -236,7 +231,7 @@ fn spawn_catalogue_grid(
         Name::new("CollectionCatalogueScroll"),
     ))
     .with_children(|grid| {
-        if filter == CollectionFilter::Weapons {
+        if false {
             grid.spawn(widgets::heading(tr("collection.weapons"), 17.0));
             grid.spawn(widgets::label(
                 tr("collection.weapons_hint"),
