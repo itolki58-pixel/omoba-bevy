@@ -167,7 +167,7 @@ arm_obj.animation_data.action = walk
 scene = bpy.context.scene
 scene.render.fps = 30
 scene.frame_start = 1
-scene.frame_end = 32
+scene.frame_end = 33
 cycle = [
     (1, 0.42, -0.42, 0.08, 0.42),
     (9, 0.00, 0.00, 0.42, 0.42),
@@ -207,6 +207,7 @@ scene.frame_set(1)
 bpy.ops.object.select_all(action="DESELECT")
 for obj in meshes: obj.select_set(True)
 arm_obj.select_set(True)
+root.select_set(True)
 bpy.context.view_layer.objects.active = arm_obj
 out_glb = os.path.join(out_dir,"zargat-rigged.glb")
 bpy.ops.export_scene.gltf(filepath=out_glb,export_format="GLB",use_selection=True)
