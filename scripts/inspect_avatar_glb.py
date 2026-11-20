@@ -3,7 +3,10 @@
 import bpy, json, os, sys, glob
 from mathutils import Vector
 
-# Ubuntu Blender uses its bundled Python; expose matching system site-packages (numpy).\nfor candidate in glob.glob("/usr/lib/python3/dist-packages"):\n    if candidate not in sys.path:\n        sys.path.append(candidate)
+# Ubuntu Blender uses its bundled Python; expose matching system site-packages (numpy).
+for candidate in glob.glob("/usr/lib/python3/dist-packages"):
+    if candidate not in sys.path:
+        sys.path.append(candidate)
 
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 if len(args) != 2:
