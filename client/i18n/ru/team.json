@@ -24,5 +24,20 @@
   "team.join.find_match": "Найти матч",
   "team.join.combat_test": "Войти в тест сражений",
   "team.join.practice": "Начать тренировку",
-  "team.notice.offline_avatar": "Офлайн-тренировка использует встроенные аватары. Выберите аватар из первой группы."
+  "team.notice.offline_avatar": "Офлайн-тренировка использует встроенные аватары. Выберите аватар из первой группы.",
+  "team.hero.role": "Роль",
+  "team.hero.difficulty": "Сложность",
+  "team.hero.range": "Дальность атаки",
+  "team.hero.weapon": "Оружие",
+  "team.difficulty.easy": "Лёгкая",
+  "team.difficulty.medium": "Средняя",
+  "team.difficulty.hard": "Сложная",
+  "team.weapon.sword": "Меч",
+  "team.weapon.hammer": "Молот",
+  "team.weapon.scepter": "Посох",
+  "team.weapon.dagger": "Кинжал",
+  "team.weapon.repeater": "Репитер",
+  "team.weapon.launcher": "Ракетница",
+  "team.weapon.bow": "Лук",
+  "team.weapon.default": "Основное оружие"
 }
