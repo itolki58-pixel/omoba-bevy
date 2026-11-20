@@ -61,6 +61,7 @@ enum HeroSelectAction {
 }
 
 
+// Hero cards are filtered by their lane; the card itself always represents a hero.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum HeroLaneFilter {
     #[default]
