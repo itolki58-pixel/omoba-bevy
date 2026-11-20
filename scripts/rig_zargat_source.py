@@ -150,7 +150,7 @@ try:
     auto_ok=bool(body.parent==rig and len(body.vertex_groups)>0)
 except Exception as exc:
     print("Automatic weights unavailable; using fallback:",exc)
-if not auto_ok:
+if True:
     # Region-constrained nearest-segment weights. Unlike global nearest-bone
     # weighting, this prevents a hand vertex from blending into a nearby thigh,
     # and prevents wings/tail from leaking into the torso/legs.
@@ -227,9 +227,9 @@ ad.display_type="OCTAHEDRAL"
 def reset():
     for p in rig.pose.bones:
         p.rotation_mode="XYZ"; p.rotation_euler=(0,0,0); p.location=(0,0,0)
-def rot(n,z=0,x=0):
+def rot(n,z=0,x=0,y=0):
     p=rig.pose.bones.get(n)
-    if p: p.rotation_euler=(x,0,z)
+    if p: p.rotation_euler=(x,y,z)
 def clip(name, frames, fn):
     act=bpy.data.actions.new(name); rig.animation_data_create(); rig.animation_data.action=act
     for f in frames:
@@ -252,8 +252,8 @@ def locomotion(f,amount):
     t=(f-1)/24*math.tau
     for suf,phase in [("L",0),("R",math.pi)]:
         a=math.sin(t+phase)
-        rot("Thigh_"+suf,.55*amount*a); rot("Shin_"+suf,.45*amount*max(0,-a))
-        rot("UpperArm_"+suf,-.30*amount*a)
+        rot("Thigh_"+suf,x=.55*amount*a); rot("Shin_"+suf,x=.45*amount*max(0,-a))
+        rot("Foot_"+suf,x=-.18*amount*a); rot("UpperArm_"+suf,y=-.30*amount*a)
     rot("Spine_01",.04*amount*math.sin(2*t)); rot("Spine_02",.025*amount*math.sin(2*t+1))
     for suf,s in [("L",1),("R",-1)]: rot("Wing_Root_"+suf,s*.12*amount*math.sin(2*t))
     for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.20)]:
@@ -262,11 +262,11 @@ def attack(f):
     t=(f-1)/26
     power=math.sin(min(1,max(0,t))*math.pi)
     rot("Spine_01",-.22*power); rot("Spine_02",-.35*power)
-    rot("UpperArm_R",-.9*power); rot("Forearm_R",-.7*power)
+    rot("UpperArm_R",y=-.9*power); rot("Forearm_R",y=-.7*power)
     rot("Wing_Root_L",.2*power); rot("Wing_Root_R",-.2*power)
 def cast(f):
     p=math.sin((f-1)/24*math.pi)
-    rot("UpperArm_L",.65*p); rot("UpperArm_R",-.65*p)
+    rot("UpperArm_L",y=.65*p); rot("UpperArm_R",y=-.65*p)
     rot("Wing_Root_L",.35*p); rot("Wing_Root_R",-.35*p)
 def death(f):
     p=(f-1)/30
