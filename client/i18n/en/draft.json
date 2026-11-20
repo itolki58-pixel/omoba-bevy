@@ -28,5 +28,15 @@
   "draft.timer.gathering": "Waiting for team…",
   "draft.stage.rotate": "Drag to rotate",
   "draft.tab.avatars": "Avatars",
-  "draft.tab.classes": "Classes"
+  "draft.tab.classes": "Classes",
+  "draft.difficulty.easy": "Easy",
+  "draft.difficulty.medium": "Medium",
+  "draft.difficulty.hard": "Hard",
+  "draft.weapon.sword": "Sword",
+  "draft.weapon.hammer": "Hammer",
+  "draft.weapon.scepter": "Scepter",
+  "draft.weapon.dagger": "Dagger",
+  "draft.weapon.repeater": "Repeater",
+  "draft.weapon.bow": "Bow",
+  "draft.weapon.default": "Signature weapon"
 }
