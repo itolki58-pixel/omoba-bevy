@@ -136,12 +136,11 @@ if not all(has_complete_weights(obj) for obj in meshes):
         for slot in range(k):
             for bi in range(len(bone_list)):
                 mask = nearest[slot] == bi
-                ids = vertex_ids[mask].tolist()
-                if ids:
-                    vals = weights[slot, mask].astype(float).tolist()
-                    groups[bone_names[bi]].add(ids, 0.0, "REPLACE")
-                    # Add actual normalized weights after creating the membership.
-                    groups[bone_names[bi]].add(ids, vals, "REPLACE")
+                ids = vertex_ids[mask]
+                vals = weights[slot, mask]
+                group = groups[bone_names[bi]]
+                for vid, weight in zip(ids, vals):
+                    group.add([int(vid)], float(weight), "REPLACE")
 
 validation = []
 for obj in meshes:
