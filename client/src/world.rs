@@ -3,6 +3,7 @@ use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::ecs::system::SystemParam;
 use bevy::gltf::{Gltf, GltfLoaderSettings};
 use bevy::light::CascadeShadowConfigBuilder;
+#[cfg(not(target_os = "android"))]
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::prelude::*;
 use bevy::render::view::{ColorGrading, ColorGradingGlobal};
@@ -367,49 +368,53 @@ fn setup_main_camera(
     let (yaw, pitch, _) = initial_cam_transform.rotation.to_euler(EulerRot::YXZ);
     cam_state.pitch = pitch;
     cam_state.yaw = yaw;
-    commands.spawn((
-        Camera3d::default(),
-        // Conservative Android default from Bevy 0.18's mobile example.
-        #[cfg(target_os = "android")]
-        Msaa::Off,
-        Camera {
-            clear_color: ClearColorConfig::Custom(Color::srgb(0.12, 0.19, 0.20)),
-            ..default()
-        },
-        Hdr,
-        Tonemapping::TonyMcMapface,
-        ColorGrading {
-            global: ColorGradingGlobal {
-                post_saturation: 1.08,
+    let camera = commands
+        .spawn((
+            Camera3d::default(),
+            // Conservative Android default from Bevy's mobile example.
+            #[cfg(target_os = "android")]
+            Msaa::Off,
+            Camera {
+                clear_color: ClearColorConfig::Custom(Color::srgb(0.12, 0.19, 0.20)),
                 ..default()
             },
-            ..default()
-        },
-        // Only HDR skill cores/rims feed the glow. Broad LDR floor and field
-        // fills stay readable; increasing global exposure would wash them out.
-        Bloom {
-            intensity: 0.12,
-            low_frequency_boost: 0.10,
-            high_pass_frequency: 0.75,
-            prefilter: BloomPrefilter {
-                threshold: 1.0,
-                threshold_softness: 0.15,
+            Hdr,
+            Tonemapping::TonyMcMapface,
+            ColorGrading {
+                global: ColorGradingGlobal {
+                    post_saturation: 1.08,
+                    ..default()
+                },
+                ..default()
             },
-            composite_mode: BloomCompositeMode::Additive,
-            ..default()
-        },
-        DistanceFog {
-            color: Color::srgb(0.32, 0.46, 0.46),
-            falloff: FogFalloff::Linear {
-                start: 260.0,
-                end: 850.0,
+            DistanceFog {
+                color: Color::srgb(0.32, 0.46, 0.46),
+                falloff: FogFalloff::Linear {
+                    start: 260.0,
+                    end: 850.0,
+                },
+                ..default()
             },
-            ..default()
+            initial_cam_transform,
+            MainCamera,
+            Name::new("MainCamera3d"),
+        ))
+        .id();
+
+    // Bloom is a nice desktop accent but an unnecessary full-screen post-process
+    // on mobile GPUs. Android keeps HDR/tonemapping and the skill VFX themselves.
+    #[cfg(not(target_os = "android"))]
+    commands.entity(camera).insert(Bloom {
+        intensity: 0.12,
+        low_frequency_boost: 0.10,
+        high_pass_frequency: 0.75,
+        prefilter: BloomPrefilter {
+            threshold: 1.0,
+            threshold_softness: 0.15,
         },
-        initial_cam_transform,
-        MainCamera,
-        Name::new("MainCamera3d"),
-    ));
+        composite_mode: BloomCompositeMode::Additive,
+        ..default()
+    });
 }
 
 fn apply_lighting_settings_system(
