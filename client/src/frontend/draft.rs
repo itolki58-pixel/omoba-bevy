@@ -840,6 +840,17 @@ fn render_draft(
                                 12.0,
                                 theme::GOLD,
                             ));
+                            picker.spawn(widgets::label(
+                                format!(
+                                    "{}: {} · {}: {}",
+                                    tr("draft.info.difficulty"),
+                                    data::difficulty(shared::catalog::hero_difficulty(selected.hero_class)),
+                                    tr("draft.info.weapon"),
+                                    data::signature_weapon(selected.hero_class),
+                                ),
+                                11.0,
+                                theme::GOLD,
+                            ));
                             picker.spawn(widgets::label(description, 11.0, theme::MUTED));
                         }
                     }
