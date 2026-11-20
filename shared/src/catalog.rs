@@ -75,6 +75,16 @@ pub(crate) fn hero(class: HeroClass) -> &'static HeroDefinition {
     &HEROES[class as usize]
 }
 
+/// Small, balance-neutral summary used by the pre-match hero picker.
+pub fn hero_selection_info(class: HeroClass) -> (Role, f32, &'static str) {
+    let definition = hero(class);
+    (
+        definition.role,
+        definition.basic_attack.range,
+        definition.tagline,
+    )
+}
+
 /// Every item, in `ItemId::ALL` order.
 pub(crate) fn items() -> &'static [ItemDefinition] {
     &ITEMS
