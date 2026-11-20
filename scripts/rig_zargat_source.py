@@ -206,7 +206,7 @@ def locomotion(f,amount):
         rot("Thigh_"+suf,.55*amount*a); rot("Shin_"+suf,.45*amount*max(0,-a))
         rot("UpperArm_"+suf,-.30*amount*a)
     rot("Spine_01",.04*amount*math.sin(2*t)); rot("Spine_02",.025*amount*math.sin(2*t+1))
-    for suf,s in [("L",1),("R",-1)]: rot("wing."+suf,s*.12*amount*math.sin(2*t))
+    for suf,s in [("L",1),("R",-1)]: rot("Wing_Root_"+suf,s*.12*amount*math.sin(2*t))
     for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.20)]:
         rot(n,k*math.sin(t+.5))
 def attack(f):
@@ -249,10 +249,23 @@ clip("Ultimate",[1,8,16,24,31],ultimate)
 bpy.context.scene.frame_set(1)
 
 os.makedirs(os.path.dirname(OUT),exist_ok=True)
+# Validate the actual deformation setup before export. In particular, do NOT
+# apply the armature modifier during glTF export: doing so bakes the posed mesh
+# and strips the skin/joint data from the GLB.
+if body.parent != rig:
+    body.parent = rig
+if not any(m.type == "ARMATURE" and m.object == rig for m in body.modifiers):
+    mod = body.modifiers.new("DemonKnight_Armature", "ARMATURE")
+    mod.object = rig
+if len(body.vertex_groups) == 0:
+    raise RuntimeError("Mesh has no vertex groups; cannot export a skinned avatar")
+if len(ad.bones) < 20:
+    raise RuntimeError("DemonKnight armature is incomplete")
+print("Pre-export skin check:", len(ad.bones), "bones;", len(body.vertex_groups), "vertex groups")
 bpy.ops.object.select_all(action="DESELECT"); body.select_set(True); rig.select_set(True)
 bpy.context.view_layer.objects.active=rig
 bpy.ops.export_scene.gltf(filepath=OUT,export_format="GLB",use_selection=True,
-    export_apply=True,export_animations=True,export_nla_strips=True,export_skins=True,export_yup=True)
+    export_apply=False,export_animations=True,export_nla_strips=True,export_skins=True,export_yup=True)
 if not os.path.isfile(OUT) or os.path.getsize(OUT)<100000: raise RuntimeError("Rigged Zaragat export failed")
 # Render a true Blender preview of the supplied model.
 scene=bpy.context.scene
