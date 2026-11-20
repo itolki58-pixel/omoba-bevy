@@ -1319,6 +1319,9 @@ fn sync_hero_filter(
     mut cards: Query<(&HeroCardLane, &mut Node)>,
     mut tabs: Query<(&HeroFilterTab, &mut ButtonStyle)>,
 ) {
+    if !selection.is_changed() {
+        return;
+    }
     for (card, mut node) in &mut cards {
         node.display = if selection.hero_filter.matches(card.0) {
             Display::Flex
