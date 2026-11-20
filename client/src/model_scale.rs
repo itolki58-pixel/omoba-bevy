@@ -26,15 +26,15 @@ use bevy::prelude::*;
 use crate::team::CharacterChoice;
 
 /// Standing hero height in world units, tuned for Verdant's 12-unit lanes.
-/// The 2.5-unit presentation target makes heroes readable on phone screens
+/// The 3.1-unit target applies the requested 24% visual character-size increase
 /// without changing `PLAYER_SIZE`, combat ranges, navigation clearance or
 /// the independent creature reference below.
-pub const DEFAULT_MODEL_TARGET_HEIGHT: f32 = 2.5;
+pub const DEFAULT_MODEL_TARGET_HEIGHT: f32 = 3.1;
 /// Creature multipliers were authored against the previous 1.15-unit hero
 /// height. Keep that reference independent of hero readability preferences.
 pub const CREATURE_MODEL_TARGET_HEIGHT: f32 = 1.15;
 pub const MIN_MODEL_TARGET_HEIGHT: f32 = 0.3;
-pub const MAX_MODEL_TARGET_HEIGHT: f32 = 3.0;
+pub const MAX_MODEL_TARGET_HEIGHT: f32 = 3.72;
 const NORMALIZATION_MIN_HEIGHT: f32 = 0.001;
 const MIN_OVERRIDE_MULTIPLIER: f32 = 0.1;
 const MAX_OVERRIDE_MULTIPLIER: f32 = 10.0;

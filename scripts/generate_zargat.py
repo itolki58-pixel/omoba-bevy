@@ -32,14 +32,42 @@ def mat(name, color, metallic=0.0, rough=0.5, emission=None):
             strength_input.default_value = 2.0
     return m
 
-MAT_SKIN = mat("Zargat | Ashen crimson skin", (0.19, 0.035, 0.055), 0.08, 0.62)
-MAT_ARMOR = mat("Zargat | Obsidian armor", (0.025, 0.018, 0.035), 0.82, 0.28)
-MAT_RED = mat("Zargat | Infernal steel", (0.32, 0.035, 0.025), 0.68, 0.3)
-MAT_GOLD = mat("Zargat | Ancient gold", (0.72, 0.36, 0.07), 0.78, 0.25)
-MAT_EMBER = mat("Zargat | Molten core", (1.0, 0.12, 0.015), 0.15, 0.22, (1.0, 0.045, 0.004))
-MAT_WING = mat("Zargat | Membrane", (0.075, 0.009, 0.025), 0.12, 0.68)
-MAT_HAIR = mat("Zargat | Silver mane", (0.62, 0.64, 0.68), 0.15, 0.38)
-MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.22, 0.015), 0.05, 0.2, (1.0, 0.08, 0.002))
+MAT_SKIN = mat("Zargat | Obsidian armor", (0.012, 0.015, 0.022), 0.72, 0.3)
+MAT_ARMOR = mat("Zargat | Black forged steel", (0.018, 0.022, 0.032), 0.82, 0.26)
+MAT_RED = mat("Zargat | Crimson enamel", (0.30, 0.006, 0.018), 0.58, 0.27)
+MAT_GOLD = mat("Zargat | Antique gold trim", (0.52, 0.24, 0.055), 0.82, 0.24)
+MAT_EMBER = mat("Zargat | Molten core", (1.0, 0.12, 0.015), 0.0, 0.24, (1.0, 0.045, 0.004))
+MAT_WING = mat("Zargat | Infernal wing membrane", (0.19, 0.004, 0.012), 0.18, 0.42)
+MAT_HAIR = mat("Zargat | Charred helmet recess", (0.012, 0.014, 0.02), 0.72, 0.3)
+MAT_EYE = mat("Zargat | Burning eyes", (1.0, 0.34, 0.018), 0.0, 0.16, (1.0, 0.18, 0.004))
+
+
+# Layered procedural surface detail: living scaled hide, keratin ridges and molten fissures.
+def add_surface_detail(material, scale, bump_strength, roughness_strength=0.25):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    shader = nodes.get("Principled BSDF")
+    tex = nodes.new("ShaderNodeTexNoise")
+    tex.inputs["Scale"].default_value = scale
+    tex.inputs["Detail"].default_value = 5.0
+    tex.inputs["Roughness"].default_value = 0.72
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = bump_strength
+    bump.inputs["Distance"].default_value = 0.035
+    links.new(tex.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], shader.inputs["Normal"])
+    rough = nodes.new("ShaderNodeMapRange")
+    rough.inputs["From Min"].default_value = 0.0
+    rough.inputs["From Max"].default_value = 1.0
+    rough.inputs["To Min"].default_value = max(0.12, material.node_tree.nodes.get("Principled BSDF").inputs["Roughness"].default_value - roughness_strength)
+    rough.inputs["To Max"].default_value = min(0.9, material.node_tree.nodes.get("Principled BSDF").inputs["Roughness"].default_value + roughness_strength)
+    links.new(tex.outputs["Fac"], rough.inputs["Value"])
+    links.new(rough.outputs["Result"], shader.inputs["Roughness"])
+
+add_surface_detail(MAT_SKIN, 13.0, 0.34, 0.18)
+add_surface_detail(MAT_ARMOR, 22.0, 0.28, 0.14)
+add_surface_detail(MAT_RED, 17.0, 0.30, 0.16)
+add_surface_detail(MAT_WING, 16.0, 0.18, 0.10)
 
 # Blender-space coordinates: Z up; the demon faces -Y.
 arm_data = bpy.data.armatures.new("Zargat_Skeleton")
@@ -97,10 +125,11 @@ def finish_part(obj, name, material, bone_name):
     parts.append(obj)
     return obj
 
-def sphere(name, loc, scale, material, bone_name, segments=12, rings=8):
+def sphere(name, loc, scale, material, bone_name, segments=32, rings=24):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=1, location=loc)
     o = bpy.context.object
     o.scale = scale
+    for poly in o.data.polygons: poly.use_smooth = True
     return finish_part(o, name, material, bone_name)
 
 def cube(name, loc, scale, material, bone_name, bevel=0.0):
@@ -108,95 +137,192 @@ def cube(name, loc, scale, material, bone_name, bevel=0.0):
     o = bpy.context.object
     o.scale = scale
     if bevel:
-        mod=o.modifiers.new("Forged edges","BEVEL"); mod.width=bevel; mod.segments=1
+        mod=o.modifiers.new("Forged edges","BEVEL"); mod.width=bevel; mod.segments=3
         bpy.context.view_layer.objects.active=o
         bpy.ops.object.modifier_apply(modifier=mod.name)
     return finish_part(o, name, material, bone_name)
 
-def cone_between(name, a, b, radius, material, bone_name, vertices=8, radius2=0.0):
+def cone_between(name, a, b, radius, material, bone_name, vertices=16, radius2=0.0):
     a,b=Vector(a),Vector(b)
     direction=b-a
     bpy.ops.mesh.primitive_cone_add(vertices=vertices, radius1=radius, radius2=radius2, depth=direction.length, location=(a+b)*0.5)
     o=bpy.context.object
     o.rotation_mode="QUATERNION"
     o.rotation_quaternion=Vector((0,0,1)).rotation_difference(direction)
+    for poly in o.data.polygons: poly.use_smooth = True
     return finish_part(o,name,material,bone_name)
 
+
+def curve_tube(name, points, radius, material, bone_name, resolution=3):
+    # Build a real beveled tube mesh from a polyline, then bind it to the named bone.
+    curve = bpy.data.curves.new(name + "_Curve", "CURVE")
+    curve.dimensions = "3D"
+    curve.resolution_u = 12
+    curve.bevel_depth = radius
+    curve.bevel_resolution = max(1, int(resolution))
+    spline = curve.splines.new("POLY")
+    spline.points.add(len(points) - 1)
+    for point, co in zip(spline.points, points):
+        point.co = (co[0], co[1], co[2], 1.0)
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.convert(target="MESH")
+    obj = bpy.context.object
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
+    return finish_part(obj, name, material, bone_name)
+
+
 def wing_mesh(side, suffix):
-    # Angular bat wing membrane, attached to its own animated wing bone.
-    pts=[
-        (side*0.34,0.10,1.52),
-        (side*0.74,0.10,1.92),
-        (side*1.42,0.13,2.12),
-        (side*1.22,0.12,1.48),
-        (side*1.10,0.12,1.08),
-        (side*0.83,0.10,1.34),
-        (side*0.60,0.10,1.18),
-    ]
-    faces=[(0,1,5),(1,2,3),(1,3,5),(5,3,4),(0,5,6)]
+    # Dense, curved bat membrane with a scalloped trailing edge (not flat triangles).
+    # The surface is tessellated so lighting and the membrane normal read smoothly.
+    span_steps, chord_steps = 32, 20
+    verts, faces = [], []
+    leading = [(0.36,1.53),(0.70,1.83),(1.05,2.02),(1.42,2.13)]
+    trailing = [(0.36,1.48),(0.64,1.22),(0.91,1.05),(1.17,1.12),(1.31,1.48)]
+    def sample(profile, u):
+        q=u*(len(profile)-1); i=min(int(q),len(profile)-2); f=q-i
+        return profile[i][0]*(1-f)+profile[i+1][0]*f, profile[i][1]*(1-f)+profile[i+1][1]*f
+    for i in range(span_steps+1):
+        u=i/span_steps
+        lx,lz=sample(leading,u)
+        tx,tz=sample(trailing,min(1,u))
+        # Distinct scallops between the long wing fingers.
+        scallop=math.sin(u*math.pi*4.0)**2 * 0.055
+        for j in range(chord_steps+1):
+            v=j/chord_steps
+            x=lx*(1-v)+tx*v
+            z=lz*(1-v)+tz*v-scallop*math.sin(v*math.pi)
+            y=0.105 + 0.035*math.sin(u*math.pi)*math.sin(v*math.pi)
+            verts.append((side*x,y,z))
+    for i in range(span_steps):
+        for j in range(chord_steps):
+            p=i*(chord_steps+1)+j
+            faces.append((p,p+1,p+chord_steps+2,p+chord_steps+1))
     mesh=bpy.data.meshes.new("Zargat_Wing_"+suffix)
-    mesh.from_pydata(pts,[],faces); mesh.materials.append(MAT_WING); mesh.update()
+    mesh.from_pydata(verts,[],faces); mesh.materials.append(MAT_WING); mesh.update()
     obj=bpy.data.objects.new("Zargat_BatWing_"+suffix,mesh); bpy.context.collection.objects.link(obj)
+    for poly in mesh.polygons: poly.use_smooth=True
+    solid=obj.modifiers.new("Thin leathery membrane","SOLIDIFY"); solid.thickness=0.012
     return finish_part(obj,obj.name,MAT_WING,"wing."+suffix)
 
-# Core anatomy and plated silhouette.
-sphere("Infernal torso",(0,0,1.30),(0.43,0.27,0.43),MAT_SKIN,"spine")
-sphere("Broad chest",(0,-0.015,1.48),(0.55,0.30,0.32),MAT_SKIN,"chest")
-cube("Obsidian breastplate",(0,-0.285,1.43),(0.72,0.12,0.46),MAT_ARMOR,"chest",0.06)
-sphere("Molten heart",(0,-0.36,1.43),(0.13,0.035,0.16),MAT_EMBER,"chest")
-for z in (1.30,1.42,1.54):
-    for side in (-1,1):
-        cone_between("Cuirass molten rune",(side*0.10,-0.36,z),(side*0.17,-0.36,z+0.07),0.025,MAT_GOLD,"chest",6)
-sphere("Infernal pelvis",(0,0,0.86),(0.34,0.24,0.22),MAT_ARMOR,"pelvis")
-cube("Skull belt",(0,-0.24,0.86),(0.24,0.055,0.16),MAT_GOLD,"pelvis",0.025)
+# Rebuilt from the supplied Zaragat concept: armored demon-knight, not a pile of primitives.
+def mesh_part(name, verts, faces, material, bone_name, smooth=False):
+    me=bpy.data.meshes.new(name+"_Mesh"); me.from_pydata(verts,[],faces); me.materials.append(material); me.update()
+    ob=bpy.data.objects.new(name,me); bpy.context.collection.objects.link(ob)
+    if smooth:
+        for p in me.polygons: p.use_smooth=True
+    return finish_part(ob,name,material,bone_name)
 
-# Head, horns, mane, eyes and jaw.
-sphere("Demon skull",(0,-0.015,1.83),(0.25,0.23,0.30),MAT_SKIN,"head")
-cube("Infernal face guard",(0,-0.22,1.78),(0.40,0.075,0.17),MAT_ARMOR,"head",0.025)
-cone_between("Demon jaw",(0,-0.18,1.70),(0,-0.20,1.57),0.13,MAT_RED,"jaw",8,0.025)
+def loft(name, rings, material, bone_name, sides=16):
+    verts=[]; faces=[]
+    for z,cx,cy,rx,ry in rings:
+        for j in range(sides):
+            t=2*math.pi*j/sides
+            verts.append((cx+rx*math.cos(t),cy+ry*math.sin(t),z))
+    for i in range(len(rings)-1):
+        for j in range(sides):
+            a=i*sides+j; b=i*sides+(j+1)%sides
+            faces.append((a,b,b+sides,a+sides))
+    faces += [tuple(reversed(range(sides))),tuple((len(rings)-1)*sides+j for j in range(sides))]
+    return mesh_part(name,verts,faces,material,bone_name,True)
+
+def plate(name, outline, y, material, bone_name, depth=0.045):
+    # Sculpted hard-surface plate, curved to the body, with a raised bevel.
+    verts=[(x,y,z) for x,z in outline]+[(x,y+depth,z) for x,z in outline]
+    n=len(outline); faces=[tuple(range(n)),tuple(range(n,2*n))]
+    for i in range(n): faces.append((i,(i+1)%n,(i+1)%n+n,i+n))
+    ob=mesh_part(name,verts,faces,material,bone_name)
+    bevel=ob.modifiers.new("Crisp forged plate edges","BEVEL"); bevel.width=0.018; bevel.segments=2
+    bpy.context.view_layer.objects.active=ob; bpy.ops.object.modifier_apply(modifier=bevel.name)
+    return ob
+
+def blade_mesh(name, points, y_front, y_back, material, bone_name):
+    n=len(points); verts=[(x,y_front,z) for x,z in points]+[(x,y_back,z) for x,z in points]
+    faces=[tuple(range(n)),tuple(reversed(range(n,2*n)))]
+    for i in range(n): faces.append((i,(i+1)%n,(i+1)%n+n,i+n))
+    return mesh_part(name,verts,faces,material,bone_name)
+
+# Main body is a single tapered armored silhouette with broad shoulders and narrow waist.
+loft("Zargat armored body",[
+ (0.78,0,0,0.29,0.23),(0.94,0,0,0.34,0.25),(1.10,0,0,0.30,0.22),
+ (1.28,0,0,0.39,0.27),(1.48,0,0,0.53,0.30),(1.62,0,0,0.45,0.25),
+ (1.72,0,0,0.23,0.19)],MAT_SKIN,"spine",24)
+# Front breastplate: broad angular silhouette, layered crimson panels and gold piping.
+plate("Main obsidian breastplate",[(-.43,1.60),(-.34,1.76),(-.12,1.79),(0,1.72),(.12,1.79),(.34,1.76),(.43,1.60),(.29,1.38),(0,1.29),(-.29,1.38)],-.285,MAT_ARMOR,"chest")
+plate("Crimson chest inset",[(-.30,1.64),(-.22,1.71),(0,1.67),(.22,1.71),(.30,1.64),(.20,1.48),(0,1.40),(-.20,1.48)],-.338,MAT_RED,"chest",.025)
+plate("Central molten crest",[(-.10,1.65),(0,1.72),(.10,1.65),(.075,1.48),(0,1.42),(-.075,1.48)],-.37,MAT_GOLD,"chest",.018)
 for side in (-1,1):
-    cone_between("Crown horn",(side*0.16,0.0,1.98),(side*0.29,0.02,2.35),0.105,MAT_GOLD,"head",9,0.006)
-    sphere("Burning eye",(side*0.105,-0.245,1.84),(0.045,0.025,0.035),MAT_EYE,"head",10,6)
-    cone_between("Shoulder spike",(side*0.40,0,1.62),(side*0.66,0.02,1.91),0.12,MAT_GOLD,"chest",8,0.005)
-    sphere("Silver mane",(side*0.17,0.13,1.80),(0.14,0.16,0.28),MAT_HAIR,"head")
-    cone_between("Mane lock",(side*0.18,0.16,1.82),(side*0.26,0.50,1.55),0.10,MAT_HAIR,"head",7,0.015)
+    plate("Chest lower lames",[(side*.04,1.36),(side*.25,1.40),(side*.31,1.25),(side*.20,1.16),(side*.03,1.20)],-.30,MAT_ARMOR,"spine")
+    curve_tube("Chest magma seam",[(side*.04,-.395,1.61),(side*.13,-.402,1.52),(side*.09,-.39,1.43)],.012,MAT_EMBER,"chest",3)
+# Waist, hanging red tabard and hip armor.
+plate("Waist cuirass",[(-.30,1.02),(-.25,1.17),(0,1.22),(.25,1.17),(.30,1.02),(.18,.91),(0,.88),(-.18,.91)],-.255,MAT_ARMOR,"pelvis")
+for side in (-1,1):
+    plate("Hip tasset",[(side*.12,1.02),(side*.31,1.08),(side*.39,.91),(side*.34,.72),(side*.20,.78)],-.29,MAT_RED,"pelvis")
+# Cloth panel with pointed hem.
+mesh_part("Crimson hanging tabard",[(-.20,-.285,.98),(.20,-.285,.98),(.16,-.31,.57),(0,-.32,.49),(-.16,-.31,.57)],
+          [(0,1,2,3,4)],MAT_RED,"pelvis")
+# Helmeted head and brow, matching the horned armored silhouette.
+loft("Helmet core",[(1.72,0,-.01,.18,.16),(1.82,0,-.015,.25,.20),(1.98,0,0,.27,.21),(2.10,0,.01,.22,.18),(2.15,0,.02,.12,.12)],MAT_ARMOR,"head",20)
+plate("Helmet face mask",[(-.20,1.94),(-.16,2.05),(0,2.09),(.16,2.05),(.20,1.94),(.12,1.79),(0,1.74),(-.12,1.79)],-.205,MAT_RED,"head",.035)
+plate("Helmet central ridge",[(-.045,2.08),(0,2.13),(.045,2.08),(.035,1.83),(0,1.79),(-.035,1.83)],-.247,MAT_GOLD,"head",.018)
+for side in (-1,1):
+    # Eye slits burn beneath the angular brow.
+    plate("Eye socket",[(side*.035,1.94),(side*.17,1.97),(side*.13,1.91),(side*.045,1.90)],-.252,MAT_ARMOR,"head",.018)
+    sphere("Burning eye",(side*.095,-.278,1.93),(.032,.018,.018),MAT_EYE,"head",12,8)
+    curve_tube("Swept crown horn",[(side*.16,.0,2.04),(side*.25,.02,2.19),(side*.32,.08,2.36),(side*.27,.16,2.48)],.072,MAT_ARMOR,"head",4)
+    curve_tube("Horn molten edge",[(side*.20,-.01,2.13),(side*.27,.04,2.27),(side*.30,.10,2.38)],.012,MAT_GOLD,"head",3)
+    plate("Helmet temple guard",[(side*.15,1.98),(side*.25,2.02),(side*.27,1.84),(side*.17,1.75)],-.17,MAT_ARMOR,"head")
+# Shoulder pauldrons with layered red shells, gold edging and backward spikes.
+for side,suf in [(-1,"L"),(1,"R")]:
+    loft("Armored upper arm "+suf,[(.90,side*.70,0,.12,.12),(1.10,side*.62,0,.15,.15),(1.30,side*.49,0,.17,.16),(1.48,side*.40,0,.16,.16)],MAT_SKIN,"upper_arm."+suf,16)
+    plate("Massive shoulder pauldron "+suf,[(side*.31,1.70),(side*.50,1.82),(side*.72,1.73),(side*.75,1.57),(side*.58,1.47),(side*.38,1.53)],-.20,MAT_ARMOR,"chest")
+    plate("Pauldron crimson inset "+suf,[(side*.39,1.70),(side*.52,1.77),(side*.67,1.70),(side*.62,1.58),(side*.46,1.57)],-.25,MAT_RED,"chest",.02)
+    cone_between("Pauldron spike "+suf,(side*.62,-.12,1.68),(side*.89,-.10,1.94),.105,MAT_GOLD,"chest",8,.004)
+    loft("Armored forearm "+suf,[(.76,side*.72,-.01,.105,.11),(.92,side*.72,-.01,.14,.13),(1.10,side*.67,0,.16,.15),(1.24,side*.62,0,.13,.13)],MAT_SKIN,"forearm."+suf,16)
+    plate("Forearm bracer "+suf,[(side*.56,1.20),(side*.78,1.22),(side*.84,.96),(side*.70,.84),(side*.56,.98)],-.18,MAT_ARMOR,"forearm."+suf)
+    plate("Bracer red inlay "+suf,[(side*.61,1.15),(side*.76,1.16),(side*.77,1.02),(side*.68,.95)],-.225,MAT_RED,"forearm."+suf,.018)
+    for k in range(3):
+        cone_between("Gauntlet claw "+suf,(side*(.66+k*.07),-.22,.88),(side*(.69+k*.07),-.29,.73),.035,MAT_GOLD,"hand."+suf,8,.002)
+    # Thigh and greave are long tapered armored forms, not round toy limbs.
+    loft("Armored thigh "+suf,[(.48,side*.23,0,.14,.16),(.64,side*.23,0,.18,.19),(.82,side*.21,0,.17,.17),(.94,side*.20,0,.13,.14)],MAT_SKIN,"thigh."+suf,16)
+    plate("Thigh armor "+suf,[(side*.09,.82),(side*.34,.86),(side*.39,.66),(side*.30,.52),(side*.13,.57)],-.19,MAT_ARMOR,"thigh."+suf)
+    plate("Knee shield "+suf,[(side*.12,.55),(side*.31,.58),(side*.34,.43),(side*.23,.36),(side*.12,.43)],-.22,MAT_RED,"shin."+suf)
+    loft("Greave "+suf,[(.12,side*.23,-.02,.10,.12),(.27,side*.23,-.02,.14,.15),(.43,side*.23,0,.13,.15),(.51,side*.23,0,.12,.13)],MAT_SKIN,"shin."+suf,16)
+    plate("Greave front "+suf,[(side*.13,.43),(side*.33,.45),(side*.34,.22),(side*.23,.14),(side*.13,.22)],-.18,MAT_ARMOR,"shin."+suf)
+    plate("Boot toe "+suf,[(side*.10,.16),(side*.35,.16),(side*.39,.06),(side*.30,.015),(side*.14,.02)],-.25,MAT_RED,"foot."+suf)
+# Broad, bat-like wings: red membranes, scalloped lower edge, thick black fingers and gold tips.
+def concept_wing(side,suf):
+    # Wing spans outward and upward, with five long finger tips and scalloped webbing.
+    tips=[(1.48,2.38),(1.28,2.18),(1.45,1.92),(1.30,1.52),(1.02,1.12),(.66,1.18)]
+    root=(.37,1.55)
+    outline=[root,(.63,1.82),tips[0],tips[1],tips[2],tips[3],tips[4],tips[5],(.42,1.40)]
+    verts=[(side*x,.12,z) for x,z in outline]+[(side*x,.16,z) for x,z in outline]
+    n=len(outline); faces=[tuple(range(n)),tuple(reversed(range(n,2*n)))]
+    for i in range(n): faces.append((i,(i+1)%n,(i+1)%n+n,i+n))
+    mesh_part("Infernal bat wing membrane "+suf,verts,faces,MAT_WING,"wing."+suf)
+    # Fan ribs reach each horned tip, with a narrow molten channel.
+    for j,(x,z) in enumerate(tips[:5]):
+        curve_tube("Wing black rib "+suf+str(j),[(side*.40,.08,1.55),(side*(.68+x*.18),.055,1.72),(side*x,.10,z)],.025,MAT_ARMOR,"wing."+suf,3)
+        curve_tube("Wing ember vein "+suf+str(j),[(side*.46,.055,1.55),(side*(.72+x*.12),.04,1.69),(side*(x*.96),.10,z*.98)],.008,MAT_EMBER,"wing."+suf,2)
+    for x,z in tips[:4]:
+        cone_between("Wing claw tip "+suf,(side*x,.10,z),(side*(x+.10),.10,z+.12),.045,MAT_GOLD,"wing."+suf,7,.001)
+for side,suf in [(-1,"L"),(1,"R")]: concept_wing(side,suf)
+# Segmented spiked tail, sweeping behind the legs.
+curve_tube("Armored tail",[(0,.16,.84),(0,.43,.73),(0,.70,.60),(.08,.94,.48),(.20,1.14,.43)],.075,MAT_ARMOR,"tail.01",4)
+for i,(x,y,z) in enumerate([(0,.40,.73),(0,.66,.61),(.08,.90,.49)]):
+    cone_between("Tail dorsal spike "+str(i),(x,y,z+.04),(x+.03,y+.10,z+.18),.055,MAT_GOLD,"tail."+("01" if i==0 else "02" if i==1 else "03"),8,.002)
+cone_between("Tail blade tip",(.20,1.12,.43),(.34,1.34,.42),.095,MAT_RED,"tail.tip",8,.002)
+# Huge broad greatsword held on the right, matching the reference diagonal silhouette.
+cube("Greatsword grip",(.76,-.08,.91),(.075,.075,.30),MAT_ARMOR,"sword",.012)
+cube("Greatsword crossguard",(.76,-.10,1.08),(.40,.10,.075),MAT_GOLD,"sword",.018)
+blade_mesh("Broad infernal greatsword",[(.76,1.10),(.58,1.34),(.53,1.68),(.64,1.94),(.76,2.03),(.88,1.94),(.99,1.68),(.94,1.34)],-.17,-.08,MAT_RED,"sword")
+curve_tube("Sword molten fuller",[(.76,-.19,1.18),(.76,-.20,1.48),(.76,-.19,1.78),(.76,-.15,1.98)],.022,MAT_EMBER,"sword",4)
+for side in (-1,1):
+    curve_tube("Sword gold edge "+str(side),[(.76+side*.12,-.18,1.30),(.76+side*.20,-.16,1.66),(.76+side*.12,-.15,1.91)],.012,MAT_GOLD,"sword",3)
 
-# Arms and gauntlets.
-for side,suffix in [(-1,"L"),(1,"R")]:
-    sphere("Demon bicep "+suffix,(side*0.48,0,1.35),(0.19,0.20,0.27),MAT_SKIN,"upper_arm."+suffix)
-    sphere("Obsidian pauldron "+suffix,(side*0.43,-0.03,1.58),(0.27,0.25,0.18),MAT_RED,"chest")
-    sphere("Demon forearm "+suffix,(side*0.68,-0.01,1.02),(0.15,0.16,0.25),MAT_SKIN,"forearm."+suffix)
-    cube("War gauntlet "+suffix,(side*0.71,-0.15,0.91),(0.28,0.18,0.22),MAT_ARMOR,"forearm."+suffix,0.035)
-    for claw in range(3):
-        x=side*(0.63+claw*0.075)
-        cone_between("Gauntlet talon "+suffix,(x,-0.20,0.86),(x,-0.28,0.73),0.035,MAT_GOLD,"hand."+suffix,6,0.004)
-    sphere("Demon thigh "+suffix,(side*0.22,0,0.65),(0.19,0.22,0.28),MAT_SKIN,"thigh."+suffix)
-    cube("Infernal greave "+suffix,(side*0.23,-0.16,0.34),(0.25,0.25,0.36),MAT_ARMOR,"shin."+suffix,0.035)
-    sphere("Knee plate "+suffix,(side*0.23,-0.29,0.49),(0.15,0.07,0.12),MAT_RED,"shin."+suffix)
-    cube("Clawed boot "+suffix,(side*0.23,-0.26,0.12),(0.27,0.42,0.18),MAT_ARMOR,"foot."+suffix,0.025)
-    cone_between("Boot spur "+suffix,(side*0.23,-0.43,0.12),(side*0.23,-0.60,0.07),0.06,MAT_GOLD,"foot."+suffix,7,0.003)
-    wing_mesh(side,suffix)
-    # Wing ribs.
-    cone_between("Wing bone "+suffix,(side*0.38,0.08,1.53),(side*1.40,0.13,2.10),0.035,MAT_GOLD,"wing."+suffix,6,0.012)
-    cone_between("Wing claw "+suffix,(side*1.40,0.13,2.10),(side*1.52,0.13,2.24),0.05,MAT_RED,"wing."+suffix,7,0.002)
-
-# Segmented tail, each segment animated independently.
-sphere("Tail base",(0,0.20,0.82),(0.13,0.16,0.15),MAT_RED,"tail.01")
-for name,loc,scale,bn in [
-    ("Tail segment 1",(0,0.43,0.69),(0.11,0.13,0.13),"tail.01"),
-    ("Tail segment 2",(0,0.68,0.54),(0.09,0.13,0.11),"tail.02"),
-    ("Tail segment 3",(0,0.91,0.40),(0.075,0.12,0.09),"tail.03"),
-]:
-    sphere(name,loc,scale,MAT_ARMOR,bn)
-cone_between("Tail blade",(0,1.02,0.34),(0,1.25,0.28),0.11,MAT_GOLD,"tail.tip",8,0.002)
-
-# Hellblade, mounted to the dedicated sword bone.
-cube("Hellblade grip",(0.76,-0.06,0.91),(0.075,0.075,0.34),MAT_ARMOR,"sword",0.015)
-cube("Hellblade crossguard",(0.76,-0.06,1.09),(0.36,0.09,0.075),MAT_GOLD,"sword",0.02)
-cone_between("Molten demon sword",(0.76,-0.06,1.10),(0.76,-0.06,1.84),0.12,MAT_EMBER,"sword",6,0.004)
-cone_between("Sword spine",(0.76,-0.115,1.12),(0.76,-0.115,1.78),0.025,MAT_GOLD,"sword",5,0.003)
-
-# Merge the weighted pieces into a single skinned mesh, retaining material slots.
 bpy.ops.object.select_all(action="DESELECT")
 for obj in parts: obj.select_set(True)
 bpy.context.view_layer.objects.active=parts[0]
@@ -206,6 +332,21 @@ body.name="Zargat_Skinned_Mesh"
 body.parent=arm
 body["character_id"]="zargat"
 body["rig_type"]="independent_modular_armature"
+POLYGON_BUDGET = 245000
+current_polys = len(body.data.polygons)
+if current_polys > POLYGON_BUDGET:
+    decimate = body.modifiers.new("Mobile polygon budget", "DECIMATE")
+    decimate.ratio = POLYGON_BUDGET / float(current_polys)
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.modifier_apply(modifier=decimate.name)
+final_polys = len(body.data.polygons)
+if final_polys > 300000:
+    raise RuntimeError(f"Zargat mesh exceeds 300k polygon limit: {final_polys}")
+body["polygon_count"] = final_polys
+print("Zargat polygon count", final_polys)
+
+# Global hero scale: add the requested final 5% (19% previous increase + 5% = 24% total target).
+arm.scale = (1.05, 1.05, 1.05)
 
 # Authored animation clips, each stored as a named NLA strip for glTF export.
 def make_action(name, frames, pose_fn):
@@ -217,6 +358,8 @@ def make_action(name, frames, pose_fn):
         pose_fn(frame)
         for pb in arm.pose.bones:
             pb.keyframe_insert(data_path="rotation_euler",frame=frame,group=pb.name)
+            if pb.name == "pelvis":
+                pb.keyframe_insert(data_path="location",frame=frame,group=pb.name)
     arm.animation_data.action=None
     track=arm.animation_data.nla_tracks.new()
     track.name=name
@@ -230,10 +373,16 @@ def setrot(name, x=0, y=0, z=0):
         pb.rotation_mode="XYZ"
         pb.rotation_euler=(x,y,z)
 
+def setloc(name, x=0, y=0, z=0):
+    pb=arm.pose.bones.get(name)
+    if pb:
+        pb.location=(x,y,z)
+
 def reset_pose():
     for pb in arm.pose.bones:
         pb.rotation_mode="XYZ"
         pb.rotation_euler=(0,0,0)
+        pb.location=(0,0,0)
 
 def idle_pose(f):
     reset_pose()
@@ -264,55 +413,106 @@ make_action("Idle", [1,16,31], idle_pose)
 def run_pose(f):
     reset_pose()
     phase=(f-1)/20*2*math.pi
-    setrot("thigh.L",0,0,0.58*math.sin(phase))
-    setrot("thigh.R",0,0,0.58*math.sin(phase+math.pi))
-    setrot("shin.L",0,0,max(0,-math.sin(phase))*0.65)
-    setrot("shin.R",0,0,max(0,-math.sin(phase+math.pi))*0.65)
-    setrot("upper_arm.L",0,0,-0.48*math.sin(phase))
-    setrot("upper_arm.R",0,0,-0.48*math.sin(phase+math.pi))
-    setrot("forearm.L",0,0,0.18*max(0,math.sin(phase)))
-    setrot("forearm.R",0,0,0.18*max(0,math.sin(phase+math.pi)))
-    setrot("foot.L",0,0,0.08*math.sin(phase+math.pi))
-    setrot("foot.R",0,0,0.08*math.sin(phase))
-    setrot("wing.L",0,0,0.24*math.sin(phase*2))
-    setrot("wing.R",0,0,-0.24*math.sin(phase*2))
+    left=math.sin(phase)
+    right=math.sin(phase+math.pi)
+    # Alternating stride, bent-knee recovery and a counter-swinging upper body.
+    setrot("thigh.L",0,0,0.66*left)
+    setrot("thigh.R",0,0,0.66*right)
+    setrot("shin.L",0,0,max(0,-left)*0.82)
+    setrot("shin.R",0,0,max(0,-right)*0.82)
+    setrot("foot.L",0,0,-0.16*max(0,left))
+    setrot("foot.R",0,0,-0.16*max(0,right))
+    setrot("upper_arm.L",0,0,-0.54*left)
+    setrot("upper_arm.R",0,0,-0.54*right)
+    setrot("forearm.L",0,0,0.22*max(0,left))
+    setrot("forearm.R",0,0,0.22*max(0,right))
+    setrot("pelvis",0,0,0.045*math.sin(phase))
+    setrot("spine",0.075*math.sin(phase*2),0, -0.035*math.sin(phase))
+    setrot("chest",-0.035*math.sin(phase*2),0,0.025*math.sin(phase))
+    setrot("head",0,0,-0.018*math.sin(phase))
+    setloc("pelvis",0,0,0.045*(1-math.cos(phase*2)))
+    setrot("wing.L",0,0,0.25*math.sin(phase*2))
+    setrot("wing.R",0,0,-0.25*math.sin(phase*2))
     setrot("tail.01",0.12*math.sin(phase+0.4),0,0)
     setrot("tail.02",0.18*math.sin(phase+0.8),0,0)
     setrot("tail.03",0.22*math.sin(phase+1.2),0,0)
-    setrot("tail.tip",0.25*math.sin(phase+1.6),0,0)
-    setrot("spine",0.06*math.sin(phase*2),0,0)
+    setrot("tail.tip",0.27*math.sin(phase+1.6),0,0)
 make_action("Run", [1,6,11,16,21], run_pose)
 
 def walk_pose(f):
     reset_pose()
     phase=(f-1)/24*2*math.pi
-    setrot("thigh.L",0,0,0.38*math.sin(phase))
-    setrot("thigh.R",0,0,0.38*math.sin(phase+math.pi))
-    setrot("shin.L",0,0,max(0,-math.sin(phase))*0.42)
-    setrot("shin.R",0,0,max(0,-math.sin(phase+math.pi))*0.42)
-    setrot("upper_arm.L",0,0,-0.26*math.sin(phase))
-    setrot("upper_arm.R",0,0,-0.26*math.sin(phase+math.pi))
-    setrot("chest",0.025*math.sin(phase*2),0,0)
-    setrot("wing.L",0,0,0.10*math.sin(phase))
-    setrot("wing.R",0,0,-0.10*math.sin(phase))
-    setrot("tail.02",0.10*math.sin(phase+0.5),0,0)
+    left=math.sin(phase)
+    right=math.sin(phase+math.pi)
+    setrot("thigh.L",0,0,0.43*left)
+    setrot("thigh.R",0,0,0.43*right)
+    setrot("shin.L",0,0,max(0,-left)*0.50)
+    setrot("shin.R",0,0,max(0,-right)*0.50)
+    setrot("foot.L",0,0,-0.10*max(0,left))
+    setrot("foot.R",0,0,-0.10*max(0,right))
+    setrot("upper_arm.L",0,0,-0.32*left)
+    setrot("upper_arm.R",0,0,-0.32*right)
+    setrot("forearm.L",0,0,0.10*max(0,left))
+    setrot("forearm.R",0,0,0.10*max(0,right))
+    setrot("pelvis",0,0,0.035*math.sin(phase))
+    setrot("spine",0.035*math.sin(phase*2),0,-0.025*math.sin(phase))
+    setrot("chest",-0.018*math.sin(phase*2),0,0.02*math.sin(phase))
+    setrot("head",0,0,-0.012*math.sin(phase))
+    setloc("pelvis",0,0,0.025*(1-math.cos(phase*2)))
+    setrot("wing.L",0,0,0.12*math.sin(phase))
+    setrot("wing.R",0,0,-0.12*math.sin(phase))
+    setrot("tail.01",0.06*math.sin(phase+0.3),0,0)
+    setrot("tail.02",0.10*math.sin(phase+0.6),0,0)
     setrot("tail.03",0.14*math.sin(phase+1.0),0,0)
+    setrot("tail.tip",0.18*math.sin(phase+1.4),0,0)
 make_action("Walk", [1,7,13,19,25], walk_pose)
 
 def attack_pose(f):
     reset_pose()
-    u=(f-1)/18
-    swing=math.sin(u*math.pi)
-    setrot("upper_arm.R",0,0,-1.15*swing)
-    setrot("forearm.R",0,0,-0.55*swing)
-    setrot("sword",0,0,-0.85*swing)
-    setrot("chest",0,0,0.20*swing)
-    setrot("wing.L",0,0,0.18*swing)
-    setrot("wing.R",0,0,-0.18*swing)
-    setrot("tail.02",0,0.14*swing)
-    setrot("tail.03",0,0,0.20*swing)
-    setrot("head",0,0,-0.08*swing)
-make_action("Attack", [1,7,13,19], attack_pose)
+    # Four readable phases: anticipation, committed slash, follow-through, recovery.
+    u=(f-1)/26.0
+    if u < 0.28:
+        p=math.sin((u/0.28)*math.pi*0.5)
+        setrot("pelvis",0,0,-0.22*p)
+        setrot("spine",0.10*p,0,-0.32*p)
+        setrot("chest",0.16*p,0,-0.42*p)
+        setrot("upper_arm.R",0,0,-1.18*p)
+        setrot("forearm.R",0,0,-0.72*p)
+        setrot("sword",0,0,-0.95*p)
+        setrot("upper_arm.L",0,0,0.28*p)
+        setrot("wing.L",0,0,0.16*p)
+        setrot("wing.R",0,0,-0.16*p)
+        setrot("tail.02",0,0,0.12*p)
+        setrot("tail.03",0,0,0.20*p)
+    elif u < 0.62:
+        p=math.sin(((u-0.28)/0.34)*math.pi*0.5)
+        setrot("pelvis",0,0,-0.22+0.62*p)
+        setrot("spine",-0.12*p,0,0.30*p)
+        setrot("chest",-0.18*p,0,0.62*p)
+        setrot("upper_arm.R",0,0,-1.18+1.78*p)
+        setrot("forearm.R",0,0,-0.72+1.20*p)
+        setrot("sword",0,0,-0.95+1.65*p)
+        setrot("upper_arm.L",0,0,0.28-0.48*p)
+        setrot("wing.L",0,0,0.16+0.14*p)
+        setrot("wing.R",0,0,-0.16-0.14*p)
+        setrot("tail.02",0,0,0.12+0.16*p)
+        setrot("tail.03",0,0,0.20+0.20*p)
+        setrot("head",0,0,-0.10*p)
+    else:
+        p=1.0-(u-0.62)/0.38
+        setrot("pelvis",0,0,0.40*p)
+        setrot("spine",0,0,-0.12*p)
+        setrot("chest",0,0,-0.18*p)
+        setrot("upper_arm.R",0,0,0.60*p)
+        setrot("forearm.R",0,0,0.48*p)
+        setrot("sword",0,0,0.70*p)
+        setrot("upper_arm.L",0,0,-0.20*p)
+        setrot("wing.L",0,0,0.30*p)
+        setrot("wing.R",0,0,-0.30*p)
+        setrot("tail.02",0,0,0.28*p)
+        setrot("tail.03",0,0,0.32*p)
+        setrot("head",0,0,-0.10*p)
+make_action("Attack", [1,4,8,12,17,22,27], attack_pose)
 
 def cast_pose(f):
     reset_pose()
@@ -465,8 +665,8 @@ def area_light(name, location, energy, color, size):
     obj.rotation_euler = (Vector((0, 0, 1.25)) - obj.location).to_track_quat("-Z", "Y").to_euler()
     return obj
 
-area_light("Zargat portrait | warm key", (-3.8, -4.5, 5.2), 950, (1.0, 0.42, 0.20), 4.0)
-area_light("Zargat portrait | cool fill", (4.2, -3.0, 3.0), 700, (0.22, 0.48, 1.0), 3.5)
+area_light("Zargat portrait | warm key", (-3.8, -4.5, 5.2), 650, (1.0, 0.24, 0.10), 4.0)
+area_light("Zargat portrait | cool fill", (4.2, -3.0, 3.0), 360, (0.12, 0.24, 0.55), 3.5)
 area_light("Zargat portrait | ember rim", (0.0, 1.0, 4.4), 1200, (1.0, 0.12, 0.035), 2.5)
 
 camera_data = bpy.data.cameras.new("Zargat portrait camera")

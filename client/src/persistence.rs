@@ -33,9 +33,10 @@ use crate::world::{
     MIN_LIGHT_YAW_DEG,
 };
 
-const SCHEMA_VERSION: u32 = 8;
+const SCHEMA_VERSION: u32 = 9;
 const LEGACY_DEFAULT_MODEL_TARGET_HEIGHT: f32 = 1.15;
 const SCHEMA_3_DEFAULT_MODEL_TARGET_HEIGHT: f32 = 1.45;
+const SCHEMA_8_DEFAULT_MODEL_TARGET_HEIGHT: f32 = 2.5;
 const PREFS_FILENAME: &str = "client_preferences.json";
 const CLIENT_SESSION_ID_MAX_LEN: usize = 64;
 
@@ -205,18 +206,16 @@ pub fn clamp_model_target_height(value: f32) -> f32 {
     value.clamp(MIN_MODEL_TARGET_HEIGHT, MAX_MODEL_TARGET_HEIGHT)
 }
 
-/// Migrates old defaults once, preserving custom sizes in the supported range.
-/// Schema 4 records the Verdant readability default. Only schema 3's exact 1.45
-/// default and pre-schema-3 defaults (1.15 or obsolete subminimum values) migrate.
-/// A deliberate 1.15 under schema 3, or either old default saved under schema 4,
-/// survives subsequent launches.
+/// Migrates historical defaults once while preserving deliberate custom sizes.
 pub fn migrate_model_target_height(stored: f32, schema_version: u32) -> f32 {
     let legacy_default = schema_version < 3
         && (stored < MIN_MODEL_TARGET_HEIGHT
             || (stored - LEGACY_DEFAULT_MODEL_TARGET_HEIGHT).abs() < f32::EPSILON);
     let previous_default =
         schema_version == 3 && (stored - SCHEMA_3_DEFAULT_MODEL_TARGET_HEIGHT).abs() < f32::EPSILON;
-    if legacy_default || previous_default {
+    let schema_eight_default = schema_version == 8
+        && (stored - SCHEMA_8_DEFAULT_MODEL_TARGET_HEIGHT).abs() < f32::EPSILON;
+    if legacy_default || previous_default || schema_eight_default {
         DEFAULT_MODEL_TARGET_HEIGHT
     } else {
         clamp_model_target_height(stored)
@@ -1067,7 +1066,7 @@ mod tests {
         );
         // A user deliberately restoring the old height after this release
         // must not have it upgraded again on every launch.
-        for custom in [1.15, 1.45] {
+        for custom in [1.15, 1.45, 2.5] {
             assert_eq!(migrate_model_target_height(custom, SCHEMA_VERSION), custom);
         }
         assert_eq!(
@@ -1110,8 +1109,17 @@ mod tests {
             ),
             DEFAULT_MODEL_TARGET_HEIGHT
         );
+        let schema_eight: ClientPreferencesFile =
+            serde_json::from_str(r#"{"schema_version":8,"model_target_height":2.5}"#).unwrap();
+        assert_eq!(
+            migrate_model_target_height(
+                schema_eight.model_target_height.unwrap(),
+                schema_eight.schema_version
+            ),
+            DEFAULT_MODEL_TARGET_HEIGHT
+        );
 
-        for target_height in [1.15, 1.45, DEFAULT_MODEL_TARGET_HEIGHT, 2.4] {
+        for target_height in [1.15, 1.45, 2.4, DEFAULT_MODEL_TARGET_HEIGHT] {
             let saved = build_file_from_state(
                 &LightingSettings::default(),
                 &ModelScaleSettings { target_height },
