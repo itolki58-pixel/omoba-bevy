@@ -791,7 +791,7 @@ fn render_draft(
                                         tr(key),
                                         DraftAction::Picker(tab),
                                         id,
-                                        (picker_width - 8.0) / 3.0,
+                                        (picker_width - 8.0) / 2.0,
                                         false,
                                         state.picker_tab == tab,
                                     );
@@ -808,17 +808,42 @@ fn render_draft(
                             })
                             .with_children(|classes| {
                                 for class in HeroClass::ALL {
+                                    let (role, range, _) =
+                                        shared::catalog::hero_selection_info(class);
+                                    let label = format!(
+                                        "{} · {} · {}",
+                                        data::hero_name(class),
+                                        data::role(role),
+                                        range,
+                                    );
                                     action_button(
                                         classes,
-                                        data::hero_name(class),
+                                        &label,
                                         DraftAction::Class(class),
-                                        &format!("DraftClass-{}", class.id()),
+                                        &format!("DraftHero-{}", class.id()),
                                         (picker_width - 12.0) / 4.0,
                                         false,
                                         choice.is_some_and(|c| c.hero_class == class),
                                     );
                                 }
                             });
+                        if let Some(selected) = choice {
+                            let (role, range, description) =
+                                shared::catalog::hero_selection_info(selected.hero_class);
+                            picker.spawn(widgets::label(
+                                format!(
+                                    "{} · {} · {}: {}",
+                                    data::hero_name(selected.hero_class),
+                                    data::role(role),
+                                    tr("draft.hero.attack_range"),
+                                    range,
+                                ),
+                                12.0,
+                                theme::GOLD,
+                            ));
+                            picker.spawn(widgets::label(description, 11.0, theme::MUTED));
+                        }
+                    }
                     if !compact || state.picker_tab == PickerTab::Avatars {
                         picker
                             .spawn((
