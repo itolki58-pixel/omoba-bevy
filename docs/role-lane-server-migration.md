@@ -125,7 +125,7 @@ If a team has no hero assigned to the matching lane, the lane bonus is not reass
 
 ## 5. Jungle and Support behavior
 
-Both starter junglers are `Warden` and `Adventurer`. The shared jungle helper in this branch now gives both the existing jungle-camp bonus. Neutral camp rewards should continue to be granted through the existing authoritative neutral-kill path.
+Both starter junglers are `Warden` and `Adventurer`. Both use the Jungle position and can farm neutral camps. Keep Warden's existing passive exactly as it is; this branch does not add or rebalance jungle damage, gold or XP bonuses for Adventurer. Neutral camp rewards continue through the existing authoritative neutral-kill path.
 
 Support has the fixed `Role::Support` position and spawns beside GOLD from match start. It can then rotate to other lanes; no new movement restriction is needed.
 
