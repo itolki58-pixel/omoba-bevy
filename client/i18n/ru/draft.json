@@ -29,5 +29,11 @@
   "draft.stage.rotate": "Потяни, чтобы повернуть",
   "draft.tab.avatars": "Аватары",
   "draft.tab.classes": "Герои",
-  "draft.warning.same_hero": "В команде один и тот же герой выбран несколько раз."
+  "draft.warning.same_hero": "В команде один и тот же герой выбран несколько раз.",
+  "draft.filter.all": "ВСЕ",
+  "draft.filter.gold": "ЗОЛОТО",
+  "draft.filter.experience": "ОПЫТ",
+  "draft.filter.center": "ЦЕНТР",
+  "draft.filter.jungle": "ЛЕС",
+  "draft.filter.support": "ПОДДЕРЖКА"
 }
