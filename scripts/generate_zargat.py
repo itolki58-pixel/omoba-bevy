@@ -185,7 +185,7 @@ def wing_mesh(side, suffix):
     solid=obj.modifiers.new("Thin leathery membrane","SOLIDIFY"); solid.thickness=0.012
     return finish_part(obj,obj.name,MAT_WING,"wing."+suffix)
 
-# Core anatomy and living d# Rebuilt from the supplied Zaragat concept: armored demon-knight, not a pile of primitives.
+# Rebuilt from the supplied Zaragat concept: armored demon-knight, not a pile of primitives.
 def mesh_part(name, verts, faces, material, bone_name, smooth=False):
     me=bpy.data.meshes.new(name+"_Mesh"); me.from_pydata(verts,[],faces); me.materials.append(material); me.update()
     ob=bpy.data.objects.new(name,me); bpy.context.collection.objects.link(ob)
@@ -300,7 +300,6 @@ curve_tube("Sword molten fuller",[(.76,-.19,1.18),(.76,-.20,1.48),(.76,-.19,1.78
 for side in (-1,1):
     curve_tube("Sword gold edge "+str(side),[(.76+side*.12,-.18,1.30),(.76+side*.20,-.16,1.66),(.76+side*.12,-.15,1.91)],.012,MAT_GOLD,"sword",3)
 
- into a single skinned mesh, retaining material slots.
 bpy.ops.object.select_all(action="DESELECT")
 for obj in parts: obj.select_set(True)
 bpy.context.view_layer.objects.active=parts[0]
