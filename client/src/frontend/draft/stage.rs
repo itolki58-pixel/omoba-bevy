@@ -99,7 +99,7 @@ pub(crate) fn spawn_team_stage(
                     Node {
                         position_type: PositionType::Absolute,
                         left: Val::Px((width - image.x) * 0.5),
-                        top: Val::Px((height - image.y) * 0.35),
+                        top: Val::Px((height - image.y) * 0.5),
                         width: Val::Px(image.x),
                         height: Val::Px(image.y),
                         ..default()
