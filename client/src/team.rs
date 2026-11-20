@@ -411,9 +411,9 @@ fn load_avatar_thumbnails(
     visual_mode: PlayerVisualMode,
     thumbnails: &mut AvatarThumbnails,
 ) {
-    if visual_mode != PlayerVisualMode::Models3d {
-        return;
-    }
+    // Hero portraits are UI assets, not 3D model assets: load them in both
+    // render modes so the picker always shows the character, never a role icon.
+    let _ = visual_mode;
     for avatar in avatar_roster()
         .iter()
         .cloned()
