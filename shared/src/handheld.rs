@@ -62,7 +62,7 @@ mod tests {
             );
             assert_eq!(
                 HandheldSelection::ClassDefault.resolve_mode(hero.class, WeaponMode::Rockets),
-                Some(hero.weapon),
+                hero.weapon,
                 "{} must not switch weapons with a loadout mode",
                 hero.display_name
             );
