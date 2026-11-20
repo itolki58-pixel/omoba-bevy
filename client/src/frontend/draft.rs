@@ -1030,7 +1030,7 @@ mod tests {
     }
 
     #[test]
-    fn phone_avatar_picker_has_visible_tiles_and_raw_taps_switch_tabs_and_select() {
+    fn phone_hero_picker_has_visible_tiles_and_raw_taps_select_fixed_heroes() {
         use bevy::camera::{ComputedCameraValues, RenderTargetInfo};
         use bevy::input::touch::{TouchInput, TouchPhase};
         let mut app = request_app();
@@ -1144,103 +1144,33 @@ mod tests {
             .x;
         assert!((center - 426.0).abs() <= 0.5, "draft clock at {center}");
         assert!(!app.world().get::<Text>(clock).unwrap().0.is_empty());
-        tap(&mut app, "DraftTabClasses");
-        assert_eq!(
-            app.world().resource::<DraftClient>().picker_tab,
-            PickerTab::Heroes
-        );
-        assert!(crate::ui::test_id::harness::find(app.world_mut(), "DraftClass-mage").is_some());
-        tap(&mut app, "DraftTabAvatars");
-        let slug = crate::passport::default_avatars()[0].slug.clone();
-        tap(&mut app, &format!("DraftAvatar-{slug}"));
-        assert_eq!(
-            app.world()
-                .resource::<DraftClient>()
-                .choice
-                .as_ref()
-                .unwrap()
-                .avatar
-                .as_deref(),
-            Some(slug.as_str())
-        );
+        assert!(crate::ui::test_id::harness::find(app.world_mut(), "DraftHero-mage").is_some());
+        tap(&mut app, "DraftHero-mage");
+        let choice = app.world().resource::<DraftClient>().choice.as_ref().unwrap();
+        assert_eq!(choice.hero_class, HeroClass::Mage);
+        assert_eq!(choice.avatar.as_deref(), Some("anna"));
+        assert_eq!(choice.sprite_character.as_deref(), Some("clockwork-turnip-oracle"));
+        assert_eq!(choice.role, Role::Mid);
+        assert_eq!(choice.handheld, shared::handheld::HandheldSelection::ClassDefault);
         let sent = &app.world().resource::<SentRequests>().0;
         assert!(
             sent.iter().any(|request| matches!(
                 &request.action,
-                PrematchAction::Select { avatar: Some(avatar), .. } if avatar == &slug
+                PrematchAction::Select {
+                    hero_class: HeroClass::Mage,
+                    avatar: Some(avatar),
+                    role: Role::Mid,
+                    handheld: shared::handheld::HandheldSelection::ClassDefault,
+                    ..
+                } if avatar == "anna"
             )),
-            "no Select request for {slug} among the {} requests sent",
+            "no canonical hero Select request among the {} requests sent",
             sent.len()
         );
     }
 
     #[test]
-    fn avatar_picker_changes_an_available_avatar_before_lock_and_is_guarded_after_lock() {
-        let mut app = request_app();
-        app.add_message::<Activated<DraftAction>>()
-            .add_message::<SessionUiCommand>()
-            .add_systems(
-                Update,
-                draft_actions.after(sync_draft).before(send_requests),
-            );
-        let slug = crate::passport::default_avatars()
-            .into_iter()
-            .find(|avatar| crate::passport::can_select(avatar))
-            .unwrap()
-            .slug
-            .clone();
-        app.world_mut().write_message(Activated {
-            action: DraftAction::Avatar(slug.clone()),
-            source: Entity::PLACEHOLDER,
-        });
-        app.update();
-        let requests = drain_requests(&mut app);
-        assert_eq!(requests.len(), 1);
-        assert!(
-            matches!(&requests[0].action, PrematchAction::Select { avatar: Some(avatar), .. } if avatar == &slug)
-        );
-        assert_eq!(
-            app.world()
-                .resource::<DraftClient>()
-                .choice
-                .as_ref()
-                .unwrap()
-                .avatar
-                .as_ref(),
-            Some(&slug)
-        );
-        {
-            let mut game = app.world_mut().resource_mut::<GameStateSnapshot>();
-            let draft = game.prematch.as_mut().unwrap();
-            draft.players[0].avatar = Some(slug.clone());
-            draft.players[0].locked = true;
-            draft.last_request_id = requests[0].request_id;
-        }
-        app.update();
-        app.world_mut().write_message(Activated {
-            action: DraftAction::Avatar("missing-avatar".into()),
-            source: Entity::PLACEHOLDER,
-        });
-        app.update();
-        assert!(drain_requests(&mut app).is_empty());
-        assert_eq!(
-            app.world()
-                .resource::<DraftClient>()
-                .choice
-                .as_ref()
-                .unwrap()
-                .avatar
-                .as_ref(),
-            Some(&slug)
-        );
-        assert_eq!(
-            app.world().resource::<DraftClient>().notice.as_deref(),
-            Some(tr("draft.notice.unlock_first"))
-        );
-    }
-
-    #[test]
-    fn picking_a_class_proposes_its_role_but_keeps_a_deliberate_one() {
+    fn picking_a_hero_always_assigns_its_fixed_position_avatar_and_weapon() {
         let mut choice = Choice {
             handheld: Default::default(),
             character: CharacterChoice::default(),
@@ -1251,12 +1181,18 @@ mod tests {
         };
         choice.pick_hero(HeroClass::Warden);
         assert_eq!(choice.role, Role::Jungle);
+        assert_eq!(choice.avatar.as_deref(), Some("sport-mecha"));
+        assert_eq!(choice.sprite_character.as_deref(), Some("cathedral-moth-bellringer"));
+        assert_eq!(choice.handheld, shared::handheld::HandheldSelection::ClassDefault);
+
+        // A previously selected position or avatar cannot override the hero profile.
         choice.role = Role::Support;
+        choice.avatar = Some("not-a-roster-avatar".into());
         choice.pick_hero(HeroClass::Warrior);
-        assert_eq!(
-            (choice.hero_class, choice.role),
-            (HeroClass::Warrior, Role::Support)
-        );
+        assert_eq!((choice.hero_class, choice.role), (HeroClass::Warrior, Role::Solo));
+        assert_eq!(choice.avatar.as_deref(), Some("crowley"));
+        assert_eq!(choice.sprite_character.as_deref(), Some("mossback-teapot"));
+        assert_eq!(choice.handheld, shared::handheld::HandheldSelection::ClassDefault);
     }
 
     #[test]
