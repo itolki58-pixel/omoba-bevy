@@ -167,9 +167,25 @@ if not auto_ok:
     body.parent=rig
     mod=body.modifiers.new("DemonKnight_Armature","ARMATURE")
     mod.object=rig
-# Ensure the armature modifier is present and points at the new rig.
-if not any(m.type=="ARMATURE" and m.object==rig for m in body.modifiers):
-    mod=body.modifiers.new("DemonKnight_Armature","ARMATURE"); mod.object=rig
+# Force a clean, explicit Blender armature binding. The glTF exporter
+# discovers skins through Mesh.find_armature(); parent links or vertex groups
+# alone are not sufficient when an imported mesh carries stale modifiers.
+for old_mod in list(body.modifiers):
+    if old_mod.type == "ARMATURE":
+        body.modifiers.remove(old_mod)
+body.parent = rig
+body.parent_type = "OBJECT"
+mod = body.modifiers.new("DemonKnight_Armature", "ARMATURE")
+mod.object = rig
+mod.use_vertex_groups = True
+mod.use_bone_envelopes = False
+for bone in ad.bones:
+    bone.use_deform = True
+bpy.context.view_layer.update()
+found_armature = body.find_armature()
+print("Armature binding diagnostic:", found_armature.name if found_armature else "NONE")
+if found_armature != rig:
+    raise RuntimeError("Blender cannot resolve the mesh armature; refusing invalid GLB export")
 body["character_id"]="zargat"
 body["rig_source"]="DemonKnight custom bone layout"
 rig.show_in_front=True
@@ -261,7 +277,13 @@ if len(body.vertex_groups) == 0:
     raise RuntimeError("Mesh has no vertex groups; cannot export a skinned avatar")
 if len(ad.bones) < 20:
     raise RuntimeError("DemonKnight armature is incomplete")
-print("Pre-export skin check:", len(ad.bones), "bones;", len(body.vertex_groups), "vertex groups")
+for bone in ad.bones:
+    bone.use_deform = True
+bpy.context.view_layer.update()
+if body.find_armature() != rig:
+    raise RuntimeError("Mesh.find_armature() did not resolve DemonKnight_Rig")
+print("Pre-export skin check:", len(ad.bones), "bones;", len(body.vertex_groups),
+      "vertex groups; armature:", body.find_armature().name)
 bpy.ops.object.select_all(action="DESELECT"); body.select_set(True); rig.select_set(True)
 bpy.context.view_layer.objects.active=rig
 bpy.ops.export_scene.gltf(filepath=OUT,export_format="GLB",use_selection=True,
