@@ -27,11 +27,11 @@ pub use shared::wire::CharacterChoice;
 
 const TEAM_BUTTON_SIZE: f32 = 64.0;
 const TEAM_BUTTON_GAP: f32 = 28.0;
-const CLASS_BUTTON_WIDTH: f32 = 164.0;
-const CLASS_BUTTON_HEIGHT: f32 = 112.0;
+const CLASS_BUTTON_WIDTH: f32 = 112.0;
+const CLASS_BUTTON_HEIGHT: f32 = 104.0;
 const CLASS_BUTTON_GAP: f32 = 10.0;
 const COMPACT_CLASS_BUTTON_WIDTH: f32 = 76.0;
-const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 108.0;
+const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 92.0;
 const AVATAR_BUTTON_WIDTH: f32 = 76.0;
 const AVATAR_BUTTON_HEIGHT: f32 = 92.0;
 const AVATAR_THUMBNAIL_SIZE: f32 = 56.0;
@@ -696,8 +696,8 @@ pub fn spawn_team_select_ui(
                     Node {
                         flex_direction: FlexDirection::Row,
                         flex_wrap: FlexWrap::Wrap,
-                        justify_content: JustifyContent::Center,
-                        align_content: AlignContent::Center,
+                        justify_content: JustifyContent::FlexStart,
+                        align_content: AlignContent::FlexStart,
                         width: Val::Percent(100.0),
                         max_width: Val::Percent(100.0),
                         column_gap: Val::Px(if compact { 6.0 } else { CLASS_BUTTON_GAP }),
@@ -724,6 +724,10 @@ pub fn spawn_team_select_ui(
                         );
                     }
                 });
+
+            if visual_mode == PlayerVisualMode::Models3d && compact {
+                spawn_hero_panel(parent, selection, preview_image.clone(), true);
+            }
 
             spawn_section_title(
                 parent,
@@ -769,7 +773,7 @@ pub fn spawn_team_select_ui(
                 Name::new("HeroSelectNotice"),
             ));
             if visual_mode == PlayerVisualMode::Models3d && !compact {
-                spawn_hero_panel(parent, selection, preview_image.clone());
+                spawn_hero_panel(parent, selection, preview_image.clone(), false);
             }
         })
         .id();
@@ -783,9 +787,9 @@ pub fn spawn_team_select_ui(
 }
 
 /// Share of the window the live hero panel takes on the right of the picker.
-const HERO_PANEL_PERCENT: f32 = 27.0;
+const HERO_PANEL_PERCENT: f32 = 36.0;
 /// Upper bound for that panel on a wide window.
-const HERO_PANEL_MAX_WIDTH: f32 = 320.0;
+const HERO_PANEL_MAX_WIDTH: f32 = 480.0;
 
 /// Marks the live hero panel's avatar name.
 #[derive(Component)]
@@ -806,22 +810,25 @@ fn spawn_hero_panel(
     parent: &mut ChildSpawnerCommands,
     selection: &TeamSelection,
     preview_image: Handle<Image>,
+    compact: bool,
 ) {
     let class = selection.hero_class;
     let avatar_name = data::hero_name(selection.hero_class);
     parent
         .spawn((
             Node {
-                position_type: PositionType::Absolute,
-                right: Val::Px(12.0),
-                top: Val::Px(12.0),
-                bottom: Val::Px(12.0),
-                width: Val::Percent(HERO_PANEL_PERCENT),
-                max_width: Val::Px(HERO_PANEL_MAX_WIDTH),
-                flex_direction: FlexDirection::Column,
+                position_type: if compact { PositionType::Relative } else { PositionType::Absolute },
+                right: if compact { Val::Auto } else { Val::Px(12.0) },
+                top: if compact { Val::Auto } else { Val::Px(12.0) },
+                bottom: if compact { Val::Auto } else { Val::Px(12.0) },
+                width: if compact { Val::Percent(100.0) } else { Val::Percent(HERO_PANEL_PERCENT) },
+                max_width: if compact { Val::Percent(100.0) } else { Val::Px(HERO_PANEL_MAX_WIDTH) },
+                height: if compact { Val::Px(174.0) } else { Val::Auto },
+                flex_direction: if compact { FlexDirection::Row } else { FlexDirection::Column },
                 align_items: AlignItems::Center,
-                row_gap: Val::Px(10.0),
-                padding: UiRect::all(Val::Px(14.0)),
+                column_gap: Val::Px(if compact { 10.0 } else { 0.0 }),
+                row_gap: Val::Px(if compact { 0.0 } else { 10.0 }),
+                padding: UiRect::all(Val::Px(if compact { 8.0 } else { 14.0 })),
                 border: UiRect::all(Val::Px(1.0)),
                 border_radius: BorderRadius::all(Val::Px(12.0)),
                 ..default()
@@ -834,9 +841,11 @@ fn spawn_hero_panel(
             panel.spawn((
                 ImageNode::new(preview_image),
                 Node {
-                    width: Val::Percent(92.0),
+                    width: if compact { Val::Px(116.0) } else { Val::Percent(92.0) },
+                    height: if compact { Val::Px(158.0) } else { Val::Auto },
                     // The preview texture is portrait; keep its shape at any size.
-                    aspect_ratio: Some(0.742),
+                    aspect_ratio: if compact { None } else { Some(0.742) },
+                    flex_shrink: 0.0,
                     border_radius: BorderRadius::all(Val::Px(10.0)),
                     ..default()
                 },
@@ -846,11 +855,13 @@ fn spawn_hero_panel(
             panel
                 .spawn((
                     Node {
-                        width: Val::Percent(100.0),
+                        width: if compact { Val::Auto } else { Val::Percent(100.0) },
+                        min_width: Val::Px(0.0),
+                        flex_grow: if compact { 1.0 } else { 0.0 },
                         flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
+                        align_items: if compact { AlignItems::FlexStart } else { AlignItems::Center },
                         row_gap: Val::Px(4.0),
-                        padding: UiRect::all(Val::Px(12.0)),
+                        padding: UiRect::all(Val::Px(if compact { 4.0 } else { 12.0 })),
                         ..default()
                     },
                     BackgroundColor(theme::PANEL_OPAQUE),
@@ -879,9 +890,10 @@ fn spawn_hero_panel(
                 .spawn((
                     Node {
                         width: Val::Percent(100.0),
+                        min_width: Val::Px(0.0),
                         flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(4.0),
-                        padding: UiRect::all(Val::Px(12.0)),
+                        row_gap: Val::Px(2.0),
+                        padding: UiRect::all(Val::Px(if compact { 4.0 } else { 12.0 })),
                         border: UiRect::top(Val::Px(1.0)),
                         ..default()
                     },
@@ -1361,11 +1373,12 @@ fn spawn_class_button(
     row.spawn((
         Button,
         Node {
-            width: if compact { Val::Percent(22.0) } else { Val::Px(width) },
-            min_width: if compact { Val::Px(68.0) } else { Val::Px(width) },
-            max_width: if compact { Val::Percent(22.0) } else { Val::Px(width) },
-            height: Val::Px(height),
-            min_height: Val::Px(height),
+            width: if compact { Val::Percent(47.0) } else { Val::Px(width) },
+            min_width: if compact { Val::Px(0.0) } else { Val::Px(width) },
+            max_width: if compact { Val::Percent(47.0) } else { Val::Px(width) },
+            flex_shrink: 0.0,
+            height: Val::Px(if compact { 84.0 } else { height }),
+            min_height: Val::Px(if compact { 84.0 } else { height }),
             display: if filter.matches(hero.position) { Display::Flex } else { Display::None },
             flex_direction: FlexDirection::Column,
             justify_content: JustifyContent::Center,
@@ -1393,10 +1406,32 @@ fn spawn_class_button(
         TestId::new(format!("ClassButton-{}", class.id())),
     ))
     .with_children(|button| {
+        // Name first, portrait second: every hero is a compact tile in a wrapping grid.
         button.spawn((
             Node {
-                width: Val::Px(if compact { 64.0 } else { 66.0 }),
-                height: Val::Px(if compact { 68.0 } else { 66.0 }),
+                width: Val::Percent(100.0),
+                min_height: Val::Px(if compact { 18.0 } else { 20.0 }),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            Name::new(format!("HeroCardText-{}", class.id())),
+        ))
+        .with_children(|labels| {
+            labels.spawn((
+                Localized::new(name).into_text(),
+                TextFont {
+                    font_size: (if compact { 10.0 } else { 13.0 }).into(),
+                    ..default()
+                },
+                TextColor(theme::IVORY),
+                TextLayout::justify(Justify::Center),
+            ));
+        });
+        button.spawn((
+            Node {
+                width: Val::Px(if compact { 34.0 } else { 44.0 }),
+                height: Val::Px(if compact { 34.0 } else { 44.0 }),
                 flex_shrink: 0.0,
                 border_radius: BorderRadius::all(Val::Px(7.0)),
                 justify_content: JustifyContent::Center,
@@ -1409,28 +1444,6 @@ fn spawn_class_button(
             },
             Name::new(format!("HeroPortrait-{}", hero.avatar)),
         ));
-        button.spawn((
-            Node {
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(2.0),
-                min_width: Val::Px(0.0),
-                ..default()
-            },
-            Name::new(format!("HeroCardText-{}", class.id())),
-        ))
-        .with_children(|labels| {
-            labels.spawn((
-                Localized::new(name).into_text(),
-                TextFont {
-                    font_size: (if compact { 11.0 } else { 14.0 }).into(),
-                    ..default()
-                },
-                TextColor(theme::IVORY),
-                TextLayout::justify(Justify::Center),
-            ));
-        });
     });
 }
 
@@ -1905,11 +1918,11 @@ fn layout_spacious_picker(
             node.display = Display::None; continue;
         }
         if class.is_some() {
-            node.width = Val::Px(if phone { left_w } else { (left_w - 24.0) / 4.0 });
+            node.width = Val::Px(if phone { left_w } else { (left_w - 24.0) / 2.0 });
             node.height = Val::Px(if phone {
                 ((bottom - class_y - 24.0) / 5.0).clamp(40.0, 48.0)
             } else {
-                64.0
+                84.0
             });
             node.flex_direction = if phone {
                 FlexDirection::Row
@@ -2019,7 +2032,7 @@ fn layout_spacious_picker(
                 node.height = Val::Px(if phone {
                     (stage_h - 62.0).max(100.0)
                 } else {
-                    (stage_h - 204.0).max(156.0)
+                    (stage_h - 116.0).max(220.0)
                 });
                 node.flex_shrink = 0.0;
             }
@@ -2125,11 +2138,11 @@ impl PickerLayout {
         let left_w = stage_x - inset - if phone { 12.0 } else { 24.0 };
         let class_y = top + if phone { 72.0 } else { 104.0 };
         let grid_x = if phone { inset + left_w + 12.0 } else { inset };
-        let class_rows = shared::hero_roster::STARTER_ROSTER.len().div_ceil(4).min(3) as f32;
+        let class_rows = shared::hero_roster::STARTER_ROSTER.len().div_ceil(2).min(6) as f32;
         let grid_y = if phone {
             class_y
         } else {
-            class_y + class_rows * 64.0 + (class_rows - 1.0) * 6.0 + 40.0
+            class_y + class_rows * 84.0 + (class_rows - 1.0) * 6.0 + 40.0
         };
         let grid_w = if phone {
             stage_x - grid_x - 12.0
