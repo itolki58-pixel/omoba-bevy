@@ -36,6 +36,7 @@ const AVATAR_THUMBNAIL_SIZE: f32 = 56.0;
 const AVATAR_GRID_GAP: f32 = 8.0;
 const AVATAR_GRID_COLUMNS: usize = 8;
 const SPRITE_GRID_MAX_COLUMNS: usize = 5;
+#[allow(dead_code)]
 const SPRITE_GRID_WIDTH_PERCENT: f32 = 92.0;
 // Opaque: the match world must not be visible while a hero is being picked.
 const TEAM_OVERLAY_COLOR: Color = crate::ui::theme::BACKDROP;
@@ -293,6 +294,7 @@ struct SpriteGridLayout {
     max_width: f32,
 }
 
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn sprite_grid_layout(character_count: usize) -> SpriteGridLayout {
     let columns = character_count.clamp(1, SPRITE_GRID_MAX_COLUMNS);
     SpriteGridLayout {
@@ -905,6 +907,7 @@ fn sync_hero_panel(
 
 /// Wallet and account connection in one strip under the grids. Both are
 /// optional: the shipped roster plays without either.
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_ekza_row(parent: &mut ChildSpawnerCommands) {
     parent
         .spawn((
@@ -1049,6 +1052,7 @@ fn sync_picker_scrollbar(
     }
 }
 
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_sprite_button(
     grid: &mut ChildSpawnerCommands,
     character: &crate::sprite_roster::SpriteCharacterDefinition,
@@ -1140,6 +1144,7 @@ fn spawn_section_title(parent: &mut ChildSpawnerCommands, title: impl Bundle, na
 
 /// Full-width row inside the wrapping avatar grid, so each group starts on its
 /// own line while the grid keeps a single scroll area.
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_avatar_group_label(grid: &mut ChildSpawnerCommands, title: &'static str, name: &str) {
     grid.spawn((
         Node {
@@ -1159,6 +1164,7 @@ fn spawn_avatar_group_label(grid: &mut ChildSpawnerCommands, title: &'static str
     });
 }
 
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_avatar_group_hint(grid: &mut ChildSpawnerCommands, hint: impl crate::i18n::UiLabel) {
     grid.spawn((
         Node {
@@ -1219,6 +1225,7 @@ fn spawn_class_button(row: &mut ChildSpawnerCommands, class: HeroClass, selected
     });
 }
 
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_avatar_button(
     grid: &mut ChildSpawnerCommands,
     slug: &str,
