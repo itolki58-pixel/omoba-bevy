@@ -228,7 +228,9 @@ fn class_keys(class: HeroClass) -> (&'static str, &'static str) {
 
 /// Fixed position and signature weapon shown for the selected hero.
 fn class_line(class: HeroClass) -> String {
-    let role = data::role(class.primary_role());
+    let role = shared::hero_roster::profile(class)
+        .map(|hero| data::role(hero.position))
+        .unwrap_or_else(|| data::role(class.primary_role()));
     let weapon = shared::hero_roster::profile(class)
         .map_or(tr("team.weapon.default"), |hero| match hero.weapon {
             None => tr("team.weapon.integrated"),
