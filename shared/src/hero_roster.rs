@@ -155,6 +155,7 @@ mod tests {
     fn starter_roster_has_twelve_unique_heroes_and_bundled_identity_assets() {
         assert_eq!(STARTER_ROSTER.len(), 12);
         for (index, entry) in STARTER_ROSTER.iter().enumerate() {
+            assert_eq!(entry.class.primary_role(), entry.position, "{}", entry.display_name);
             assert!(STARTER_ROSTER[..index].iter().all(|other| other.class != entry.class));
             assert!(!entry.avatar.is_empty());
             assert!(!entry.sprite_character.is_empty());
