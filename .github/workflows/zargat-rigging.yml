@@ -1,0 +1,50 @@
+name: Zaragat rigging test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - hunyuan3d-zargat
+    paths:
+      - "source.glb"
+      - "scripts/rig_zargat.py"
+      - ".github/workflows/zargat-rigging.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  rig:
+    name: Build and validate separate rigged GLB
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out dedicated Zaragat branch
+        uses: actions/checkout@v4
+        with:
+          ref: hunyuan3d-zargat
+          lfs: true
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender python3-numpy xvfb libgl1-mesa-dri
+      - name: Verify immutable source
+        run: |
+          test -s source.glb
+          sha256sum source.glb
+      - name: Generate rigged GLB
+        run: |
+          mkdir -p artifacts/zargat-rig
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a blender --background --factory-startup --python scripts/rig_zargat.py -- source.glb artifacts/zargat-rig
+      - name: Verify generated files
+        run: |
+          test -s artifacts/zargat-rig/zargat-rigged.glb
+          test -s artifacts/zargat-rig/zargat-rig-report.json
+          file artifacts/zargat-rig/zargat-rigged.glb
+      - name: Upload rigging result
+        uses: actions/upload-artifact@v4
+        with:
+          name: zaragat-rigged-model
+          path: artifacts/zargat-rig/
+          if-no-files-found: error
+          retention-days: 14
