@@ -24,5 +24,20 @@
   "team.join.find_match": "Find match",
   "team.join.combat_test": "Enter Combat Test",
   "team.join.practice": "Start practice",
-  "team.notice.offline_avatar": "Offline practice uses the included avatars. Choose an avatar from the first group."
+  "team.notice.offline_avatar": "Offline practice uses the included avatars. Choose an avatar from the first group.",
+  "team.hero.role": "Role",
+  "team.hero.difficulty": "Difficulty",
+  "team.hero.range": "Attack range",
+  "team.hero.weapon": "Weapon",
+  "team.difficulty.easy": "Easy",
+  "team.difficulty.medium": "Medium",
+  "team.difficulty.hard": "Hard",
+  "team.weapon.sword": "Sword",
+  "team.weapon.hammer": "Hammer",
+  "team.weapon.scepter": "Scepter",
+  "team.weapon.dagger": "Dagger",
+  "team.weapon.repeater": "Repeater",
+  "team.weapon.launcher": "Rocket launcher",
+  "team.weapon.bow": "Bow",
+  "team.weapon.default": "Signature weapon"
 }
