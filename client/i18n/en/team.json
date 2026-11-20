@@ -31,5 +31,6 @@
   "team.weapon.dagger": "Dagger",
   "team.weapon.repeater": "Repeater",
   "team.weapon.bow": "Bow",
-  "team.weapon.default": "Signature weapon"
+  "team.weapon.default": "Signature weapon",
+  "team.weapon.integrated": "Built into hero model"
 }
