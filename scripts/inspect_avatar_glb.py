@@ -31,7 +31,7 @@ for obj in meshes:
     evaluated = obj.evaluated_get(depsgraph)
     mesh = evaluated.to_mesh()
     try:
-        points.extend(obj.matrix_world @ Vector(c) for c in mesh.bound_box)
+        points.extend(evaluated.matrix_world @ Vector(c) for c in evaluated.bound_box)
         mesh_rows.append({
             "name": obj.name, "vertices": len(mesh.vertices),
             "edges": len(mesh.edges), "polygons": len(mesh.polygons),
