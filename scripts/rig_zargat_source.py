@@ -130,6 +130,22 @@ for idx,(zt,yd) in enumerate(tail_steps,1):
     name=f"Tail_{idx:02d}"
     add(name,head,(center_x,center_y+height*yd,z_at(zt)),tail_prev,idx>1)
     tail_prev=name
+
+# A broad cloth surface was previously sharing the narrow tail weights.
+# Give the left and right halves of the cape their own three-bone chains so
+# the shoulders stay anchored while the hem can lag behind the torso.
+for side,sign in [("L",1.0),("R",-1.0)]:
+    x=center_x+sign*height*.14
+    root=add(f"Cape_Root_{side}",
+             (x,center_y+height*.10,z_at(.77)),
+             (x+sign*height*.025,center_y+height*.13,z_at(.59)),
+             "Spine_02")
+    mid=add(f"Cape_Mid_{side}",root.tail,
+            (x+sign*height*.045,center_y+height*.16,z_at(.37)),
+            f"Cape_Root_{side}",True)
+    add(f"Cape_Tip_{side}",mid.tail,
+        (x+sign*height*.065,center_y+height*.18,z_at(.16)),
+        f"Cape_Mid_{side}",True)
 for side,sign in [("L",1.0),("R",-1.0)]:
     root=add(f"Wing_Root_{side}",(center_x+sign*height*.07,center_y+height*.03,z_at(.73)),
              (center_x+sign*height*.35,center_y+height*.06,z_at(.86)),"Spine_02")
@@ -165,6 +181,12 @@ if True:
         z=(v.co.z-zmin)/height
         x=(v.co.x-center_x)/height
         y=(v.co.y-center_y)/height
+        # Broad rear cloth is separated from the thin central tail. The upper
+        # cape overlaps the shoulder line; its hem is weighted progressively
+        # toward the tip bones for a softer, cascading deformation.
+        if y > .13 and .16 < z < .80 and abs(x) > .085:
+            side="L" if x > 0 else "R"
+            return [f"Cape_Root_{side}",f"Cape_Mid_{side}",f"Cape_Tip_{side}","Spine_02","Pelvis"]
         if y > .13 and z < .66:
             return [f"Tail_{i:02d}" for i in range(1,5)]+["Pelvis"]
         if z > .64 and abs(x) > .12:
@@ -237,13 +259,30 @@ def clip(name, frames, fn):
         for p in rig.pose.bones:
             p.keyframe_insert(data_path="rotation_euler",frame=f,group=p.name)
             if p.name=="Pelvis": p.keyframe_insert(data_path="location",frame=f,group=p.name)
+    # Auto-clamped Bezier handles smooth the transitions without overshooting
+    # at the cape tips or creating sharp changes at cycle boundaries.
+    for curve in act.fcurves:
+        for point in curve.keyframe_points:
+            point.interpolation="BEZIER"
+            point.handle_left_type="AUTO_CLAMPED"
+            point.handle_right_type="AUTO_CLAMPED"
     rig.animation_data.action=None
     track=rig.animation_data.nla_tracks.new(); track.name=name
     strip=track.strips.new(name,frames[0],act); strip.name=name; strip.blend_type="REPLACE"
+def cape_motion(f,amount,phase=0.0):
+    t=(f-1)/24*math.tau+phase
+    for suf,side in [("L",1.0),("R",-1.0)]:
+        # The shoulder attachment barely moves; the middle and hem lag behind
+        # the stride with increasing amplitude and a slight side-to-side sway.
+        rot(f"Cape_Root_{suf}",x=.045*amount*math.sin(t-.25),y=side*.025*amount*math.sin(t))
+        rot(f"Cape_Mid_{suf}",x=.13*amount*math.sin(t-.75),y=side*.075*amount*math.sin(t-.35))
+        rot(f"Cape_Tip_{suf}",x=.22*amount*math.sin(t-1.15),y=side*.12*amount*math.sin(t-.65))
+
 def idle(f):
     t=(f-1)/30*math.tau
     rot("Spine_01",.025*math.sin(t)); rot("Spine_02",.025*math.sin(t+.4),.025*math.sin(t/2))
     rot("Head",.025*math.sin(t+.8))
+    cape_motion(f,.22,.2)
     for suf,s in [("L",1),("R",-1)]:
         rot("Wing_Root_"+suf,s*.10*math.sin(t/2))
     for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.18)]:
@@ -258,6 +297,7 @@ def locomotion(f,amount):
     for suf,s in [("L",1),("R",-1)]: rot("Wing_Root_"+suf,s*.12*amount*math.sin(2*t))
     for n,k in [("Tail_01",.08),("Tail_02",.12),("Tail_03",.16),("Tail_04",.20)]:
         rot(n,k*math.sin(t+.5))
+    cape_motion(f,1.0,.15)
 def attack(f):
     t=(f-1)/26
     power=math.sin(min(1,max(0,t))*math.pi)
@@ -285,7 +325,7 @@ def ultimate(f):
     rot("UpperArm_L",.8*p); rot("UpperArm_R",-.8*p)
     rot("Wing_Root_L",.7*p); rot("Wing_Root_R",-.7*p); rot("Spine_02",-.1*p)
 clip("Idle",[1,16,31],idle)
-clip("Run",[1,6,11,16,21],lambda f:locomotion(f,1.0))
+clip("Run",[1,5,9,13,17,21,25],lambda f:locomotion(f,1.0))
 clip("Walk",[1,7,13,19,25],lambda f:locomotion(f,.65))
 clip("Attack",[1,4,8,12,17,22,27],attack)
 clip("Cast",[1,8,16,25],cast)
@@ -308,6 +348,7 @@ rig.parent=root
 def add_combat_secondary(f, amount, phase=0.0):
     wave=math.sin((f-1)/30*math.pi+phase)*amount
     rot("Wing_Root_L",wave); rot("Wing_Root_R",-wave)
+    cape_motion(f,amount*.9,phase+.35)
     for idx,k in enumerate((.10,.14,.18,.22),1):
         rot(f"Tail_{idx:02d}",k*math.sin((f-1)/24*math.tau+phase))
 # Blend wing spread into the existing cast/ultimate and tail response into attacks.
