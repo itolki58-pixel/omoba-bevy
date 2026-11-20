@@ -163,7 +163,14 @@ bpy.context.view_layer.objects.active=rig
 auto_ok=False
 try:
     bpy.ops.object.parent_set(type="ARMATURE_AUTO")
-    auto_ok=bool(body.parent==rig and len(body.vertex_groups)>0)
+    # Blender may emit a bone-heat warning yet leave empty vertex groups and
+    # still parent the mesh. Count real per-vertex assignments before accepting
+    # automatic weights; otherwise the GLB exporter silently drops the skin.
+    weighted_vertices = sum(1 for vertex in body.data.vertices if len(vertex.groups) > 0)
+    auto_ok = bool(body.parent == rig and len(body.vertex_groups) > 0
+                   and weighted_vertices >= int(len(body.data.vertices) * 0.98))
+    print("Automatic skin weights:", weighted_vertices, "/", len(body.data.vertices),
+          "vertices; accepted:", auto_ok)
 except Exception as exc:
     print("Automatic weights unavailable; using fallback:",exc)
 if not auto_ok:
