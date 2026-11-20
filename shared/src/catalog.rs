@@ -85,6 +85,18 @@ pub fn hero_selection_info(class: HeroClass) -> (Role, f32, &'static str) {
     )
 }
 
+/// Curated onboarding difficulty; informational only and independent of balance.
+pub fn hero_difficulty(class: HeroClass) -> &'static str {
+    match class {
+        HeroClass::Warrior | HeroClass::Ranger | HeroClass::Cinderforge
+        | HeroClass::Frostguard | HeroClass::Adventurer => "easy",
+        HeroClass::Mage | HeroClass::Cleric | HeroClass::Warden | HeroClass::Wildspark
+        | HeroClass::Stormfist | HeroClass::Emberveil | HeroClass::Riftshot => "medium",
+        HeroClass::Dawnweaver | HeroClass::Edgeweaver | HeroClass::Veilstalker
+        | HeroClass::Orbitwright | HeroClass::Chainkeeper => "hard",
+    }
+}
+
 /// Every item, in `ItemId::ALL` order.
 pub(crate) fn items() -> &'static [ItemDefinition] {
     &ITEMS
