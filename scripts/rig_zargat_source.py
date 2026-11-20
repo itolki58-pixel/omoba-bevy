@@ -219,9 +219,9 @@ def light(name,loc,power,color,size):
     d=bpy.data.lights.new(name,"AREA"); d.energy=power; d.color=color; d.shape="DISK"; d.size=size
     o=bpy.data.objects.new(name,d); scene.collection.objects.link(o); o.location=loc
     o.rotation_euler=(Vector((cx,cy,1.2))-o.location).to_track_quat("-Z","Y").to_euler()
-light("Key", (cx-3,cy-4,4),700,(1,.25,.12),4)
-light("Fill",(cx+3,cy-3,2.5),400,(.2,.3,.7),3)
-light("Rim",(cx,cy+2,3.5),900,(1,.12,.03),2)
+light("Key", (cx-3,cy-4,4),850,(1.0,.92,.84),4)
+light("Fill",(cx+3,cy-3,2.5),320,(.42,.52,.78),3)
+light("Rim",(cx,cy+2,3.5),520,(1.0,.16,.055),2)
 camd=bpy.data.cameras.new("Zargat_Camera"); cam=bpy.data.objects.new("Zargat_Camera",camd); scene.collection.objects.link(cam)
 cam.location=(cx+2.8,cy-6,2.7); cam.rotation_euler=(Vector((cx,cy,1.2))-cam.location).to_track_quat("-Z","Y").to_euler()
 camd.type="ORTHO"; camd.ortho_scale=max(width,depth,2.6)*1.45; scene.camera=cam
