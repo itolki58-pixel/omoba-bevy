@@ -27,11 +27,11 @@ pub use shared::wire::CharacterChoice;
 
 const TEAM_BUTTON_SIZE: f32 = 64.0;
 const TEAM_BUTTON_GAP: f32 = 28.0;
-const CLASS_BUTTON_WIDTH: f32 = 132.0;
-const CLASS_BUTTON_HEIGHT: f32 = 122.0;
+const CLASS_BUTTON_WIDTH: f32 = 112.0;
+const CLASS_BUTTON_HEIGHT: f32 = 104.0;
 const CLASS_BUTTON_GAP: f32 = 10.0;
-const COMPACT_CLASS_BUTTON_WIDTH: f32 = 92.0;
-const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 118.0;
+const COMPACT_CLASS_BUTTON_WIDTH: f32 = 76.0;
+const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 92.0;
 const AVATAR_BUTTON_WIDTH: f32 = 76.0;
 const AVATAR_BUTTON_HEIGHT: f32 = 92.0;
 const AVATAR_THUMBNAIL_SIZE: f32 = 56.0;
@@ -1361,9 +1361,9 @@ fn spawn_class_button(
     row.spawn((
         Button,
         Node {
-            width: if compact { Val::Percent(31.0) } else { Val::Px(width) },
+            width: if compact { Val::Percent(48.0) } else { Val::Px(width) },
             min_width: if compact { Val::Px(COMPACT_CLASS_BUTTON_WIDTH) } else { Val::Px(width) },
-            max_width: if compact { Val::Percent(31.0) } else { Val::Px(width) },
+            max_width: if compact { Val::Percent(48.0) } else { Val::Px(width) },
             height: Val::Px(height),
             min_height: Val::Px(height),
             display: if filter.matches(hero.position) { Display::Flex } else { Display::None },
@@ -1417,8 +1417,8 @@ fn spawn_class_button(
         });
         button.spawn((
             Node {
-                width: Val::Px(if compact { 48.0 } else { 52.0 }),
-                height: Val::Px(if compact { 48.0 } else { 52.0 }),
+                width: Val::Px(if compact { 38.0 } else { 44.0 }),
+                height: Val::Px(if compact { 38.0 } else { 44.0 }),
                 flex_shrink: 0.0,
                 border_radius: BorderRadius::all(Val::Px(7.0)),
                 justify_content: JustifyContent::Center,
