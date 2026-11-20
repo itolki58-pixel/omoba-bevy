@@ -20,7 +20,7 @@ concurrency:
 jobs:
   inspect:
     name: Inspect source GLB and render preview
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 25
     steps:
       - name: Check out the dedicated Zaragat branch
@@ -32,7 +32,7 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender python3-numpy xvfb libgl1-mesa-dri
 
       - name: Verify source file
         run: |
@@ -43,7 +43,7 @@ jobs:
       - name: Inspect model and render preview
         run: |
           mkdir -p artifacts/zargat
-          blender --background --factory-startup --python scripts/inspect_avatar_glb.py -- source.glb artifacts/zargat
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a blender --background --factory-startup --python scripts/inspect_avatar_glb.py -- source.glb artifacts/zargat
 
       - name: Upload inspection report and preview
         uses: actions/upload-artifact@v4
