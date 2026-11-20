@@ -469,14 +469,16 @@ fn hero_card(
     width: f32,
     selected: bool,
 ) {
+    let portrait_width = (width - 12.0).clamp(52.0, 76.0);
+    let portrait_height = portrait_width * 1.08;
     parent
         .spawn((
             Button,
             Node {
                 width: Val::Px(width),
                 min_width: Val::Px(width),
-                height: Val::Px(116.0),
-                min_height: Val::Px(116.0),
+                height: Val::Px(124.0),
+                min_height: Val::Px(124.0),
                 flex_shrink: 0.0,
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::Center,
@@ -499,8 +501,8 @@ fn hero_card(
                 card.spawn((
                     ImageNode::new(image),
                     Node {
-                        width: Val::Px(70.0),
-                        height: Val::Px(76.0),
+                        width: Val::Px(portrait_width),
+                        height: Val::Px(portrait_height),
                         flex_shrink: 0.0,
                         ..default()
                     },
@@ -508,8 +510,8 @@ fn hero_card(
             } else {
                 card.spawn((
                     Node {
-                        width: Val::Px(70.0),
-                        height: Val::Px(76.0),
+                        width: Val::Px(portrait_width),
+                        height: Val::Px(portrait_height),
                         flex_shrink: 0.0,
                         border_radius: BorderRadius::all(Val::Px(6.0)),
                         ..default()
@@ -864,7 +866,13 @@ fn render_draft(
                                 );
                             }
                         });
-                    let columns = if picker_width >= 320.0 { 3.0 } else { 2.0 };
+                    let columns = if picker_width >= 360.0 {
+                        4.0
+                    } else if picker_width >= 270.0 {
+                        3.0
+                    } else {
+                        2.0
+                    };
                     let gap = 7.0;
                     let card_width = ((picker_width - gap * (columns - 1.0)) / columns).max(58.0);
                     picker
