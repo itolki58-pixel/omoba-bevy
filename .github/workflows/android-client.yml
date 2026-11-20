@@ -9,6 +9,7 @@ on:
     paths:
       - "client/**"
       - "shared/**"
+      - "scripts/rig_zargat_source.py"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/android-client.yml"
