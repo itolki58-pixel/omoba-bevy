@@ -60,6 +60,37 @@ mod tests {
             assert_eq!(HandheldSelection::Unequipped.resolve(class), None);
         }
     }
+
+    #[test]
+    fn class_default_weapon_is_fixed_for_every_hero() {
+        let expected = [
+            (HeroClass::Warrior, Some("forge-sword")),
+            (HeroClass::Mage, Some("dawn-scepter")),
+            (HeroClass::Ranger, Some("verdant-bow")),
+            (HeroClass::Cleric, Some("dawn-scepter")),
+            (HeroClass::Warden, None),
+            (HeroClass::Dawnweaver, Some("dawn-scepter")),
+            (HeroClass::Wildspark, Some("wild-repeater")),
+            (HeroClass::Cinderforge, Some("forge-hammer")),
+            (HeroClass::Edgeweaver, Some("dagger")),
+            (HeroClass::Stormfist, None),
+            (HeroClass::Veilstalker, Some("dagger")),
+            (HeroClass::Emberveil, Some("dawn-scepter")),
+            (HeroClass::Orbitwright, Some("dawn-scepter")),
+            (HeroClass::Riftshot, Some("wild-repeater")),
+            (HeroClass::Chainkeeper, Some("dawn-scepter")),
+            (HeroClass::Frostguard, Some("forge-hammer")),
+            (HeroClass::Adventurer, Some("dagger")),
+        ];
+        for (class, weapon) in expected {
+            assert_eq!(
+                HandheldSelection::ClassDefault.resolve(class),
+                weapon,
+                "{}",
+                class.id()
+            );
+        }
+    }
 }
 
 #[cfg(test)]
