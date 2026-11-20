@@ -16,7 +16,6 @@ pub(super) mod stage;
 use crate::{
     i18n::{Locale, data, tr, trf},
     net::{ClientSession, GameStateSnapshot, NetworkCommand, SessionUiCommand},
-    passport,
     team::{AvatarThumbnails, CharacterChoice},
     ui::{
         Activated, TestId, UiAction, UiActionAppExt, UiSet,
@@ -664,7 +663,7 @@ fn render_draft(
     let mut render_snapshot = draft.clone();
     render_snapshot.remaining_ms = 0;
     let key = format!(
-        "{}:{:?}:{:?}:{:?}:{}:{}:{}",
+        "{}:{:?}:{:?}:{:?}:{}:{:?}:{}:{}",
         serde_json::to_string(&render_snapshot).unwrap_or_default(),
         state.choice,
         state.desired_lock,
