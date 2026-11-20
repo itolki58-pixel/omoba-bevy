@@ -672,11 +672,23 @@ fn render_draft(
                 .insert(entry.avatar.slug.clone(), assets.load(path));
         }
     }
-    let compact = window.height() < 500.0;
-    let side = if compact { 32.0 } else { 28.0 };
+    // Portrait phones use a vertical composition: the selected 3D hero sits
+    // above the two-column avatar picker instead of being squeezed beside it.
+    let stacked = window.width() < 760.0;
+    let compact = stacked || window.height() < 500.0;
+    let side = if stacked { 12.0 } else if compact { 32.0 } else { 28.0 };
     let available = window.width() - side * 2.0;
-    let roster_width = (available * if compact { 0.51 } else { 0.56 }).min(740.0);
-    let picker_width = available - roster_width - 12.0;
+    let roster_width = if stacked {
+        available
+    } else {
+        (available * if compact { 0.51 } else { 0.56 }).min(740.0)
+    };
+    let picker_width = if stacked { available } else { available - roster_width - 12.0 };
+    let stage_height = if stacked {
+        (window.height() * 0.27).clamp(150.0, 220.0)
+    } else {
+        (window.height() - if compact { 136.0 } else { 152.0 }).max(180.0)
+    };
     let local = draft.players.iter().find(|p| p.player_id == game.your_id);
     let choice = state.choice.as_ref();
     let locked = local.is_some_and(|p| p.locked);
@@ -761,14 +773,17 @@ fn render_draft(
             root.spawn(Node {
                 flex_grow: 1.0,
                 min_height: Val::Px(0.0),
-                column_gap: Val::Px(12.0),
+                flex_direction: if stacked { FlexDirection::Column } else { FlexDirection::Row },
+                column_gap: Val::Px(if stacked { 0.0 } else { 12.0 }),
+                row_gap: Val::Px(if stacked { 8.0 } else { 0.0 }),
                 ..default()
             })
             .with_children(|body| {
                 body.spawn(Node {
-                    width: Val::Px(roster_width),
-                    min_width: Val::Px(roster_width),
-                    height: Val::Percent(100.0),
+                    width: if stacked { Val::Percent(100.0) } else { Val::Px(roster_width) },
+                    min_width: if stacked { Val::Px(0.0) } else { Val::Px(roster_width) },
+                    height: if stacked { Val::Px(stage_height) } else { Val::Percent(100.0) },
+                    flex_shrink: 0.0,
                     ..default()
                 })
                 .with_children(|roster| {
@@ -778,13 +793,14 @@ fn render_draft(
                         game.your_id,
                         party_stage.as_deref(),
                         roster_width,
-                        (window.height() - if compact { 136.0 } else { 152.0 }).max(180.0),
+                        stage_height,
                         false,
                         compact,
                     );
                 });
                 body.spawn((
                     Node {
+                        width: if stacked { Val::Percent(100.0) } else { Val::Auto },
                         flex_grow: 1.0,
                         min_width: Val::Px(0.0),
                         flex_direction: FlexDirection::Column,
@@ -973,7 +989,10 @@ fn render_draft(
                                     }
                                     avatars
                                         .spawn(Node {
+                                            width: Val::Percent(100.0),
                                             flex_wrap: FlexWrap::Wrap,
+                                            justify_content: JustifyContent::Center,
+                                            align_content: AlignContent::Center,
                                             column_gap: Val::Px(6.0),
                                             row_gap: Val::Px(6.0),
                                             ..default()
@@ -994,9 +1013,9 @@ fn render_draft(
                                                     .spawn((
                                                         Button,
                                                         Node {
-                                                            width: Val::Px(84.0),
-                                                            height: Val::Px(78.0),
-                                                            min_height: Val::Px(78.0),
+                                                            width: Val::Px(((picker_width - 6.0) / 2.0).max(1.0)),
+                                                            height: Val::Px(if compact { 62.0 } else { 66.0 }),
+                                                            min_height: Val::Px(if compact { 62.0 } else { 66.0 }),
                                                             flex_shrink: 0.0,
                                                             flex_direction: FlexDirection::Column,
                                                             align_items: AlignItems::Center,
@@ -1031,8 +1050,8 @@ fn render_draft(
                                                             tile.spawn((
                                                                 ImageNode::new(image.clone()),
                                                                 Node {
-                                                                    width: Val::Px(44.0),
-                                                                    height: Val::Px(44.0),
+                                                                    width: Val::Px(32.0),
+                                                                    height: Val::Px(32.0),
                                                                     flex_shrink: 0.0,
                                                                     ..default()
                                                                 },
@@ -1041,7 +1060,7 @@ fn render_draft(
                                                         tile.spawn((
                                                             widgets::label(
                                                                 &entry.avatar.display_name,
-                                                                11.0,
+                                                                if compact { 10.0 } else { 11.0 },
                                                                 theme::IVORY,
                                                             ),
                                                             TextLayout::justify(Justify::Center)
