@@ -2050,7 +2050,7 @@ mod tests {
         assert!(matches!(
             command,
             NetworkCommand::JoinPrematch { hero_class: HeroClass::Mage, avatar: Some(ref a), sprite_character: Some(ref s), .. }
-                if a == "agnes" && s == "ronin"
+                if a == "anna" && s == "clockwork-turnip-oracle"
         ));
 
         for (sandbox, expected) in [(true, AppScreen::InMatch), (false, AppScreen::Searching)] {
