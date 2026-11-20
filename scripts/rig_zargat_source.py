@@ -212,7 +212,7 @@ def attack(f):
     t=(f-1)/26
     power=math.sin(min(1,max(0,t))*math.pi)
     rot("Spine_01",-.22*power); rot("Spine_02",-.35*power)
-    rot("UpperArm_R",-.9*power); rot("Forearm_R",-.7*power); rot("sword",-.8*power)
+    rot("UpperArm_R",-.9*power); rot("Forearm_R",-.7*power)
     rot("Wing_Root_L",.2*power); rot("Wing_Root_R",-.2*power)
 def cast(f):
     p=math.sin((f-1)/24*math.pi)
