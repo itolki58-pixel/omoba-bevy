@@ -173,14 +173,13 @@ fn sync_draft(
     };
     let namespace = (game.meta.server_epoch, game.meta.match_id, draft.generation);
     let local = draft.players.iter().find(|p| p.player_id == game.your_id);
-    if let Some(local) = local {
+    if local.is_some() {
+        let fixed_weapon_slot = shared::handheld::HandheldSelection::ClassDefault;
         if let Some(selection) = selection.as_mut() {
-            if selection.handheld != local.handheld {
-                selection.handheld = local.handheld.clone();
-            }
+            selection.handheld = fixed_weapon_slot.clone();
         }
         if let Some(session) = session.as_mut() {
-            session.remember_handheld(&local.handheld);
+            session.remember_handheld(&fixed_weapon_slot);
         }
     }
     if state.namespace != Some(namespace) {
