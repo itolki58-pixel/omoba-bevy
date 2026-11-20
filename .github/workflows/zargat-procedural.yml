@@ -1,0 +1,58 @@
+name: Zargat procedural model preview
+
+on:
+  push:
+    branches:
+      - hunyuan3d-zargat
+    paths:
+      - 'tools/zargat/procedural_zargat.py'
+      - '.github/workflows/zargat-procedural.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hunyuan3d-zargat
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+      - name: Generate Zargat GLB and render preview
+        run: |
+          mkdir -p dist
+          blender --background --factory-startup --python tools/zargat/procedural_zargat.py
+      - name: Validate GLB and preview
+        run: |
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          glb=Path("dist/zargat-procedural.glb")
+          png=Path("dist/zargat-procedural-preview.png")
+          assert glb.exists() and glb.stat().st_size > 50000, "GLB missing or too small"
+          assert png.exists() and png.stat().st_size > 10000, "Preview render missing"
+          data=glb.read_bytes()
+          magic,version,total=struct.unpack_from("<4sII",data,0)
+          assert magic==b"glTF" and version==2 and total==len(data), "Invalid GLB header"
+          n,kind=struct.unpack_from("<II",data,12)
+          assert kind==0x4E4F534A, "Missing JSON chunk"
+          doc=json.loads(data[20:20+n].decode("utf-8"))
+          assert doc.get("meshes"), "No mesh in exported GLB"
+          assert len(doc.get("materials",[])) >= 5, "Expected layered armor materials"
+          print("GLB valid:",glb.stat().st_size,"bytes; meshes:",len(doc["meshes"]),"materials:",len(doc.get("materials",[])))
+          PY
+      - name: Upload preview package
+        uses: actions/upload-artifact@v4
+        with:
+          name: zargat-procedural-preview
+          path: |
+            dist/zargat-procedural.glb
+            dist/zargat-procedural-preview.png
+          if-no-files-found: error
+          retention-days: 14
