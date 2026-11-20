@@ -67,9 +67,11 @@ mod tests {
                 hero.display_name
             );
         }
+        // Zargat's Hellblade is authored into his character model/visual,
+        // rather than supplied by the detachable handheld asset catalogue.
         assert_eq!(
             HandheldSelection::ClassDefault.resolve(HeroClass::Warrior),
-            Some("forge-sword")
+            None
         );
         assert_eq!(
             HandheldSelection::ClassDefault.resolve(HeroClass::Ranger),
