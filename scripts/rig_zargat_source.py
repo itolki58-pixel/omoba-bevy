@@ -4,7 +4,7 @@ import bpy, math, os
 from mathutils import Vector
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SRC = os.path.join(ROOT, "client", "assets", "avatars", "demon knight 3d model.glb")
+SRC = os.path.join(ROOT, "art", "zargat", "demon-knight-source.glb")
 OUT = os.path.join(ROOT, "client", "assets", "avatars", "zargat.glb")
 PNG = os.path.join(ROOT, "client", "assets", "avatars", "zargat.png")
 if not os.path.isfile(SRC):
