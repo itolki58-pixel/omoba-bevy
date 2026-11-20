@@ -161,8 +161,9 @@ pub struct AbilityDefinition {
 /// Maximum investable rank shared by every ability definition.
 pub const MAX_ABILITY_RANK: u8 = 3;
 
-/// Playable hero class. Selected before joining; the server resolves the
-/// matching ability kit authoritatively per player.
+/// Legacy gameplay-kit identifier retained on the wire for server compatibility.
+/// The client exposes named heroes from `hero_roster`; each roster profile owns
+/// its position and visual identity independently of this ability-kit key.
 ///
 /// Wire format: snake_case string; **unknown values decode as the default
 /// class (Warrior)** so a bad or future client cannot break packet parsing.
@@ -261,7 +262,7 @@ impl HeroClass {
         catalog::hero(self).tagline
     }
 
-    /// The draft duty this kit is built for. Several kits may share a role.
+    /// Legacy kit recommendation only; never use this as the selected hero's position.
     pub fn primary_role(self) -> prematch::Role {
         catalog::hero(self).role
     }
