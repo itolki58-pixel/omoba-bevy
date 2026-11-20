@@ -28,5 +28,15 @@
   "draft.timer.gathering": "Ожидаем команду…",
   "draft.stage.rotate": "Потяни, чтобы повернуть",
   "draft.tab.avatars": "Аватары",
-  "draft.tab.classes": "Классы"
+  "draft.tab.classes": "Классы",
+  "draft.difficulty.easy": "Лёгкая",
+  "draft.difficulty.medium": "Средняя",
+  "draft.difficulty.hard": "Сложная",
+  "draft.weapon.sword": "Меч",
+  "draft.weapon.hammer": "Молот",
+  "draft.weapon.scepter": "Посох",
+  "draft.weapon.dagger": "Кинжал",
+  "draft.weapon.repeater": "Репитер",
+  "draft.weapon.bow": "Лук",
+  "draft.weapon.default": "Основное оружие"
 }
