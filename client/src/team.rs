@@ -1363,7 +1363,7 @@ fn spawn_class_button(
         Node {
             width: if compact { Val::Percent(22.0) } else { Val::Px(width) },
             min_width: if compact { Val::Px(68.0) } else { Val::Px(width) },
-            max_width: if compact { Val::Px(92.0) } else { Val::Px(width) },
+            max_width: if compact { Val::Percent(22.0) } else { Val::Px(width) },
             height: Val::Px(height),
             min_height: Val::Px(height),
             display: if filter.matches(hero.position) { Display::Flex } else { Display::None },
