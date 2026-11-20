@@ -118,9 +118,10 @@ jobs:
       - name: Build the source-based Zargat hero model
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy libegl1 libgl1 libglib2.0-0
+          sudo apt-get install -y blender python3-numpy python3-pil libegl1 libgl1 libglib2.0-0
           export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
           blender --background --factory-startup --python scripts/rig_zargat_source.py
+          python3 scripts/optimize_zargat_glb.py client/assets/avatars/zargat.glb
           test -s client/assets/avatars/zargat.glb
           test -s client/assets/avatars/zargat.png
           python3 - <<'PY'
@@ -133,7 +134,7 @@ jobs:
           length, kind = struct.unpack_from("<II", raw, 12)
           assert kind == 0x4E4F534A
           doc = json.loads(raw[20:20 + length].decode("utf-8"))
-          assert path.stat().st_size < 23_000_000, "Zargat GLB is still too large for the mobile texture budget"
+          assert path.stat().st_size < 16_000_000, "Zargat GLB is still too large for the mobile texture budget"
           vertex_count = doc["accessors"][doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]]["count"]
           assert vertex_count <= 100_000, f"Zargat mesh exceeds mobile vertex budget: {vertex_count}"
           assert doc.get("skins"), "Zargat GLB has no skeleton skin"
