@@ -88,24 +88,22 @@ struct Choice {
     role: Role,
 }
 impl Choice {
-    /// Proposes the kit's duty unless the player already chose a different
-    /// role on purpose.
+    /// A hero owns its combat role and default weapon. Draft cannot override either.
     fn pick_class(&mut self, class: HeroClass) {
-        if self.role == self.hero_class.primary_role() {
-            self.role = class.primary_role();
-        }
         self.hero_class = class;
+        self.role = class.primary_role();
+        self.handheld = shared::handheld::HandheldSelection::ClassDefault;
     }
 }
 impl From<&DraftPlayer> for Choice {
     fn from(player: &DraftPlayer) -> Self {
         Self {
-            handheld: player.handheld.clone(),
+            handheld: shared::handheld::HandheldSelection::ClassDefault,
             character: player.character,
             hero_class: player.hero_class,
             avatar: player.avatar.clone(),
             sprite_character: player.sprite_character.clone(),
-            role: player.role,
+            role: player.hero_class.primary_role(),
         }
     }
 }
@@ -118,10 +116,9 @@ struct PendingRequest {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum PickerTab {
-    #[default]
     Avatars,
+    #[default]
     Classes,
-    Weapons,
 }
 
 #[derive(Resource, Default)]
@@ -221,9 +218,7 @@ fn sync_draft(
 enum DraftAction {
     Picker(PickerTab),
     Class(HeroClass),
-    Role(Role),
     Avatar(String),
-    Handheld(shared::handheld::HandheldSelection),
     Lock,
     Leave,
     Refresh,
@@ -283,24 +278,6 @@ fn draft_actions(
             DraftAction::Class(class) => {
                 if let Some(choice) = &mut state.choice {
                     choice.pick_class(*class);
-                }
-                state.notice = None;
-            }
-            DraftAction::Handheld(value) => {
-                if let shared::handheld::HandheldSelection::Item(id) = value {
-                    if !omoba_passport::weapon_store::eligible(id) {
-                        continue;
-                    }
-                    omoba_passport::weapon_store::model_state(id);
-                }
-                state
-                    .choice
-                    .get_or_insert_with(|| Choice::from(local))
-                    .handheld = value.clone();
-            }
-            DraftAction::Role(role) => {
-                if let Some(choice) = &mut state.choice {
-                    choice.role = *role;
                 }
                 state.notice = None;
             }
@@ -806,9 +783,8 @@ fn render_draft(
                             })
                             .with_children(|tabs| {
                                 for (tab, key, id) in [
+                                    (PickerTab::Classes, "draft.tab.classes", "DraftTabHeroes"),
                                     (PickerTab::Avatars, "draft.tab.avatars", "DraftTabAvatars"),
-                                    (PickerTab::Classes, "draft.tab.classes", "DraftTabClasses"),
-                                    (PickerTab::Weapons, "collection.weapons", "DraftTabWeapons"),
                                 ] {
                                     action_button(
                                         tabs,
@@ -818,40 +794,6 @@ fn render_draft(
                                         (picker_width - 8.0) / 3.0,
                                         false,
                                         state.picker_tab == tab,
-                                    );
-                                }
-                            });
-                    }
-                    if !compact || state.picker_tab == PickerTab::Weapons {
-                        picker.spawn(widgets::label(tr("collection.weapons"), 12.0, theme::MUTED));
-                        if let Some(status) = choice
-                            .and_then(|choice| super::collection::handheld_status(&choice.handheld))
-                        {
-                            picker.spawn((
-                                widgets::label(status, 12.0, theme::GOLD),
-                                Name::new("DraftWeaponStatus"),
-                            ));
-                        }
-                        picker
-                            .spawn(Node {
-                                flex_wrap: FlexWrap::Wrap,
-                                column_gap: Val::Px(4.0),
-                                row_gap: Val::Px(4.0),
-                                max_height: Val::Px(84.0),
-                                overflow: Overflow::scroll_y(),
-                                ..default()
-                            })
-                            .with_children(|row| {
-                                for (value, name, id) in super::collection::handheld_choices() {
-                                    let selected = choice.is_some_and(|c| c.handheld == value);
-                                    action_button(
-                                        row,
-                                        &name,
-                                        DraftAction::Handheld(value),
-                                        &format!("Draft-{id}"), // i18n-allow: stable ECS/test identity, never displayed
-                                        (picker_width - 8.0) / 3.0,
-                                        false,
-                                        selected,
                                     );
                                 }
                             });
@@ -877,26 +819,6 @@ fn render_draft(
                                     );
                                 }
                             });
-                        picker
-                            .spawn(Node {
-                                column_gap: Val::Px(4.0),
-                                ..default()
-                            })
-                            .with_children(|roles| {
-                                for role in Role::ALL {
-                                    action_button(
-                                        roles,
-                                        data::role(role),
-                                        DraftAction::Role(role),
-                                        // The TestId keeps the English label: ids never translate.
-                                        &format!("DraftRole-{}", role.label()),
-                                        (picker_width - 16.0) / 5.0,
-                                        false,
-                                        choice.is_some_and(|c| c.role == role),
-                                    );
-                                }
-                            });
-                    }
                     if !compact || state.picker_tab == PickerTab::Avatars {
                         picker
                             .spawn((
