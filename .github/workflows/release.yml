@@ -23,6 +23,7 @@ on:
       - "client/**"
       - "shared/**"
       - "scripts/rig_zargat_source.py"
+      - "scripts/optimize_zargat_glb.py"
       - "art/zargat/**"
       - "Cargo.toml"
       - "Cargo.lock"
