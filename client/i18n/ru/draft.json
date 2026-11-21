@@ -6,7 +6,7 @@
   "draft.warning.same_avatar": "Союзник выбрал такой же аватар · обсудите выбор перед подтверждением.",
   "draft.warning.same_role": "{count} игроков планируют {role} · согласуйте линии.",
   "draft.warning.one_class": "У всей команды один класс · попробуйте разнообразить состав.",
-  "draft.warning.default": "Роли описывают ваш план; класс определяет ваши способности.",
+  "draft.warning.default": "Герой определяет способности и оружие; позиция определяет линию.",
   "draft.roster.you": " · ВЫ",
   "draft.roster.bot": " · БОТ",
   "draft.roster.class_role": "{hero} · {role}",
@@ -15,7 +15,7 @@
   "draft.roster.locked": "ВЫБРАН",
   "draft.roster.picking": "ВЫБОР",
   "draft.title": "Соберите команду",
-  "draft.subtitle": "Герой · класс · линия · 30 секунд на выбор",
+  "draft.subtitle": "Герой · позиция · линия · 30 секунд на выбор",
   "draft.your_team": "ВАША КОМАНДА",
   "draft.avatars.included": "ВСТРОЕННЫЕ ГЕРОИ",
   "draft.avatars.studio": "EKZA STUDIO · БИБЛИОТЕКА",
@@ -28,5 +28,11 @@
   "draft.timer.gathering": "Ожидаем команду…",
   "draft.stage.rotate": "Потяни, чтобы повернуть",
   "draft.tab.avatars": "Аватары",
-  "draft.tab.classes": "Классы"
+  "draft.tab.classes": "Герои",
+  "draft.filter.all": "ALL",
+  "draft.filter.gold": "GOLD",
+  "draft.filter.experience": "EXP",
+  "draft.filter.center": "MID",
+  "draft.filter.jungle": "JUNGLE",
+  "draft.filter.support": "SUPPORT"
 }
