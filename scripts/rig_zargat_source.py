@@ -22,7 +22,12 @@ bpy.context.view_layer.objects.active = meshes[0]
 bpy.ops.object.join()
 body = bpy.context.object
 body.name = "Zargat_SourceMesh"
-bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+# The supplied DemonKnight source faces opposite to the client forward axis.
+# Apply the 180-degree correction to the mesh BEFORE building the skeleton so
+# the mesh, bind pose, weights and every animation share the corrected basis.
+body.rotation_euler.z += math.pi
+bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+print("DemonKnight source orientation corrected: 180 degrees around vertical")
 # Normalize the model around its ground contact and centerline. Blender's glTF
 # importer converts glTF Y-up into Blender Z-up.
 coords = [body.matrix_world @ v.co for v in body.data.vertices]
@@ -87,10 +92,8 @@ cx=(xmin+xmax)*0.5; cy=(ymin+ymax)*0.5
 ad = bpy.data.armatures.new("Zargat_Armature")
 rig = bpy.data.objects.new("Zargat_Rig", ad)
 bpy.context.collection.objects.link(rig)
-# The supplied mesh is authored toward +Z after glTF Y-up conversion; OMOBA
-# characters face -Z. Keep this correction on the rig root so every clip agrees.
-rig.rotation_mode = "XYZ"
-rig.rotation_euler.z = math.pi
+# The source mesh was corrected before rigging; keep the armature root neutral.
+rig.location=(0,0,0); rig.rotation_euler=(0,0,0); rig.scale=(1,1,1)
 bpy.context.view_layer.objects.active=rig; rig.select_set(True)
 bpy.ops.object.mode_set(mode="EDIT")
 eb={}
@@ -315,7 +318,7 @@ light("Key", (cx-3,cy-4,4),850,(1.0,.92,.84),4)
 light("Fill",(cx+3,cy-3,2.5),320,(.42,.52,.78),3)
 light("Rim",(cx,cy+2,3.5),520,(1.0,.16,.055),2)
 camd=bpy.data.cameras.new("Zargat_Camera"); cam=bpy.data.objects.new("Zargat_Camera",camd); scene.collection.objects.link(cam)
-cam.location=(cx+2.8,cy-6,2.7); cam.rotation_euler=(Vector((cx,cy,1.2))-cam.location).to_track_quat("-Z","Y").to_euler()
+cam.location=(cx+2.8,cy+6,2.7); cam.rotation_euler=(Vector((cx,cy,1.2))-cam.location).to_track_quat("-Z","Y").to_euler()
 camd.type="ORTHO"; camd.ortho_scale=max(width,depth,2.6)*1.45; scene.camera=cam
 scene.render.filepath=PNG; bpy.ops.render.render(write_still=True)
 if not os.path.isfile(PNG) or os.path.getsize(PNG)<10000: raise RuntimeError("Blender preview render failed")
