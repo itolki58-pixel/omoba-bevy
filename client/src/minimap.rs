@@ -98,6 +98,7 @@ struct MinimapUiState {
     structure_icons: HashMap<Entity, Entity>,
     minion_icons: HashMap<Entity, Entity>,
     camp_icons: [Option<Entity>; shared::jungle::CAMP_COUNT],
+    boss_icons: HashMap<Entity, Entity>,
     rockets: HashMap<u64, [Entity; 3]>,
 }
 /// Short-lived local confirmation of a minimap move/ping target.
@@ -725,7 +726,7 @@ fn update_minimap_icons_system(
         With<NetworkStructure>,
     >,
     minions: Query<(Entity, &Transform, &Team, &CombatStats), With<NetworkMinion>>,
-    neutrals: Query<(&Transform, &NetworkNeutralCampType, &CombatStats), With<NetworkNeutral>>,
+    neutrals: Query<(Entity, &Transform, &NetworkNeutralCampType, &CombatStats), With<NetworkNeutral>>,
     thumbnails: Res<AvatarThumbnails>,
     sprites: Res<SpriteVisualAssets>,
     mode: Res<PlayerVisualMode>,
@@ -929,7 +930,7 @@ fn update_minimap_icons_system(
     despawn_removed_icons(&mut commands, &mut state.minion_icons, &seen);
     let camps = shared::jungle::camp_layout(layout.size().x);
     let mut living = [false; shared::jungle::CAMP_COUNT];
-    for (transform, kind, stats) in &neutrals {
+    for (_, transform, kind, stats) in &neutrals {
         if !stats.is_alive() || kind.0.is_boss() {
             continue;
         }
@@ -956,6 +957,51 @@ fn update_minimap_icons_system(
             living[index] = true;
         }
     }
+    // Boss objectives get their own persistent, high-contrast map marker.
+    // Their known spawn location remains visible, while living/dead state is
+    // only disclosed when the objective point is currently in team vision.
+    let mut seen_bosses = HashSet::new();
+    for (entity, transform, kind, stats) in &neutrals {
+        if !kind.0.is_boss() {
+            continue;
+        }
+        seen_bosses.insert(entity);
+        let position = transform.translation.xz();
+        let known = game
+            .as_ref()
+            .and_then(|snapshot| snapshot.vision.as_ref())
+            .is_none_or(|vision| shared::vision::point_visible(&vision.sources, position, false));
+        let color = if !known {
+            Color::srgb(0.34, 0.32, 0.25)
+        } else if stats.is_alive() {
+            Color::srgb(1.0, 0.78, 0.20)
+        } else {
+            Color::srgb(0.20, 0.18, 0.14)
+        };
+        let mut node = marker_node(map_point(*layout, transform.translation), 14.0);
+        node.border = UiRect::all(Val::Px(2.0));
+        node.border_radius = BorderRadius::all(Val::Px(4.0));
+        let components = (
+            node,
+            BackgroundColor(color),
+            BorderColor::all(Color::srgb(1.0, 0.88, 0.48)),
+        );
+        if let Some(icon) = state.boss_icons.get(&entity) {
+            commands.entity(*icon).insert(components);
+        } else {
+            let icon = commands
+                .spawn((
+                    components,
+                    ZIndex(4),
+                    Name::new("MinimapBossObjective"),
+                    ChildOf(container),
+                ))
+                .id();
+            state.boss_icons.insert(entity, icon);
+        }
+    }
+    despawn_removed_icons(&mut commands, &mut state.boss_icons, &seen_bosses);
+
     for (index, (anchor, kind)) in camps.into_iter().enumerate() {
         let known = game
             .as_ref()
@@ -1402,6 +1448,41 @@ mod tests {
             .id();
         app.world_mut().resource_mut::<MinimapUiState>().container = Some(container);
         app
+    }
+
+    #[test]
+    fn boss_objectives_have_distinct_minimap_markers() {
+        let mut app = marker_app();
+        let boss = app
+            .world_mut()
+            .spawn((
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                NetworkNeutralCampType(NeutralCampType::WindDragon.into()),
+                CombatStats::default(),
+                NetworkNeutral,
+            ))
+            .id();
+        app.update();
+        let icon = *app
+            .world()
+            .resource::<MinimapUiState>()
+            .boss_icons
+            .get(&boss)
+            .expect("boss objective marker");
+        assert!(
+            app.world()
+                .get::<Name>(icon)
+                .is_some_and(|name| name.as_str() == "MinimapBossObjective")
+        );
+        app.world_mut().despawn(boss);
+        app.update();
+        assert!(
+            !app.world()
+                .resource::<MinimapUiState>()
+                .boss_icons
+                .contains_key(&boss)
+        );
+        assert!(app.world().get_entity(icon).is_err());
     }
 
     #[test]
