@@ -1692,7 +1692,7 @@ mod tests {
     #[test]
     fn hero_filter_tabs_cover_the_roster_and_match_the_five_lanes() {
         let roster = &shared::hero_roster::STARTER_ROSTER;
-        let count = |filter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
+        let count = |filter: HeroFilter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
         assert_eq!(count(HeroFilter::All), 12);
         assert_eq!(count(HeroFilter::Gold), 2);
         assert_eq!(count(HeroFilter::Experience), 3);
