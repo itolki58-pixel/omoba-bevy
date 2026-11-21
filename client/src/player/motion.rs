@@ -164,14 +164,10 @@ pub(super) fn move_player(
 }
 
 
-/// Zaragat's supplied GLB is authored facing local +Z; the rest of the hero
-/// roster follows Bevy's local -Z convention. Keep the correction per-avatar.
-fn hero_yaw_for_avatar(avatar_slug: Option<&str>, direction: Vec3) -> f32 {
-    if avatar_slug == Some("zargat") {
-        shared::math::unit_yaw_towards(direction.x, direction.z)
-    } else {
-        shared::math::hero_yaw_towards(direction.x, direction.z)
-    }
+/// The in-game Zaragat GLB uses the same local -Z forward axis as the other
+/// heroes. A previous +Z special case inverted movement and made him run backwards.
+fn hero_yaw_for_avatar(_avatar_slug: Option<&str>, direction: Vec3) -> f32 {
+    shared::math::hero_yaw_towards(direction.x, direction.z)
 }
 
 /// A local presentation clock: pause/frame steps follow authority, never global Time.
