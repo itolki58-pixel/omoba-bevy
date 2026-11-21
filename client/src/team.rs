@@ -1913,6 +1913,14 @@ fn layout_spacious_picker(
             } else {
                 64.0
             });
+            if phone {
+                // Override the compact 22%-wide / 108px-tall source defaults;
+                // otherwise their min/max constraints defeat the two-column size.
+                node.min_width = Val::Px(0.0);
+                node.max_width = Val::Auto;
+                node.min_height = Val::Px(84.0);
+                node.max_height = Val::Auto;
+            }
             node.flex_direction = if phone {
                 FlexDirection::Row
             } else {
