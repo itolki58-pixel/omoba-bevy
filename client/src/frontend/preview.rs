@@ -358,6 +358,8 @@ fn sync_preview_model(
             Visibility::Visible,
             RenderLayers::layer(PREVIEW_LAYER),
             NormalizeModelScale::for_player_model(),
+            crate::net::NetworkCharacterChoice(crate::team::CharacterChoice::default()),
+            crate::net::NetworkAvatar(Some(slug.clone())),
             Name::new(format!("AvatarPreviewModel-{slug}")),
         ))
         .id();
