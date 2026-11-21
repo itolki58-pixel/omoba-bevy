@@ -9,7 +9,7 @@
 
 use bevy::prelude::*;
 use omoba_passport::avatars::avatar_roster;
-use shared::HeroClass;
+use shared::{HeroClass, prematch::Role};
 use std::collections::HashMap;
 
 pub use crate::domain::Team;
@@ -49,6 +49,7 @@ const SELECT_BUTTON_SELECTED_COLOR: Color = crate::ui::theme::TILE_SELECTED;
 enum HeroSelectAction {
     Back,
     Class(HeroClass),
+    Lane(LaneFilter),
     Avatar(String),
     Sprite(String),
     LockIn(Team),
@@ -57,9 +58,49 @@ enum HeroSelectAction {
     RefreshStudio,
 }
 
+/// Lane filter shown above the hero roster. Carry is the Gold lane and Solo is EXP.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum LaneFilter {
+    #[default]
+    All,
+    Gold,
+    Exp,
+    Mid,
+    Jungle,
+    Support,
+}
+
+impl LaneFilter {
+    const ALL: [Self; 6] = [Self::All, Self::Gold, Self::Exp, Self::Mid, Self::Jungle, Self::Support];
+
+    const fn label(self) -> &'static str {
+        match self {
+            Self::All => "ALL",
+            Self::Gold => "GOLD",
+            Self::Exp => "EXP",
+            Self::Mid => "MID",
+            Self::Jungle => "JUNGLE",
+            Self::Support => "SUPPORT",
+        }
+    }
+
+    const fn matches(self, role: Role) -> bool {
+        match self {
+            Self::All => true,
+            Self::Gold => matches!(role, Role::Carry),
+            Self::Exp => matches!(role, Role::Solo),
+            Self::Mid => matches!(role, Role::Mid),
+            Self::Jungle => matches!(role, Role::Jungle),
+            Self::Support => matches!(role, Role::Support),
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct TeamSelection {
     pub handheld: shared::handheld::HandheldSelection,
+    /// Active lane filter in the hero picker.
+    pub lane_filter: LaneFilter,
     pub team: Option<Team>,
     /// Legacy SDK character; used as the model when no roster avatar is picked.
     pub character: CharacterChoice,
@@ -75,6 +116,7 @@ impl Default for TeamSelection {
     fn default() -> Self {
         Self {
             handheld: Default::default(),
+            lane_filter: LaneFilter::All,
             team: None,
             character: CharacterChoice::default(),
             hero_class: HeroClass::default(),
@@ -125,7 +167,7 @@ impl Plugin for TeamSelectPlugin {
                 )
                     .run_if(in_state(AppScreen::HeroSelect)),
             )
-            .add_systems(Update, (attach_avatar_thumbnails, restore_picker_scroll))
+            .add_systems(Update, (attach_avatar_thumbnails, restore_picker_scroll, sync_lane_filter_visibility))
             .add_systems(
                 Update,
                 wallet_connect_ui_system
@@ -596,11 +638,32 @@ pub fn spawn_team_select_ui(
                         Name::new("HeroSelectStatus"),
                     ));
                 });
-            spawn_section_title(
-                parent,
-                PhoneCopy::label("team.section.class", "team.section.class_phone"),
-                "ClassSelectTitle",
-            );
+            parent.spawn((
+                Text::new("01 HEROES"),
+                TextFont { font_size: 18.0.into(), ..default() },
+                TextStyle::new(TextRole::Title),
+                TextColor(theme::GOLD),
+                Name::new("ClassSelectTitle"),
+            ));
+
+            parent
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        flex_wrap: FlexWrap::NoWrap,
+                        justify_content: JustifyContent::FlexStart,
+                        max_width: Val::Percent(100.0),
+                        column_gap: Val::Px(6.0),
+                        row_gap: Val::Px(4.0),
+                        ..default()
+                    },
+                    Name::new("LaneFiltersRow"),
+                ))
+                .with_children(|row| {
+                    for filter in LaneFilter::ALL {
+                        spawn_lane_filter_button(row, filter, selection.lane_filter == filter);
+                    }
+                });
 
             parent
                 .spawn((
@@ -1358,6 +1421,35 @@ fn spawn_avatar_group_hint(grid: &mut ChildSpawnerCommands, hint: impl crate::i1
     });
 }
 
+fn spawn_lane_filter_button(row: &mut ChildSpawnerCommands, filter: LaneFilter, selected: bool) {
+    row.spawn((
+        Button,
+        Node {
+            min_width: Val::Px(44.0),
+            height: Val::Px(38.0),
+            flex_grow: 1.0,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            padding: UiRect::axes(Val::Px(5.0), Val::Px(4.0)),
+            border_radius: BorderRadius::all(Val::Px(7.0)),
+            ..default()
+        },
+        BackgroundColor(if selected { SELECT_BUTTON_SELECTED_COLOR } else { SELECT_BUTTON_COLOR }),
+        ButtonStyle { kind: ButtonKind::Tile, selected },
+        UiAction(HeroSelectAction::Lane(filter)),
+        TestId::new(format!("LaneFilter-{:?}", filter).to_ascii_lowercase()),
+    ))
+    .with_children(|button| {
+        button.spawn((
+            Text::new(filter.label()),
+            TextFont { font_size: 12.0.into(), ..default() },
+            TextStyle::keep_case(TextRole::Button),
+            TextColor(theme::IVORY),
+            TextLayout::justify(Justify::Center),
+        ));
+    });
+}
+
 fn spawn_class_button(row: &mut ChildSpawnerCommands, class: HeroClass, selected: bool) {
     row.spawn((
         Button,
@@ -1565,6 +1657,10 @@ fn team_select_ui_system(
                 if *class == HeroClass::Zargat { selection.avatar = Some("zargat".into()); }
                 selection_changed = true;
             }
+            HeroSelectAction::Lane(filter) => {
+                selection.lane_filter = *filter;
+                selection_changed = true;
+            }
             HeroSelectAction::Avatar(slug) => {
                 if client_session.is_offline()
                     && !omoba_passport::avatars::avatar_roster()
@@ -1636,6 +1732,7 @@ fn team_select_ui_system(
         for (action, mut style) in &mut styles {
             let selected = match &action.0 {
                 HeroSelectAction::Class(class) => *class == selection.hero_class,
+                HeroSelectAction::Lane(filter) => *filter == selection.lane_filter,
                 HeroSelectAction::Avatar(slug) => selection.avatar.as_deref() == Some(slug),
                 HeroSelectAction::Sprite(id) => selection.sprite_character == *id,
                 _ => continue,
@@ -1644,6 +1741,22 @@ fn team_select_ui_system(
                 style.selected = selected;
             }
         }
+    }
+}
+
+/// Hide hero cards outside the active lane without rebuilding the picker.
+fn sync_lane_filter_visibility(
+    selection: Res<TeamSelection>,
+    mut heroes: Query<(&UiAction<HeroSelectAction>, &mut Visibility), With<ClassSelectButton>>,
+) {
+    if !selection.is_changed() { return; }
+    for (action, mut visibility) in &mut heroes {
+        let HeroSelectAction::Class(class) = action.0 else { continue; };
+        *visibility = if selection.lane_filter.matches(class.primary_role()) {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
     }
 }
 
@@ -1915,14 +2028,19 @@ fn layout_spacious_picker(
                 node.display = if phone { Display::None } else { Display::Flex }
             }
             "ClassSelectTitle" => absolute(&mut node, inset, class_y - 24.0, left_w, 20.0),
+            "LaneFiltersRow" => {
+                let filter_width = if phone { stage_x - inset - 12.0 } else { left_w };
+                absolute(&mut node, inset, class_y, filter_width, 40.0);
+                node.column_gap = Val::Px(4.0);
+            }
             "ClassButtonsRow" => {
                 absolute(
                     &mut node,
                     inset,
-                    class_y,
+                    class_y + 48.0,
                     left_w,
                     if phone {
-                        bottom - class_y
+                        bottom - class_y - 48.0
                     } else {
                         layout.class_height()
                     },
@@ -2082,9 +2200,9 @@ impl PickerLayout {
         let grid_x = if phone { inset + left_w + 12.0 } else { inset };
         let class_rows = HeroClass::ALL.len().div_ceil(4).min(2) as f32;
         let grid_y = if phone {
-            class_y
+            class_y + 48.0
         } else {
-            class_y + class_rows * 64.0 + (class_rows - 1.0) * 6.0 + 40.0
+            class_y + 48.0 + class_rows * 64.0 + (class_rows - 1.0) * 6.0 + 32.0
         };
         let grid_w = if phone {
             stage_x - grid_x - 12.0
@@ -2121,7 +2239,7 @@ impl PickerLayout {
     }
 
     fn class_height(self) -> f32 {
-        self.grid_y - self.class_y - 40.0
+        self.grid_y - self.class_y - 48.0 - 32.0
     }
 }
 
