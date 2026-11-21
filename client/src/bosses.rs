@@ -252,7 +252,10 @@ fn attach_boss_models(
 /// Projects each boss nameplate above its model top in screen space; the
 /// nameplate despawns with its boss.
 fn boss_health_percent(hp: f32, max_hp: f32) -> u8 {
-    ((hp.max(0.0) / max_hp.max(1.0) * 100.0).clamp(0.0, 100.0)).round() as u8
+    if !hp.is_finite() || !max_hp.is_finite() || max_hp <= 0.0 {
+        return 0;
+    }
+    ((hp.max(0.0) / max_hp * 100.0).clamp(0.0, 100.0)).round() as u8
 }
 
 fn project_boss_anchor(
@@ -527,7 +530,8 @@ mod tests {
         assert_eq!(boss_health_percent(540.0, 900.0), 60);
         assert_eq!(boss_health_percent(-10.0, 900.0), 0);
         assert_eq!(boss_health_percent(120.0, 100.0), 100);
-        assert_eq!(boss_health_percent(50.0, 0.0), 100);
+        assert_eq!(boss_health_percent(50.0, 0.0), 0);
+        assert_eq!(boss_health_percent(f32::NAN, 100.0), 0);
     }
 
     #[test]
