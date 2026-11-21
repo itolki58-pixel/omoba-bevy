@@ -690,7 +690,7 @@ pub(crate) fn animate_creatures(
             }
             PartMotion::MinionHand(side, role) if walking || attack_strength > 0.0 => {
                 let walk_angle = if walking {
-                    stride * side * 0.28
+                    stride * side * 0.32
                 } else {
                     0.0
                 };
