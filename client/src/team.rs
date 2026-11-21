@@ -578,7 +578,9 @@ pub fn spawn_team_select_ui(
                 parent,
                 crate::ui::living_background::LivingScene::Arena,
                 crate::ui::living_background::LivingBands {
-                    header: Some(120.0),
+                    // No opaque header band: it was painting over the first
+                    // row of hero cards on landscape mobile layouts.
+                    header: None,
                     footer: None,
                 },
                 crate::ui::theme::Form::of(compact),
@@ -1945,10 +1947,13 @@ fn layout_spacious_picker(
                 node.padding = UiRect::ZERO;
             }
             "HeroLaneFilterTabs" => {
-                // On narrow phone layouts the filter strip occupies the same
-                // vertical band as the first hero-card row. Hide it there so
-                // the top row is fully visible and tappable; desktop keeps filters.
-                node.display = if phone { Display::None } else { Display::Flex };
+                // Keep the filters available; the header band is removed
+                // separately so this row no longer overlaps the roster.
+                node.display = Display::Flex;
+            }
+            "ClassSelectTitle" => {
+                // Remove the redundant "01 HEROES" plaque above the cards.
+                node.display = Display::None;
             }
             "HeroSelectHeader" => {
                 absolute(&mut node, inset, top, w - inset - layout.right, 48.0);
