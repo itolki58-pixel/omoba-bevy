@@ -646,8 +646,8 @@ pub(crate) fn animate_creatures(
                 0.0
             } else {
                 // Smooth anticipation/contact/recovery envelope; no abrupt pose pop.
-                let progress = (1.0 - pulse.remaining / MINION_ATTACK_POSE_SECONDS)
-                    .clamp(0.0, 1.0);
+                let elapsed = MINION_ATTACK_POSE_SECONDS - pulse.remaining + time.delta_secs();
+                let progress = (elapsed / MINION_ATTACK_POSE_SECONDS).clamp(0.0, 1.0);
                 (std::f32::consts::PI * progress).sin().max(0.0)
             }
         });
