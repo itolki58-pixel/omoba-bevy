@@ -319,6 +319,7 @@ fn update_boss_nameplates(
             commands.entity(label_entity).despawn();
             continue;
         };
+        text.0 = format!("{}%", boss_health_percent(stats.hp, stats.max_hp));
         let Some((camera, camera_transform)) = camera else {
             *visibility = Visibility::Hidden;
             continue;
@@ -332,7 +333,6 @@ fn update_boss_nameplates(
         ) {
             node.left = Val::Px(screen.x - 18.0);
             node.top = Val::Px(screen.y + 20.0);
-            text.0 = format!("{}%", boss_health_percent(stats.hp, stats.max_hp));
             *visibility = Visibility::Visible;
         } else {
             *visibility = Visibility::Hidden;
