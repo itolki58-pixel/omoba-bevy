@@ -1,7 +1,7 @@
 {
-  "role.solo": "Соло",
-  "role.jungle": "Лес",
-  "role.mid": "Центр",
-  "role.carry": "Керри",
-  "role.support": "Поддержка"
+  "role.solo": "EXP",
+  "role.jungle": "JUNGLE",
+  "role.mid": "MID",
+  "role.carry": "GOLD",
+  "role.support": "SUPPORT"
 }
