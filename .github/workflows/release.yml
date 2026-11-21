@@ -110,6 +110,8 @@ jobs:
           key: client-tests
       - name: Install native client test dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev pkg-config
+      - name: Update Cargo.lock
+        run: cargo run --quiet -p shared --example compatibility -- manifest
       - name: Test client gameplay and presentation systems
         env:
           RUST_BACKTRACE: "1"
