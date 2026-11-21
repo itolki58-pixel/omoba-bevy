@@ -152,6 +152,10 @@ jobs:
         run: cargo run --quiet -p shared --example compatibility -- manifest
       - name: Test shared roster and protocol
         run: cargo test -p shared --locked
+      - name: Install native client test dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev pkg-config
+      - name: Test client gameplay and presentation systems
+        run: cargo test -p client --lib --locked
       - name: Build the Android package
         env:
           # Optional: a stable signing key so updates install over each other.
