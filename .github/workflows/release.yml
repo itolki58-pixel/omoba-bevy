@@ -142,7 +142,8 @@ jobs:
           assert len(doc["skins"][0].get("joints", [])) >= 25, "Zargat rig is incomplete"
           animations = {item.get("name") for item in doc.get("animations", [])}
           required = {"Idle", "Run", "Walk", "Attack", "Cast", "Death", "Hit",
-                      "TurnLeft", "TurnRight", "Stop", "Ultimate"}
+                      "TurnLeft", "TurnRight", "Stop", "Ultimate",
+                      "two_hand_push", "rally_raise", "slash_down", "slash_rising", "spin_cleave"}
           assert required <= animations, f"Missing clips: {sorted(required - animations)}"
           print(f"Validated Zargat: {len(doc['skins'][0]['joints'])} joints, "
                 f"{len(animations)} animation clips, {path.stat().st_size} bytes")
