@@ -60,7 +60,7 @@ enum HeroSelectAction {
 
 /// Lane filter shown above the hero roster. Carry is the Gold lane and Solo is EXP.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum LaneFilter {
+pub enum LaneFilter {
     #[default]
     All,
     Gold,
