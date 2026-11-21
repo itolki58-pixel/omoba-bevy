@@ -644,6 +644,19 @@ fn setup_player_animation_library(
                     clips.push(handle);
                 }
             }
+            // Non-VRM rigs may ship authored per-skill clips too. Keep every
+            // extra named animation in the graph so SkillPresentation release IDs
+            // (e.g. two_hand_push / rally_raise) can select a character-specific motion.
+            let base_clip_count = clips.len();
+            let extra_clips: Vec<_> = gltf
+                .named_animations
+                .iter()
+                .filter(|(_, handle)| !clips.contains(*handle))
+                .map(|(name, handle)| (name.to_ascii_lowercase(), handle.clone()))
+                .collect();
+            for (_, handle) in &extra_clips {
+                clips.push(handle.clone());
+            }
             let (graph, nodes) = AnimationGraph::from_clips(clips);
             let Some(idle_node) = nodes.first().copied() else {
                 continue;
@@ -651,6 +664,13 @@ fn setup_player_animation_library(
             let Some(walk_node) = nodes.get(1).copied() else {
                 continue;
             };
+            let motion_nodes = extra_clips
+                .into_iter()
+                .enumerate()
+                .filter_map(|(index, (name, _))| {
+                    nodes.get(base_clip_count + index).copied().map(|node| (name, node))
+                })
+                .collect();
             let graph_handle = animation_graphs.add(graph);
             library.sets.insert(
                 key.clone(),
@@ -663,7 +683,7 @@ fn setup_player_animation_library(
                     attack_node: optional_indices[0].and_then(|index| nodes.get(index).copied()),
                     cast_node: optional_indices[1].and_then(|index| nodes.get(index).copied()),
                     death_node: optional_indices[2].and_then(|index| nodes.get(index).copied()),
-                    motion_nodes: Vec::new(),
+                    motion_nodes,
                 },
             );
             info!(
