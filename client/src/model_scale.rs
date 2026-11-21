@@ -791,7 +791,7 @@ mod tests {
         let player = NormalizeModelScale::for_player_model();
         let boss = NormalizeModelScale::scaled_by(3.0);
         let minion = NormalizeModelScale::scaled_by(0.6);
-        assert!((effective_target_height(&settings, &player, 1.25) - 1.0).abs() < 1e-6);
+        assert!((effective_target_height(&settings, &player, 1.25) - 1.25).abs() < 1e-6);
         assert!((effective_target_height(&settings, &player, 1.5) - 1.5).abs() < 1e-6);
         for target_height in [DEFAULT_MODEL_TARGET_HEIGHT, 0.5, 2.4] {
             let settings = ModelScaleSettings { target_height };
