@@ -51,6 +51,7 @@ impl Plugin for MinimapPlugin {
                         .in_set(crate::input_context::InputContextSet::Actions)
                         .before(crate::combat::CombatPointerInputSet),
                     update_local_ping_marker.after(handle_minimap_navigation_system),
+                    sync_tactical_ping_wheel.after(handle_minimap_navigation_system),
                 ),
             )
             .add_systems(
@@ -80,12 +81,64 @@ pub struct MinimapNavigationState {
     pub consumed_primary_click: bool,
     /// A one-frame move order, separate from the persistent camera focus.
     pub movement_target: Option<Vec3>,
+    /// A one-frame tactical ping request. It remains local until server relay support ships.
+    tactical_ping: Option<(Vec3, TacticalPingKind)>,
     /// Only a finger that started on the map may pan it.
     touch_id: Option<u64>,
     touch_start: Vec2,
     touch_dragged: bool,
+    touch_hold_elapsed: f32,
+    ping_wheel_open: bool,
+    ping_wheel_selected: Option<usize>,
+    ping_wheel_target: Option<Vec3>,
     mouse_dragging: bool,
     world_touch: Option<WorldPan>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TacticalPingKind {
+    Attack,
+    OnMyWay,
+    Retreat,
+    Missing,
+}
+impl TacticalPingKind {
+    const ALL: [Self; 4] = [Self::Attack, Self::OnMyWay, Self::Retreat, Self::Missing];
+    fn label_key(self) -> &'static str {
+        match self {
+            Self::Attack => "hud.ping.attack.short",
+            Self::OnMyWay => "hud.ping.on_my_way.short",
+            Self::Retreat => "hud.ping.retreat.short",
+            Self::Missing => "hud.ping.missing.short",
+        }
+    }
+    fn glyph(self) -> &'static str {
+        match self {
+            Self::Attack => "A",
+            Self::OnMyWay => "→",
+            Self::Retreat => "R",
+            Self::Missing => "?",
+        }
+    }
+    fn color(self) -> Color {
+        match self {
+            Self::Attack => Color::srgb(1.0, 0.70, 0.22),
+            Self::OnMyWay => Color::srgb(0.32, 0.86, 1.0),
+            Self::Retreat => Color::srgb(1.0, 0.36, 0.32),
+            Self::Missing => Color::srgb(0.82, 0.72, 1.0),
+        }
+    }
+}
+const PING_WHEEL_HOLD_SECONDS: f32 = 0.42;
+fn tactical_ping_choice(delta: Vec2) -> Option<usize> {
+    if !delta.is_finite() || delta.length() < 14.0 {
+        return None;
+    }
+    if delta.x.abs() > delta.y.abs() {
+        Some(if delta.x > 0.0 { 1 } else { 3 })
+    } else {
+        Some(if delta.y > 0.0 { 2 } else { 0 })
+    }
 }
 struct WorldPan {
     id: u64,
@@ -104,6 +157,7 @@ struct MinimapUiState {
     camp_icons: [Option<Entity>; shared::jungle::CAMP_COUNT],
     boss_icons: HashMap<Entity, Entity>,
     rockets: HashMap<u64, [Entity; 3]>,
+    ping_wheel: Vec<Entity>,
 }
 /// Short-lived local confirmation of a minimap move/ping target.
 /// Team-wide relay is intentionally server-authoritative and is not implied here.
@@ -434,6 +488,7 @@ fn handle_minimap_navigation_system(
     mouse: Res<ButtonInput<MouseButton>>,
     keyboard: Res<ButtonInput<KeyCode>>,
     touches: Res<Touches>,
+    time: Res<Time>,
     layout: Res<MapLayout>,
     mut camera: ResMut<CameraState>,
     mut navigation: ResMut<MinimapNavigationState>,
@@ -445,10 +500,15 @@ fn handle_minimap_navigation_system(
 ) {
     navigation.consumed_primary_click = false;
     navigation.movement_target = None;
+    navigation.tactical_ping = None;
     if !context.gameplay_allowed() {
         navigation.touch_id = None;
         navigation.mouse_dragging = false;
         navigation.world_touch = None;
+        navigation.touch_hold_elapsed = 0.0;
+        navigation.ping_wheel_open = false;
+        navigation.ping_wheel_selected = None;
+        navigation.ping_wheel_target = None;
         return;
     }
     let (Ok(window), Ok((node, transform))) = (windows.single(), containers.single()) else {
@@ -461,10 +521,13 @@ fn handle_minimap_navigation_system(
     let rect = ui_to_window(rect, ui_scale.as_deref());
     if let Some(cursor) = window.cursor_position() {
         let target = minimap_cursor_to_world(*layout, rect, cursor);
-        if mouse.just_pressed(MouseButton::Right)
-            && !keyboard.any_pressed([KeyCode::AltLeft, KeyCode::AltRight])
-        {
-            navigation.movement_target = target;
+        if mouse.just_pressed(MouseButton::Right) {
+            if keyboard.any_pressed([KeyCode::AltLeft, KeyCode::AltRight]) {
+                navigation.tactical_ping =
+                    target.map(|target| (target, TacticalPingKind::Attack));
+            } else {
+                navigation.movement_target = target;
+            }
         }
         if mouse.just_pressed(MouseButton::Left) && target.is_some() {
             navigation.consumed_primary_click = true;
@@ -482,25 +545,52 @@ fn handle_minimap_navigation_system(
     }
     if let Some(id) = navigation.touch_id {
         if let Some(touch) = touches.get_pressed(id) {
-            navigation.touch_dragged |= touch.position().distance(navigation.touch_start) > 8.0;
-            if navigation.touch_dragged {
-                if let Some(target) = minimap_cursor_to_world(*layout, rect, touch.position()) {
+            let position = touch.position();
+            let distance = position.distance(navigation.touch_start);
+            if navigation.ping_wheel_open {
+                navigation.ping_wheel_selected =
+                    tactical_ping_choice(position - navigation.touch_start);
+            } else if distance > 8.0 {
+                navigation.touch_dragged = true;
+                if let Some(target) = minimap_cursor_to_world(*layout, rect, position) {
                     navigation.focus_target = Some(target);
                     camera.locked = true;
                 }
+            } else if !navigation.touch_dragged {
+                navigation.touch_hold_elapsed += time.delta_secs().max(0.0);
+                if navigation.touch_hold_elapsed >= PING_WHEEL_HOLD_SECONDS {
+                    navigation.ping_wheel_open = true;
+                    navigation.ping_wheel_target =
+                        minimap_cursor_to_world(*layout, rect, navigation.touch_start);
+                }
             }
         } else {
-            // A canceled gesture never orders movement. Only a released tap does.
-            if let Some(touch) = touches.get_released(id)
-                && !navigation.touch_dragged
-                && touch.position().distance(navigation.touch_start) <= 8.0
-            {
-                navigation.movement_target =
-                    minimap_cursor_to_world(*layout, rect, touch.position());
-                navigation.focus_target = None;
-                camera.locked = true;
+            // A long hold opens the tactical wheel; dragging selects a direction.
+            // A short tap remains the existing move order, and a pan remains a camera gesture.
+            if let Some(touch) = touches.get_released(id) {
+                if navigation.ping_wheel_open {
+                    let selected = tactical_ping_choice(touch.position() - navigation.touch_start)
+                        .or(navigation.ping_wheel_selected);
+                    if let (Some(index), Some(target)) =
+                        (selected, navigation.ping_wheel_target)
+                    {
+                        navigation.tactical_ping =
+                            Some((target, TacticalPingKind::ALL[index]));
+                    }
+                } else if !navigation.touch_dragged
+                    && touch.position().distance(navigation.touch_start) <= 8.0
+                {
+                    navigation.movement_target =
+                        minimap_cursor_to_world(*layout, rect, touch.position());
+                    navigation.focus_target = None;
+                    camera.locked = true;
+                }
             }
             navigation.touch_id = None;
+            navigation.touch_hold_elapsed = 0.0;
+            navigation.ping_wheel_open = false;
+            navigation.ping_wheel_selected = None;
+            navigation.ping_wheel_target = None;
         }
     } else {
         for touch in touches.iter_just_pressed() {
@@ -509,6 +599,10 @@ fn handle_minimap_navigation_system(
                 navigation.touch_id = Some(touch.id());
                 navigation.touch_start = touch.position();
                 navigation.touch_dragged = false;
+                navigation.touch_hold_elapsed = 0.0;
+                navigation.ping_wheel_open = false;
+                navigation.ping_wheel_selected = None;
+                navigation.ping_wheel_target = None;
                 break;
             }
         }
@@ -594,13 +688,40 @@ fn spawn_local_ping_marker(
     layout: Res<MapLayout>,
     time: Res<Time>,
 ) {
-    let (Some(container), Some(target)) = (state.container, navigation.movement_target) else {
+    let Some(container) = state.container else {
         return;
     };
-    let point = map_point(*layout, target);
+    if let Some((target, kind)) = navigation.tactical_ping {
+        let color = kind.color();
+        commands
+            .spawn((
+                marker_node(map_point(*layout, target), 22.0),
+                BackgroundColor(color.with_alpha(0.92)),
+                BorderColor::all(Color::WHITE),
+                LocalMinimapPing {
+                    expires_at: time.elapsed_secs() + 3.0,
+                },
+                ZIndex(30),
+                Name::new("LocalTacticalPing"),
+                ChildOf(container),
+            ))
+            .with_child((
+                Text::new(kind.glyph()),
+                crate::ui::theme::text(13.0),
+                TextColor(Color::srgb(0.06, 0.08, 0.10)),
+                Node {
+                    align_self: AlignSelf::Center,
+                    ..default()
+                },
+            ));
+        return;
+    }
+    let Some(target) = navigation.movement_target else {
+        return;
+    };
     commands
         .spawn((
-            marker_node(point, 20.0),
+            marker_node(map_point(*layout, target), 20.0),
             BackgroundColor(Color::srgba(1.0, 0.78, 0.22, 0.95)),
             BorderColor::all(Color::srgb(1.0, 0.92, 0.62)),
             LocalMinimapPing {
@@ -619,6 +740,59 @@ fn spawn_local_ping_marker(
                 ..default()
             },
         ));
+}
+
+fn sync_tactical_ping_wheel(
+    mut commands: Commands,
+    navigation: Res<MinimapNavigationState>,
+    layout: Res<MapLayout>,
+    mut state: ResMut<MinimapUiState>,
+) {
+    if !navigation.ping_wheel_open {
+        for entity in state.ping_wheel.drain(..) {
+            commands.entity(entity).despawn();
+        }
+        return;
+    }
+    let (Some(container), Some(target)) = (state.container, navigation.ping_wheel_target) else {
+        return;
+    };
+    let center = map_point(*layout, target);
+    let offsets = [Vec2::NEG_Y, Vec2::X, Vec2::Y, Vec2::NEG_X];
+    if state.ping_wheel.is_empty() {
+        commands.entity(container).with_children(|parent| {
+            for (index, kind) in TacticalPingKind::ALL.into_iter().enumerate() {
+                let selected = navigation.ping_wheel_selected == Some(index);
+                let color = kind.color();
+                let mut entity = parent.spawn((
+                    marker_node(center + offsets[index] * 42.0, 38.0),
+                    BackgroundColor(color.with_alpha(if selected { 0.98 } else { 0.72 })),
+                    BorderColor::all(if selected { Color::WHITE } else { Color::srgb(0.12, 0.16, 0.20) }),
+                    ZIndex(40),
+                    Pickable::IGNORE,
+                    Name::new("TacticalPingWheelOption"),
+                ));
+                entity.with_child((
+                    crate::i18n::Localized::new(kind.label_key()).into_text(),
+                    crate::ui::theme::text(8.0),
+                    TextColor(Color::srgb(0.04, 0.06, 0.08)),
+                    Node { align_self: AlignSelf::Center, ..default() },
+                ));
+                state.ping_wheel.push(entity.id());
+            }
+        });
+    } else {
+        for (index, entity) in state.ping_wheel.iter().copied().enumerate() {
+            let kind = TacticalPingKind::ALL[index];
+            let selected = navigation.ping_wheel_selected == Some(index);
+            let color = kind.color();
+            commands.entity(entity).insert((
+                marker_node(center + offsets[index] * 42.0, 38.0),
+                BackgroundColor(color.with_alpha(if selected { 0.98 } else { 0.72 })),
+                BorderColor::all(if selected { Color::WHITE } else { Color::srgb(0.12, 0.16, 0.20) }),
+            ));
+        }
+    }
 }
 
 fn expire_local_ping_markers(
@@ -644,7 +818,11 @@ fn update_local_ping_marker(
     time: Res<Time>,
     mut marker: ResMut<LocalPingMarker>,
 ) {
-    if let Some(target) = navigation.movement_target {
+    if let Some((target, tint)) = navigation
+        .tactical_ping
+        .map(|(target, kind)| (target, kind.color()))
+        .or_else(|| navigation.movement_target.map(|target| (target, Color::srgb(1.0, 0.82, 0.28))))
+    {
         // A separate ground-ring particle makes the order visible in the world
         // as well as on the minimap. It is cosmetic and never affects simulation.
         vfx.write(SkillBurst(vec![ParticleSpec {
@@ -652,11 +830,11 @@ fn update_local_ping_marker(
             size: 2.2,
             lifetime: 0.85,
             color: Tint {
-                color: Color::srgb(1.0, 0.82, 0.28),
+                color: tint,
                 gain: 1.35,
             },
             end_color: Some(Tint {
-                color: Color::srgba(1.0, 0.82, 0.28, 0.0),
+                color: tint.with_alpha(0.0),
                 gain: 1.35,
             }),
             shape: VfxShape::Ringlet,
@@ -1348,6 +1526,25 @@ pub(crate) fn clip_map_segment(a: Vec2, b: Vec2) -> Option<(Vec2, Vec2)> {
 mod tests {
     use super::*;
     use crate::input_context::GameplayInputContext;
+
+    #[test]
+    fn tactical_ping_wheel_selects_four_directions_and_rejects_short_or_invalid_drags() {
+        assert_eq!(tactical_ping_choice(Vec2::new(0.0, -24.0)), Some(0));
+        assert_eq!(tactical_ping_choice(Vec2::new(24.0, 0.0)), Some(1));
+        assert_eq!(tactical_ping_choice(Vec2::new(0.0, 24.0)), Some(2));
+        assert_eq!(tactical_ping_choice(Vec2::new(-24.0, 0.0)), Some(3));
+        assert_eq!(tactical_ping_choice(Vec2::new(4.0, 4.0)), None);
+        assert_eq!(tactical_ping_choice(Vec2::splat(f32::NAN)), None);
+        assert_eq!(
+            TacticalPingKind::ALL,
+            [
+                TacticalPingKind::Attack,
+                TacticalPingKind::OnMyWay,
+                TacticalPingKind::Retreat,
+                TacticalPingKind::Missing,
+            ]
+        );
+    }
 
     #[test]
     fn minimap_move_order_shows_a_local_ping_and_expires_after_2_4_seconds() {

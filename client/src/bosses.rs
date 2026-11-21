@@ -13,6 +13,7 @@ use bevy::world_serialization::WorldAssetRoot;
 use std::collections::HashMap;
 
 use crate::camera::MainCamera;
+use crate::combat::CombatStats;
 use crate::creatures3d::{CreatureAssets, ProceduralCreature, spawn_creature};
 use crate::model_scale::{ModelScaleSource, NormalizeModelScale};
 use crate::net::{NetworkNeutral, NeutralAiState, NeutralAiStateTag, NeutralCampType};
