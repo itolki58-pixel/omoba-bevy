@@ -12,6 +12,8 @@ This is a server-owner handoff. The client changes in PR #18 are intentionally l
 - `common/src/entities.rs`: server neutral runtime state already has `dead_until: Option<Instant>`.
 - `common/src/neutrals.rs`: boss first-spawn and respawn schedules already use `dead_until`; no new timer simulation is required.
 
+The client now has a local-only minimap wheel: hold on the minimap for 0.42 seconds, drag toward Attack / On My Way / Retreat / Missing, then release. It shows a short-lived marker on the minimap and a ground ring. This does not send a packet or notify teammates; the relay contract below is still required for multiplayer communication.
+
 ## Tactical ping relay
 
 Add a separate packet; preserve the existing heartbeat:
