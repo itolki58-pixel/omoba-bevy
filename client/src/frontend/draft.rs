@@ -470,23 +470,23 @@ fn hero_card(
     selected: bool,
     compact: bool,
 ) {
-    let portrait_width = (width - if compact { 8.0 } else { 12.0 })
-        .clamp(if compact { 38.0 } else { 52.0 }, if compact { 56.0 } else { 76.0 });
-    let portrait_height = portrait_width * 0.92;
+    let portrait_width = (width - if compact { 6.0 } else { 10.0 })
+        .clamp(if compact { 34.0 } else { 44.0 }, if compact { 48.0 } else { 64.0 });
+    let portrait_height = portrait_width * 0.88;
     parent
         .spawn((
             Button,
             Node {
                 width: Val::Px(width),
                 min_width: Val::Px(width),
-                height: Val::Px(if compact { 94.0 } else { 124.0 }),
-                min_height: Val::Px(if compact { 94.0 } else { 124.0 }),
+                height: Val::Px(if compact { 78.0 } else { 104.0 }),
+                min_height: Val::Px(if compact { 78.0 } else { 104.0 }),
                 flex_shrink: 0.0,
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-                row_gap: Val::Px(if compact { 2.0 } else { 5.0 }),
-                padding: UiRect::all(Val::Px(if compact { 3.0 } else { 5.0 })),
+                row_gap: Val::Px(if compact { 1.0 } else { 3.0 }),
+                padding: UiRect::all(Val::Px(if compact { 2.0 } else { 4.0 })),
                 border: UiRect::all(Val::Px(2.0)),
                 border_radius: BorderRadius::all(Val::Px(8.0)),
                 ..default()
@@ -523,7 +523,7 @@ fn hero_card(
             }
             card.spawn(widgets::label(
                 data::hero_name(hero.class),
-                if compact { 10.0 } else { 12.0 },
+                if compact { 9.0 } else { 11.0 },
                 theme::IVORY,
             ));
         });
@@ -839,9 +839,54 @@ fn render_draft(
                 .with_children(|picker| {
                     picker.spawn((
                         widgets::label(tr("draft.avatars.included"), 16.0, theme::GOLD),
-                        Node { margin: UiRect::bottom(Val::Px(4.0)), ..default() },
+                        Node { margin: UiRect::bottom(Val::Px(2.0)), ..default() },
                         Name::new("DraftHeroesHeading"),
                     ));
+                    let columns = if compact {
+                        if picker_width >= 350.0 {
+                            5.0
+                        } else if picker_width >= 280.0 {
+                            4.0
+                        } else if picker_width >= 210.0 {
+                            3.0
+                        } else {
+                            2.0
+                        }
+                    } else if picker_width >= 360.0 {
+                        4.0
+                    } else if picker_width >= 270.0 {
+                        3.0
+                    } else {
+                        2.0
+                    };
+                    let gap = 5.0;
+                    let card_width = ((picker_width - gap * (columns - 1.0)) / columns).max(54.0);
+                    picker
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            flex_wrap: FlexWrap::Wrap,
+                            column_gap: Val::Px(gap),
+                            row_gap: Val::Px(gap),
+                            align_content: AlignContent::FlexStart,
+                            ..default()
+                        })
+                        .with_children(|heroes| {
+                            for hero in shared::hero_roster::STARTER_ROSTER
+                                .iter()
+                                .filter(|hero| state.filter.matches(hero.position))
+                            {
+                                let image = thumbnails.0.get(hero.avatar).cloned();
+                                hero_card(
+                                    heroes,
+                                    hero,
+                                    image,
+                                    card_width,
+                                    choice.is_some_and(|selected| selected.hero_class == hero.class),
+                                    compact,
+                                );
+                            }
+                        });
                     picker
                         .spawn(Node {
                             width: Val::Percent(100.0),
@@ -873,51 +918,6 @@ fn render_draft(
                                     tab_width,
                                     false,
                                     state.filter == filter,
-                                );
-                            }
-                        });
-                    let columns = if compact {
-                        if picker_width >= 350.0 {
-                            5.0
-                        } else if picker_width >= 280.0 {
-                            4.0
-                        } else if picker_width >= 210.0 {
-                            3.0
-                        } else {
-                            2.0
-                        }
-                    } else if picker_width >= 360.0 {
-                        4.0
-                    } else if picker_width >= 270.0 {
-                        3.0
-                    } else {
-                        2.0
-                    };
-                    let gap = 7.0;
-                    let card_width = ((picker_width - gap * (columns - 1.0)) / columns).max(58.0);
-                    picker
-                        .spawn(Node {
-                            width: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Row,
-                            flex_wrap: FlexWrap::Wrap,
-                            column_gap: Val::Px(gap),
-                            row_gap: Val::Px(gap),
-                            align_content: AlignContent::FlexStart,
-                            ..default()
-                        })
-                        .with_children(|heroes| {
-                            for hero in shared::hero_roster::STARTER_ROSTER
-                                .iter()
-                                .filter(|hero| state.filter.matches(hero.position))
-                            {
-                                let image = thumbnails.0.get(hero.avatar).cloned();
-                                hero_card(
-                                    heroes,
-                                    hero,
-                                    image,
-                                    card_width,
-                                    choice.is_some_and(|selected| selected.hero_class == hero.class),
-                                    compact,
                                 );
                             }
                         });
