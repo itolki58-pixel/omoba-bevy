@@ -107,7 +107,7 @@ pub struct TeamSelection {
     pub avatar: Option<String>,
     /// Selected 2D sprite character, preserved independently of the 3D avatar.
     pub sprite_character: String,
-    hero_filter: HeroLaneFilter,
+    pub(crate) hero_filter: HeroLaneFilter,
 }
 
 impl Default for TeamSelection {
