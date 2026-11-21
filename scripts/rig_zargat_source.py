@@ -264,6 +264,11 @@ def slash_down(f):
     rot("spine",-.18*p); rot("chest",-.24*p)
     rot("upper_arm.R",x=-1.0*p); rot("forearm.R",x=-.82*p); rot("sword",x=-.95*p)
     rot("wing.L",.12*p); rot("wing.R",-.18*p)
+def slash_rising(f):
+    p=math.sin((f-1)/30*math.pi)
+    rot("spine",.10*p); rot("chest",.18*p)
+    rot("upper_arm.R",x=.78*p); rot("forearm.R",x=-.52*p); rot("sword",x=.92*p)
+    rot("wing.L",.10*p); rot("wing.R",-.14*p)
 def spin_cleave(f):
     p=math.sin((f-1)/30*math.pi)
     rot("pelvis",z=.42*p); rot("spine",z=.62*p); rot("chest",z=.48*p)
@@ -285,6 +290,7 @@ clip("Ultimate",[1,6,11,16,21,26,31],ultimate)
 clip("two_hand_push",[1,4,8,12,16,20,24,28,31],two_hand_push)
 clip("rally_raise",[1,4,8,12,16,20,24,28,31],rally_raise)
 clip("slash_down",[1,4,8,12,16,20,24,28,31],slash_down)
+clip("slash_rising",[1,4,8,12,16,20,24,28,31],slash_rising)
 clip("spin_cleave",[1,4,8,12,16,20,24,28,31],spin_cleave)
 bpy.context.scene.frame_set(1)
 
