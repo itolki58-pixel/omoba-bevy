@@ -1457,7 +1457,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Transform::from_xyz(0.0, 0.0, 0.0),
-                NetworkNeutralCampType(NeutralCampType::WindDragon.into()),
+                NetworkNeutralCampType(NeutralCampType::WindDragon),
                 CombatStats::default(),
                 NetworkNeutral,
             ))
