@@ -1905,7 +1905,7 @@ fn layout_spacious_picker(
             node.display = Display::None; continue;
         }
         if class.is_some() {
-            node.width = Val::Px(if phone { left_w } else { (left_w - 24.0) / 4.0 });
+            node.width = Val::Px(if phone { (left_w - 8.0) / 2.0 } else { (left_w - 24.0) / 4.0 });
             node.height = Val::Px(if phone {
                 ((bottom - class_y - 24.0) / 5.0).clamp(40.0, 48.0)
             } else {
@@ -1974,19 +1974,11 @@ fn layout_spacious_picker(
                         layout.class_height()
                     },
                 );
-                node.flex_direction = if phone {
-                    FlexDirection::Column
-                } else {
-                    FlexDirection::Row
-                };
+                node.flex_direction = FlexDirection::Row;
                 node.justify_content = JustifyContent::FlexStart;
                 node.column_gap = Val::Px(8.0);
                 node.row_gap = Val::Px(6.0);
-                node.flex_wrap = if phone {
-                    FlexWrap::NoWrap
-                } else {
-                    FlexWrap::Wrap
-                };
+                node.flex_wrap = FlexWrap::Wrap;
                 node.overflow = Overflow::scroll_y();
             }
             "AvatarSelectTitle" => absolute(&mut node, grid_x, grid_y - 24.0, grid_w, 20.0),
