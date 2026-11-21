@@ -28,5 +28,12 @@
   "draft.timer.gathering": "等待队伍…",
   "draft.stage.rotate": "拖动旋转",
   "draft.tab.avatars": "角色",
-  "draft.tab.classes": "职业"
+  "draft.tab.classes": "英雄",
+  "draft.warning.same_hero": "队伍中有多名玩家选择了同一位英雄。",
+  "draft.filter.all": "全部",
+  "draft.filter.gold": "发育路",
+  "draft.filter.experience": "对抗路",
+  "draft.filter.center": "中路",
+  "draft.filter.jungle": "打野",
+  "draft.filter.support": "辅助"
 }
