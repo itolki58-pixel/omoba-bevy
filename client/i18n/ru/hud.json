@@ -19,5 +19,9 @@
   "hud.fps": "{value} FPS",
   "hud.buff.dragon_speed": "Ветер: +8% скорости · {secs}с",
   "hud.buff.dragon_defense": "Камень: +20 защиты · {secs}с",
-  "hud.buff.dragon_attack": "Пламя: +12% урона · {secs}с"
+  "hud.buff.dragon_attack": "Пламя: +12% урона · {secs}с",
+  "hud.ping.attack.short": "АТК",
+  "hud.ping.on_my_way.short": "ИДУ",
+  "hud.ping.retreat.short": "ОТХ",
+  "hud.ping.missing.short": "ПРОП"
 }
