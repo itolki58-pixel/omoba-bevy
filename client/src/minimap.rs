@@ -46,6 +46,12 @@ impl Plugin for MinimapPlugin {
                     .before(crate::combat::CombatPointerInputSet),
             )
             .add_systems(
+                Update,
+                (spawn_local_ping_marker, expire_local_ping_markers)
+                    .chain()
+                    .after(handle_minimap_navigation_system),
+            )
+            .add_systems(
                 PostUpdate,
                 (
                     update_minimap_icons_system,
@@ -105,6 +111,13 @@ struct MinimapCamp {
 pub(crate) struct MinimapContainer;
 #[derive(Component)]
 struct CameraFootprintEdge(usize);
+
+/// Short-lived minimap acknowledgement for a local move/ping tap.
+/// This is intentionally client-local until the server relays tactical pings.
+#[derive(Component)]
+struct LocalMinimapPing {
+    expires_at: f32,
+}
 
 /// Read-only diagnostics for opt-in native QA. These inspect the actual UI
 /// entities and computed transforms; they do not fabricate marker fixtures.
@@ -554,6 +567,55 @@ fn handle_minimap_navigation_system(
         }
     }
 }
+/// Show a short-lived local marker wherever the player issues a minimap
+/// move order. It gives immediate touch feedback without pretending the ping
+/// has been relayed to teammates; multiplayer relay requires a server protocol.
+fn spawn_local_ping_marker(
+    mut commands: Commands,
+    navigation: Res<MinimapNavigationState>,
+    state: Res<MinimapUiState>,
+    layout: Res<MapLayout>,
+    time: Res<Time>,
+) {
+    let (Some(container), Some(target)) = (state.container, navigation.movement_target) else {
+        return;
+    };
+    let point = map_point(*layout, target);
+    commands
+        .spawn((
+            marker_node(point, 20.0),
+            BackgroundColor(Color::srgba(1.0, 0.78, 0.22, 0.95)),
+            BorderColor::all(Color::srgb(1.0, 0.92, 0.62)),
+            LocalMinimapPing {
+                expires_at: time.elapsed_secs() + 2.4,
+            },
+            ZIndex(30),
+            Name::new("LocalMinimapPing"),
+            ChildOf(container),
+        ))
+        .with_child((
+            Text::new("!"),
+            crate::ui::theme::text(13.0),
+            TextColor(Color::srgb(0.08, 0.10, 0.12)),
+            Node {
+                align_self: AlignSelf::Center,
+                ..default()
+            },
+        ));
+}
+
+fn expire_local_ping_markers(
+    mut commands: Commands,
+    time: Res<Time>,
+    markers: Query<(Entity, &LocalMinimapPing)>,
+) {
+    for (entity, ping) in &markers {
+        if time.elapsed_secs() >= ping.expires_at {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
 /// A rect in UI logical pixels as window logical pixels (× `UiScale`).
 fn ui_to_window(rect: Rect, ui_scale: Option<&UiScale>) -> Rect {
     let scale = ui_scale.map_or(1.0, |scale| scale.0);
