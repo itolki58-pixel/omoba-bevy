@@ -19,5 +19,9 @@
   "hud.fps": "{value} FPS",
   "hud.buff.dragon_speed": "Wind: +8% movement · {secs}s",
   "hud.buff.dragon_defense": "Stone: +20 armor/resistance · {secs}s",
-  "hud.buff.dragon_attack": "Flame: +12% damage · {secs}s"
+  "hud.buff.dragon_attack": "Flame: +12% damage · {secs}s",
+  "hud.ping.attack.short": "ATK",
+  "hud.ping.on_my_way.short": "GO",
+  "hud.ping.retreat.short": "RET",
+  "hud.ping.missing.short": "MISS"
 }
