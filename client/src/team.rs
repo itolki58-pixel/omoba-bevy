@@ -1907,7 +1907,9 @@ fn layout_spacious_picker(
         if class.is_some() {
             node.width = Val::Px(if phone { (left_w - 8.0) / 2.0 } else { (left_w - 24.0) / 4.0 });
             node.height = Val::Px(if phone {
-                ((bottom - class_y - 24.0) / 5.0).clamp(40.0, 48.0)
+                // Two columns mean three rows for the starter roster. Keep the
+                // portrait and label fully inside each horizontal hero card.
+                ((bottom - class_y - 12.0) / 3.0).clamp(84.0, 96.0)
             } else {
                 64.0
             });
