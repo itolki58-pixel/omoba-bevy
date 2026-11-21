@@ -70,6 +70,7 @@ use crate::{
     team_vision::TeamVisionPlugin,
     ui::UiKitPlugin,
     verdant3d::Verdant3dPlugin,
+    zargat::ZargatVisualsPlugin,
     world::SetupPlugin,
     world2d::World2dPlugin,
 };
@@ -149,6 +150,7 @@ impl PluginGroup for PresentationPlugins {
             .add(World2dPlugin)
             // 3D model backend.
             .add(Presentation3dPlugin)
+            .add(ZargatVisualsPlugin)
             .add(Verdant3dPlugin)
             .add(DecorPlugin)
             .add(JungleVisualsPlugin)
