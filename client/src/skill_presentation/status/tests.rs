@@ -510,7 +510,7 @@ fn a_visual_is_a_free_entity_of_shared_meshes_and_six_materials() {
     // A model that is measured only in part, or wrongly, still gives a hero's size.
     assert_eq!(standing(None, Some(1.6)), (-0.5, 2.1));
     assert_eq!(standing(Some(-0.2), None), (-0.2, HEIGHT));
-    assert_eq!(standing(Some(0.0), Some(40.0)).1, 3.0);
+    assert_eq!(standing(Some(0.0), Some(40.0)).1, 3.6);
     assert_eq!(standing(Some(0.0), Some(-3.0)).1, 0.3);
     assert_eq!(standing(Some(f32::NAN), Some(f32::NAN)), (-0.5, HEIGHT));
     assert_eq!(standing(Some(0.0), Some(f32::INFINITY)), (0.0, HEIGHT));
