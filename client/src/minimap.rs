@@ -6,7 +6,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::camera::{CameraState, MainCamera};
 use crate::combat::CombatStats;
-use crate::game_vfx::{Curve as VfxCurve, Orient as VfxOrient, ParticleSource, ParticleSpec, SkillBurst, Tint};
+use crate::game_vfx::{
+    Curve as VfxCurve, Orient as VfxOrient, ParticleSource, ParticleSpec, SkillBurst, Tint,
+};
 use crate::skill_presentation::vocab::ParticleShape as VfxShape;
 use crate::maps::MapLayout;
 use crate::net::{
