@@ -34,6 +34,7 @@ impl Plugin for MinimapPlugin {
         app.add_plugins(crate::minimap_route::MinimapRoutePlugin)
             .init_resource::<MinimapUiState>()
             .init_resource::<MinimapNavigationState>()
+            .init_resource::<LocalPingMarker>()
             .add_systems(Startup, setup_minimap_ui)
             .add_systems(
                 PostUpdate,
@@ -41,9 +42,12 @@ impl Plugin for MinimapPlugin {
             )
             .add_systems(
                 Update,
-                handle_minimap_navigation_system
-                    .in_set(crate::input_context::InputContextSet::Actions)
-                    .before(crate::combat::CombatPointerInputSet),
+                (
+                    handle_minimap_navigation_system
+                        .in_set(crate::input_context::InputContextSet::Actions)
+                        .before(crate::combat::CombatPointerInputSet),
+                    update_local_ping_marker.after(handle_minimap_navigation_system),
+                ),
             )
             .add_systems(
                 Update,
@@ -96,6 +100,14 @@ struct MinimapUiState {
     camp_icons: [Option<Entity>; shared::jungle::CAMP_COUNT],
     rockets: HashMap<u64, [Entity; 3]>,
 }
+/// Short-lived local confirmation of a minimap move/ping target.
+/// Team-wide relay is intentionally server-authoritative and is not implied here.
+#[derive(Resource, Default)]
+struct LocalPingMarker {
+    entity: Option<Entity>,
+    timer: Option<Timer>,
+}
+
 #[derive(Component)]
 struct MinimapRoot;
 
@@ -612,6 +624,66 @@ fn expire_local_ping_markers(
     for (entity, ping) in &markers {
         if time.elapsed_secs() >= ping.expires_at {
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Show a brief gold ring at the selected minimap destination. This is
+/// local feedback only; it does not claim that teammates received a ping.
+fn update_local_ping_marker(
+    mut commands: Commands,
+    navigation: Res<MinimapNavigationState>,
+    containers: Query<Entity, With<MinimapContainer>>,
+    layout: Res<MapLayout>,
+    time: Res<Time>,
+    mut marker: ResMut<LocalPingMarker>,
+) {
+    if let Some(target) = navigation.movement_target {
+        if let Some(entity) = marker.entity.take() {
+            commands.entity(entity).despawn();
+        }
+        if let Ok(container) = containers.single() {
+            let point = map_point(*layout, target);
+            let mut spawned = None;
+            commands.entity(container).with_children(|parent| {
+                let entity = parent
+                    .spawn((
+                        marker_node(point, 22.0),
+                        BorderColor::all(Color::srgb(1.0, 0.82, 0.28)),
+                        BackgroundColor(Color::srgba(1.0, 0.82, 0.28, 0.18)),
+                        ZIndex(10),
+                        Pickable::IGNORE,
+                        Name::new("MinimapLocalPing"),
+                    ))
+                    .with_children(|ring| {
+                        ring.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(7.0),
+                                top: Val::Px(7.0),
+                                width: Val::Px(8.0),
+                                height: Val::Px(8.0),
+                                border_radius: BorderRadius::MAX,
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(1.0, 0.88, 0.48)),
+                            Pickable::IGNORE,
+                            Name::new("MinimapLocalPingCenter"),
+                        ));
+                    })
+                    .id();
+                spawned = Some(entity);
+            });
+            marker.entity = spawned;
+            marker.timer = Some(Timer::from_seconds(2.4, TimerMode::Once));
+        }
+    }
+    if let (Some(entity), Some(timer)) = (marker.entity, marker.timer.as_mut()) {
+        timer.tick(time.delta());
+        if timer.is_finished() {
+            commands.entity(entity).despawn();
+            marker.entity = None;
+            marker.timer = None;
         }
     }
 }
@@ -1201,6 +1273,45 @@ pub(crate) fn clip_map_segment(a: Vec2, b: Vec2) -> Option<(Vec2, Vec2)> {
 mod tests {
     use super::*;
     use crate::input_context::GameplayInputContext;
+
+    #[test]
+    fn minimap_move_order_shows_a_local_ping_and_expires_after_2_4_seconds() {
+        let mut app = App::new();
+        app.init_resource::<MinimapNavigationState>()
+            .init_resource::<LocalPingMarker>()
+            .init_resource::<MapLayout>()
+            .init_resource::<Time>()
+            .add_systems(Update, update_local_ping_marker);
+        let container = app.world_mut().spawn((Node::default(), MinimapContainer)).id();
+        app.world_mut()
+            .resource_mut::<MinimapNavigationState>()
+            .movement_target = Some(Vec3::new(12.0, 0.0, -8.0));
+        app.update();
+        assert_eq!(
+            app.world_mut()
+                .query_filtered::<Entity, With<Name>>()
+                .iter(app.world())
+                .filter(|entity| app.world().get::<Name>(*entity).is_some_and(|name| name.as_str() == "MinimapLocalPing"))
+                .count(),
+            1
+        );
+        app.world_mut()
+            .resource_mut::<MinimapNavigationState>()
+            .movement_target = None;
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_millis(2500));
+        app.update();
+        assert_eq!(
+            app.world_mut()
+                .query_filtered::<Entity, With<Name>>()
+                .iter(app.world())
+                .filter(|entity| app.world().get::<Name>(*entity).is_some_and(|name| name.as_str() == "MinimapLocalPing"))
+                .count(),
+            0
+        );
+        assert!(app.world().get_entity(container).is_ok());
+    }
 
     #[test]
     fn rocket_marker_tracks_received_position_and_disappears_with_the_effect() {
