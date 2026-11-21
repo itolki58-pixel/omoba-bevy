@@ -25,9 +25,9 @@ use bevy::prelude::*;
 
 use crate::team::CharacterChoice;
 
-/// Standing hero height in world units, tuned for Verdant's 12-unit lanes.
+/// Base standing hero height before the presentation-only +25% model multiplier.
 /// This changes presentation only: `PLAYER_SIZE`, combat ranges and navigation
-/// clearance keep their existing values, as does the creature reference below.
+/// clearance keep their existing values, as does the neutral-creature reference below.
 pub const DEFAULT_MODEL_TARGET_HEIGHT: f32 = 2.625;
 /// Stable reference for neutral creatures and bosses. Lane minions receive
 /// their separate 25% presentation increase in `MINION_MODEL_HEIGHT_SCALE`.
