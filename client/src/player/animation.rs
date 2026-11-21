@@ -502,6 +502,37 @@ fn setup_player_animation_library(
         if is_humanoid {
             match runtime.ensure(&gltf_handle, gltf, &mut animation_clips) {
                 Ok(mut motion) => {
+                    // Prefer a model's own authored action when its stable clip name
+                    // matches the shared skill-motion vocabulary. This is especially
+                    // important for user-authored VRM heroes such as Zargat: the
+                    // generated shared motions are a safe fallback, not a replacement
+                    // for the hero's own attack and skill choreography.
+                    let authored_actions: Vec<_> = gltf
+                        .named_animations
+                        .iter()
+                        .filter_map(|(name, handle)| {
+                            let action = name.to_ascii_lowercase();
+                            motion.actions.contains_key(&action).then(|| {
+                                (action, handle.clone())
+                            })
+                        })
+                        .collect();
+                    for (action, handle) in authored_actions {
+                        let Some(original) = animation_clips.get(&handle).cloned() else {
+                            continue;
+                        };
+                        match runtime.remap_embedded_clip(&gltf_handle, gltf, &original) {
+                            Ok(clip) => {
+                                motion.actions.insert(action.clone(), animation_clips.add(clip));
+                                info!("Using authored humanoid action '{action}' for {:?}", key);
+                            }
+                            Err(error) => warn!(
+                                "Ignoring incompatible authored action '{action}' for {:?}: {error}",
+                                key
+                            ),
+                        }
+                    }
+
                     // Keep explicit cosmetic overrides by translating their
                     // original glTF targets into this runtime rig's namespace.
                     // Unsupported aliases fall back as a whole, never as a

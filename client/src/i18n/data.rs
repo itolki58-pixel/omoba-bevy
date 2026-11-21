@@ -274,9 +274,18 @@ mod tests {
     #[test]
     fn english_game_data_equals_the_catalogs_and_chinese_covers_every_id() {
         for class in HeroClass::ALL {
-            assert_eq!(hero_name(class), class.display_name());
-            assert_eq!(hero_tagline(class), class.tagline());
-            for (field, expected) in [("name", class.display_name()), ("tagline", class.tagline())]
+            // Selectable legacy kits display their named roster hero (Warrior is Zargat).
+            let display_name = shared::hero_roster::profile(class)
+                .map_or_else(|| class.display_name(), |hero| hero.display_name);
+            // Zargat has a named presentation tagline while retaining the Warrior wire kit.
+            let tagline = if class == HeroClass::Warrior {
+                "The Hell Sovereign: infernal blade and close-range combat"
+            } else {
+                class.tagline()
+            };
+            assert_eq!(hero_name(class), display_name);
+            assert_eq!(hero_tagline(class), tagline);
+            for (field, expected) in [("name", display_name), ("tagline", tagline)]
             {
                 let key = format!("hero.{}.{field}", class.id());
                 assert_eq!(english(&key), expected);

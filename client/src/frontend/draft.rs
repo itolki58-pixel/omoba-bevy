@@ -138,6 +138,8 @@ pub(super) struct DraftClient {
     choice: Option<Choice>,
     filter: HeroFilter,
     pending: Option<PendingRequest>,
+    /// A rejected selection is not retried every frame; the player must change it.
+    selection_rejected: bool,
     desired_lock: Option<bool>,
     wants_loaded: bool,
     loaded_sent: bool,
@@ -207,6 +209,7 @@ fn sync_draft(
         state.pending = None;
         if let Some(error) = &draft.error {
             state.choice = local.map(Choice::from);
+            state.selection_rejected = true;
             state.desired_lock = None;
             state.notice = Some(error.clone());
         }
@@ -298,6 +301,7 @@ fn draft_actions(
                 if let Some(choice) = &mut state.choice {
                     choice.pick_hero(*class);
                 }
+                state.selection_rejected = false;
                 state.notice = None;
             }
             DraftAction::Filter(filter) => {
@@ -338,7 +342,8 @@ fn send_requests(
         Some(PrematchAction::Loaded)
     } else if draft.phase == PrematchPhase::Draft {
         let choice = state.choice.clone().unwrap_or_else(|| Choice::from(local));
-        let needs_select = !player_has_fixed_hero_identity(local) || choice != Choice::from(local);
+        let needs_select = !state.selection_rejected
+            && (!player_has_fixed_hero_identity(local) || choice != Choice::from(local));
         if !local.locked && needs_select {
             state.notice = None;
             Some(PrematchAction::Select {
@@ -1151,8 +1156,8 @@ mod tests {
                 team: shared::map::Team::Green,
                 character: CharacterChoice::default(),
                 hero_class: HeroClass::Warrior,
-                avatar: None,
-                sprite_character: None,
+                avatar: Some("zargat".into()),
+                sprite_character: Some("mossback-teapot".into()),
                 role: Role::Solo,
                 is_bot: false,
                 locked: false,
@@ -1367,7 +1372,7 @@ mod tests {
         choice.avatar = Some("not-a-roster-avatar".into());
         choice.pick_hero(HeroClass::Warrior);
         assert_eq!((choice.hero_class, choice.role), (HeroClass::Warrior, Role::Solo));
-        assert_eq!(choice.avatar.as_deref(), Some("crowley"));
+        assert_eq!(choice.avatar.as_deref(), Some("zargat"));
         assert_eq!(choice.sprite_character.as_deref(), Some("mossback-teapot"));
         assert_eq!(choice.handheld, shared::handheld::HandheldSelection::ClassDefault);
     }
@@ -1572,8 +1577,14 @@ mod tests {
         let label = |app: &mut App, id: &str| {
             let button = crate::ui::test_id::harness::find(app.world_mut(), id)
                 .unwrap_or_else(|| panic!("no {id}"));
-            let child = app.world().get::<Children>(button).unwrap()[0];
-            app.world().get::<Text>(child).unwrap().0.clone()
+            app.world()
+                .get::<Children>(button)
+                .unwrap()
+                .iter()
+                .find_map(|child| app.world().get::<Text>(child))
+                .unwrap()
+                .0
+                .clone()
         };
         let texts = |app: &mut App| -> Vec<String> {
             app.world_mut()
@@ -1692,7 +1703,7 @@ mod tests {
     #[test]
     fn hero_filter_tabs_cover_the_roster_and_match_the_five_lanes() {
         let roster = &shared::hero_roster::STARTER_ROSTER;
-        let count = |filter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
+        let count = |filter: HeroFilter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
         assert_eq!(count(HeroFilter::All), 12);
         assert_eq!(count(HeroFilter::Gold), 2);
         assert_eq!(count(HeroFilter::Experience), 3);

@@ -13,6 +13,7 @@ use bevy::world_serialization::WorldAssetRoot;
 use std::collections::HashMap;
 
 use crate::camera::MainCamera;
+use crate::combat::CombatStats;
 use crate::creatures3d::{CreatureAssets, ProceduralCreature, spawn_creature};
 use crate::model_scale::{ModelScaleSource, NormalizeModelScale};
 use crate::net::{NetworkNeutral, NeutralAiState, NeutralAiStateTag, NeutralCampType};
@@ -39,6 +40,12 @@ pub struct BossVisual {
 /// Screen-space nameplate following one boss entity.
 #[derive(Component)]
 struct BossNameplate {
+    boss: Entity,
+}
+
+/// Compact world-space objective readout, paired with the boss nameplate.
+#[derive(Component)]
+struct BossHealthLabel {
     boss: Entity,
 }
 
@@ -222,21 +229,74 @@ fn attach_boss_models(
             // The Name is the stable boss id, never the (translatable) label.
             Name::new(format!("BossNameplate-{}", boss_name_id(visual.camp_type))),
         ));
+        commands.spawn((
+            Text::new("100%"),
+            TextFont {
+                font_size: 12.0.into(),
+                ..default()
+            },
+            TextColor(Color::srgba(0.82, 0.91, 1.0, 0.96)),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(-1000.0),
+                top: Val::Px(-1000.0),
+                ..default()
+            },
+            Pickable::IGNORE,
+            ZIndex(9),
+            BossHealthLabel { boss: boss_entity },
+            Name::new(format!("BossHealthLabel-{}", boss_name_id(visual.camp_type))),
+        ));
     }
 }
 
 /// Projects each boss nameplate above its model top in screen space; the
 /// nameplate despawns with its boss.
+fn boss_health_percent(hp: f32, max_hp: f32) -> u8 {
+    if !hp.is_finite() || !max_hp.is_finite() || max_hp <= 0.0 {
+        return 0;
+    }
+    ((hp.max(0.0) / max_hp * 100.0).clamp(0.0, 100.0)).round() as u8
+}
+
+fn project_boss_anchor(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    boss_transform: &GlobalTransform,
+    normalization: &NormalizeModelScale,
+    ui_scale: Option<&UiScale>,
+) -> Option<Vec2> {
+    let head_height = normalization
+        .head_local_y
+        .unwrap_or(NAMEPLATE_FALLBACK_HEIGHT);
+    let anchor = boss_transform.translation() + Vec3::Y * (head_height + NAMEPLATE_CLEARANCE);
+    camera
+        .world_to_viewport(camera_transform, anchor)
+        .ok()
+        .map(|screen| crate::hud_layout::world_to_ui(screen, ui_scale))
+}
+
+/// Projects each boss nameplate and its live HP percentage above the model.
 fn update_boss_nameplates(
     mut commands: Commands,
     camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    bosses: Query<(&GlobalTransform, &NormalizeModelScale), With<BossVisual>>,
-    mut nameplates: Query<(Entity, &BossNameplate, &mut Node, &mut Visibility)>,
+    bosses: Query<
+        (&GlobalTransform, &NormalizeModelScale, &CombatStats),
+        With<BossVisual>,
+    >,
+    mut nameplates: Query<
+        (Entity, &BossNameplate, &mut Node, &mut Visibility),
+        (With<BossNameplate>, Without<BossHealthLabel>),
+    >,
+    mut health_labels: Query<
+        (Entity, &BossHealthLabel, &mut Node, &mut Visibility, &mut Text),
+        (With<BossHealthLabel>, Without<BossNameplate>),
+    >,
     ui_scale: Option<Res<UiScale>>,
 ) {
     let camera = camera_query.single().ok();
     for (plate_entity, plate, mut node, mut visibility) in &mut nameplates {
-        let Ok((boss_transform, normalization)) = bosses.get(plate.boss) else {
+        let Ok((boss_transform, normalization, _)) = bosses.get(plate.boss) else {
             commands.entity(plate_entity).despawn();
             continue;
         };
@@ -244,20 +304,42 @@ fn update_boss_nameplates(
             *visibility = Visibility::Hidden;
             continue;
         };
-        let head_height = normalization
-            .head_local_y
-            .unwrap_or(NAMEPLATE_FALLBACK_HEIGHT);
-        let anchor = boss_transform.translation() + Vec3::Y * (head_height + NAMEPLATE_CLEARANCE);
-        match camera.world_to_viewport(camera_transform, anchor) {
-            Ok(screen) => {
-                let screen = crate::hud_layout::world_to_ui(screen, ui_scale.as_deref());
-                node.left = Val::Px(screen.x - NAMEPLATE_HALF_WIDTH);
-                node.top = Val::Px(screen.y);
-                *visibility = Visibility::Visible;
-            }
-            Err(_) => {
-                *visibility = Visibility::Hidden;
-            }
+        if let Some(screen) = project_boss_anchor(
+            camera,
+            camera_transform,
+            boss_transform,
+            normalization,
+            ui_scale.as_deref(),
+        ) {
+            node.left = Val::Px(screen.x - NAMEPLATE_HALF_WIDTH);
+            node.top = Val::Px(screen.y);
+            *visibility = Visibility::Visible;
+        } else {
+            *visibility = Visibility::Hidden;
+        }
+    }
+    for (label_entity, label, mut node, mut visibility, mut text) in &mut health_labels {
+        let Ok((boss_transform, normalization, stats)) = bosses.get(label.boss) else {
+            commands.entity(label_entity).despawn();
+            continue;
+        };
+        text.0 = format!("{}%", boss_health_percent(stats.hp, stats.max_hp));
+        let Some((camera, camera_transform)) = camera else {
+            *visibility = Visibility::Hidden;
+            continue;
+        };
+        if let Some(screen) = project_boss_anchor(
+            camera,
+            camera_transform,
+            boss_transform,
+            normalization,
+            ui_scale.as_deref(),
+        ) {
+            node.left = Val::Px(screen.x - 18.0);
+            node.top = Val::Px(screen.y + 20.0);
+            *visibility = Visibility::Visible;
+        } else {
+            *visibility = Visibility::Hidden;
         }
     }
 }
@@ -411,7 +493,6 @@ fn force_boss_models_double_sided(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::combat::CombatStats;
     use crate::creatures3d::{CreatureAssets, test_app};
     use crate::model_scale::CREATURE_MODEL_TARGET_HEIGHT;
 
@@ -442,6 +523,15 @@ mod tests {
                 },
             ))
             .id()
+    }
+
+    #[test]
+    fn boss_health_percent_is_clamped_and_handles_empty_health_pools() {
+        assert_eq!(boss_health_percent(540.0, 900.0), 60);
+        assert_eq!(boss_health_percent(-10.0, 900.0), 0);
+        assert_eq!(boss_health_percent(120.0, 100.0), 100);
+        assert_eq!(boss_health_percent(50.0, 0.0), 0);
+        assert_eq!(boss_health_percent(f32::NAN, 100.0), 0);
     }
 
     #[test]
@@ -492,6 +582,15 @@ mod tests {
             assert!(plates.contains(&(guardian, "Wendigo".into())));
             assert!(plates.contains(&(king, "Flame Dragon · 3/3".into())));
             assert_eq!(plates.len(), 2);
+            let health: Vec<_> = app
+                .world_mut()
+                .query::<(&BossHealthLabel, &Text)>()
+                .iter(app.world())
+                .map(|(label, text)| (label.boss, text.0.clone()))
+                .collect();
+            assert!(health.contains(&(guardian, "60%".into())));
+            assert!(health.contains(&(king, "60%".into())));
+            assert_eq!(health.len(), 2);
             for _snapshot in 0..100 {
                 app.world_mut()
                     .entity_mut(guardian)
@@ -521,6 +620,13 @@ mod tests {
             assert_eq!(
                 app.world_mut()
                     .query::<&BossNameplate>()
+                    .iter(app.world())
+                    .count(),
+                0
+            );
+            assert_eq!(
+                app.world_mut()
+                    .query::<&BossHealthLabel>()
                     .iter(app.world())
                     .count(),
                 0

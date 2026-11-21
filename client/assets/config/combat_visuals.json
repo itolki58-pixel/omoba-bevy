@@ -47,5 +47,14 @@
   },
   "avatar_overrides": {},
   "sprite_overrides": {},
-  "animation_aliases": {}
+  "animation_aliases": {
+    "zargat": {
+      "idle": ["Idle"],
+      "walk": ["Walk"],
+      "run": ["Run"],
+      "attack": ["Attack"],
+      "cast": ["Cast"],
+      "death": ["Death"]
+    }
+  }
 }

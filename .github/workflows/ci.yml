@@ -33,6 +33,18 @@ jobs:
         run: cargo clippy --workspace --all-targets --no-deps -- -D warnings
       - name: Clippy, client without the qa feature
         run: cargo clippy -p client --lib --no-deps --no-default-features -- -D warnings
+      # The avatar manifest includes Zargat, but its optimized GLB/thumbnail
+      # are generated from the user-supplied source model during packaging.
+      # Generate them here too so the shipped-rig tests exercise the real asset.
+      - name: Build source-based Zargat assets for tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender python3-numpy python3-pil libegl1 libgl1 libglib2.0-0
+          export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
+          blender --background --factory-startup --python scripts/rig_zargat_source.py
+          python3 scripts/optimize_zargat_glb.py client/assets/avatars/zargat.glb
+          test -s client/assets/avatars/zargat.glb
+          test -s client/assets/avatars/zargat.png
       - name: Unit and integration tests
         run: cargo test --workspace --locked --exclude harness
 

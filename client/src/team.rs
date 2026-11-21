@@ -107,7 +107,7 @@ pub struct TeamSelection {
     pub avatar: Option<String>,
     /// Selected 2D sprite character, preserved independently of the 3D avatar.
     pub sprite_character: String,
-    hero_filter: HeroLaneFilter,
+    pub(crate) hero_filter: HeroLaneFilter,
 }
 
 impl Default for TeamSelection {
@@ -282,7 +282,7 @@ fn class_line(class: HeroClass) -> String {
             Some("verdant-bow") => tr("team.weapon.bow"),
             _ => tr("team.weapon.default"),
         });
-    format!("{role} · {weapon}")
+    format!("{} · {}", role, weapon)
 }
 
 #[derive(Component)]
@@ -2550,22 +2550,22 @@ mod tests {
             ))
             .id();
         let text = |app: &App| app.world().get::<Text>(label).unwrap().0.clone();
-        assert_eq!(text(&app), "01  CHOOSE YOUR CLASS");
+        assert_eq!(text(&app), "01  CHOOSE YOUR HEROES");
         app.update();
-        assert_eq!(text(&app), "01  CLASS");
+        assert_eq!(text(&app), "01  HEROES");
         app.insert_resource(Locale::detached(LocaleId::parse("zh-Hans").unwrap()));
         app.update();
-        assert_eq!(text(&app), "01  职业");
+        assert_eq!(text(&app), "01  英雄");
         app.world_mut()
             .resource_mut::<crate::mobile_controls::MobileControls>()
             .enabled = false;
         app.update();
-        assert_eq!(text(&app), "01  选择职业");
+        assert_eq!(text(&app), "01  选择英雄");
     }
     #[test]
     fn hero_lane_filters_cover_all_twelve_heroes() {
         let roster = &shared::hero_roster::STARTER_ROSTER;
-        let count = |filter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
+        let count = |filter: HeroLaneFilter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
         assert_eq!(count(HeroLaneFilter::All), 12);
         assert_eq!(count(HeroLaneFilter::Gold), 2);
         assert_eq!(count(HeroLaneFilter::Experience), 3);
