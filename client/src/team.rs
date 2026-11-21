@@ -1751,7 +1751,7 @@ fn sync_lane_filter_visibility(
 ) {
     if !selection.is_changed() { return; }
     for (action, mut visibility) in &mut heroes {
-        let HeroSelectAction::Class(class) = action.0 else { continue; };
+        let HeroSelectAction::Class(class) = &action.0 else { continue; };
         *visibility = if selection.lane_filter.matches(class.primary_role()) {
             Visibility::Visible
         } else {
