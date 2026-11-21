@@ -433,15 +433,12 @@ mod avatar_facing_tests {
             Vec3::NEG_Z,
             Vec3::new(0.6, 0.0, -0.8),
         ] {
-            let zargat_yaw = hero_yaw_for_avatar(Some("zargat"), direction);
-            let zargat_forward = shared::math::unit_forward(zargat_yaw);
-            assert!((zargat_forward[0] - direction.x).abs() < 1e-5);
-            assert!((zargat_forward[1] - direction.z).abs() < 1e-5);
-
-            let regular_yaw = hero_yaw_for_avatar(Some("anna"), direction);
-            let regular_forward = shared::math::hero_forward(regular_yaw);
-            assert!((regular_forward[0] - direction.x).abs() < 1e-5);
-            assert!((regular_forward[1] - direction.z).abs() < 1e-5);
+            for avatar in [Some("zargat"), Some("anna"), None] {
+                let yaw = hero_yaw_for_avatar(avatar, direction);
+                let forward = shared::math::hero_forward(yaw);
+                assert!((forward[0] - direction.x).abs() < 1e-5);
+                assert!((forward[1] - direction.z).abs() < 1e-5);
+            }
         }
     }
 }
