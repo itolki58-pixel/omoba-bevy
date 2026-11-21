@@ -99,7 +99,7 @@ fn accept_dash_ack(
 }
 
 /// Lane minions render at this multiple of the shared creature reference height.
-const MINION_MODEL_HEIGHT_SCALE: f32 = 1.40625;
+const MINION_MODEL_HEIGHT_SCALE: f32 = 1.125;
 
 fn network_projectile(state: &ProjectileState) -> NetworkProjectile {
     let direction = Vec3::from_array(state.direction);
