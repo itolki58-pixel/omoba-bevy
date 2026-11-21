@@ -468,23 +468,25 @@ fn hero_card(
     image: Option<Handle<Image>>,
     width: f32,
     selected: bool,
+    compact: bool,
 ) {
-    let portrait_width = (width - 12.0).clamp(52.0, 76.0);
-    let portrait_height = portrait_width * 1.08;
+    let portrait_width = (width - if compact { 8.0 } else { 12.0 })
+        .clamp(if compact { 38.0 } else { 52.0 }, if compact { 56.0 } else { 76.0 });
+    let portrait_height = portrait_width * 0.92;
     parent
         .spawn((
             Button,
             Node {
                 width: Val::Px(width),
                 min_width: Val::Px(width),
-                height: Val::Px(124.0),
-                min_height: Val::Px(124.0),
+                height: Val::Px(if compact { 94.0 } else { 124.0 }),
+                min_height: Val::Px(if compact { 94.0 } else { 124.0 }),
                 flex_shrink: 0.0,
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-                row_gap: Val::Px(5.0),
-                padding: UiRect::all(Val::Px(5.0)),
+                row_gap: Val::Px(if compact { 2.0 } else { 5.0 }),
+                padding: UiRect::all(Val::Px(if compact { 3.0 } else { 5.0 })),
                 border: UiRect::all(Val::Px(2.0)),
                 border_radius: BorderRadius::all(Val::Px(8.0)),
                 ..default()
@@ -519,7 +521,11 @@ fn hero_card(
                     BackgroundColor(theme::PANEL_EDGE),
                 ));
             }
-            card.spawn(widgets::label(data::hero_name(hero.class), 12.0, theme::IVORY));
+            card.spawn(widgets::label(
+                data::hero_name(hero.class),
+                if compact { 10.0 } else { 12.0 },
+                theme::IVORY,
+            ));
         });
 }
 
@@ -831,7 +837,11 @@ fn render_draft(
                     Name::new("DraftPicker"),
                 ))
                 .with_children(|picker| {
-                    picker.spawn(widgets::label(tr("draft.avatars.included"), 12.0, theme::GOLD));
+                    picker.spawn((
+                        widgets::label(tr("draft.avatars.included"), 16.0, theme::GOLD),
+                        Node { margin: UiRect::bottom(Val::Px(4.0)), ..default() },
+                        Name::new("DraftHeroesHeading"),
+                    ));
                     picker
                         .spawn(Node {
                             width: Val::Percent(100.0),
@@ -866,7 +876,17 @@ fn render_draft(
                                 );
                             }
                         });
-                    let columns = if picker_width >= 360.0 {
+                    let columns = if compact {
+                        if picker_width >= 350.0 {
+                            5.0
+                        } else if picker_width >= 280.0 {
+                            4.0
+                        } else if picker_width >= 210.0 {
+                            3.0
+                        } else {
+                            2.0
+                        }
+                    } else if picker_width >= 360.0 {
                         4.0
                     } else if picker_width >= 270.0 {
                         3.0
@@ -897,6 +917,7 @@ fn render_draft(
                                     image,
                                     card_width,
                                     choice.is_some_and(|selected| selected.hero_class == hero.class),
+                                    compact,
                                 );
                             }
                         });
