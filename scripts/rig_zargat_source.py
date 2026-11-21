@@ -22,12 +22,11 @@ bpy.context.view_layer.objects.active = meshes[0]
 bpy.ops.object.join()
 body = bpy.context.object
 body.name = "Zargat_SourceMesh"
-# The supplied DemonKnight source faces opposite to the client forward axis.
-# Apply the 180-degree correction to the mesh BEFORE building the skeleton so
-# the mesh, bind pose, weights and every animation share the corrected basis.
-body.rotation_euler.z += math.pi
-bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-print("DemonKnight source orientation corrected: 180 degrees around vertical")
+# The supplied Zaragat GLB is authored facing local +Z. The client movement
+# system uses that same +Z convention for this avatar, so do not rotate the
+# source mesh or rig: doing so would make the hero walk backwards in-game.
+bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+print("Zaragat source orientation preserved: local +Z forward")
 # Normalize the model around its ground contact and centerline. Blender's glTF
 # importer converts glTF Y-up into Blender Z-up.
 coords = [body.matrix_world @ v.co for v in body.data.vertices]
