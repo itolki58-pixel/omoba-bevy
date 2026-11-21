@@ -1691,9 +1691,9 @@ mod tests {
             .resource_mut::<Locale>()
             .set(LocaleId::parse("zh-Hans").unwrap());
         app.update();
-        assert_eq!(label(&mut app, "HomePlay"), "ејЂе§‹жёёж€Џ");
-        assert_eq!(label(&mut app, "HomeCustomizeCard"), "и‡Єе®љд№‰еђЌз‰‡");
-        assert_eq!(label(&mut app, "HomeHistory"), "еЇ№е±Ђи®°еЅ•");
+        assert_eq!(label(&mut app, "HomePlay"), "开始游戏");
+        assert_eq!(label(&mut app, "HomeCustomizeCard"), "自定义名片");
+        assert_eq!(label(&mut app, "HomeHistory"), "对局记录");
         assert_ne!(status(&mut app), english_status);
         assert_eq!(
             status(&mut app),
