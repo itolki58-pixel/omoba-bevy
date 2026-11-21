@@ -2547,7 +2547,7 @@ mod tests {
             .resource_mut::<crate::mobile_controls::MobileControls>()
             .enabled = false;
         app.update();
-        assert_eq!(text(&app), "01  选择职业");
+        assert_eq!(text(&app), "01  ВЫБЕРИТЕ ГЕРОЕВ");
     }
     #[test]
     fn hero_lane_filters_cover_all_twelve_heroes() {
