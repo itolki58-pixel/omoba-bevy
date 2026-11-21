@@ -309,7 +309,7 @@ fn effective_target_height(
             .target_height
             .clamp(MIN_MODEL_TARGET_HEIGHT, MAX_MODEL_TARGET_HEIGHT)
     };
-    reference_height * if normalization.uses_creature_reference { 1.0 } else { 1.25 } * normalization.height_scale * override_multiplier
+    reference_height * (if normalization.uses_creature_reference { 1.0 } else { 1.25 }) * normalization.height_scale * override_multiplier
 }
 
 /// Walks the glTF node graph (bind pose, no animation) and folds every mesh
