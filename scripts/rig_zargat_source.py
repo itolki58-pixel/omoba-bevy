@@ -22,7 +22,11 @@ bpy.context.view_layer.objects.active = meshes[0]
 bpy.ops.object.join()
 body = bpy.context.object
 body.name = "Zargat_SourceMesh"
+# The supplied Zaragat GLB is authored facing local +Z. The client movement
+# system uses that same +Z convention for this avatar, so do not rotate the
+# source mesh or rig: doing so would make the hero walk backwards in-game.
 bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+print("Zaragat source orientation preserved: local +Z forward")
 # Normalize the model around its ground contact and centerline. Blender's glTF
 # importer converts glTF Y-up into Blender Z-up.
 coords = [body.matrix_world @ v.co for v in body.data.vertices]
@@ -87,6 +91,8 @@ cx=(xmin+xmax)*0.5; cy=(ymin+ymax)*0.5
 ad = bpy.data.armatures.new("Zargat_Armature")
 rig = bpy.data.objects.new("Zargat_Rig", ad)
 bpy.context.collection.objects.link(rig)
+# The source mesh was corrected before rigging; keep the armature root neutral.
+rig.location=(0,0,0); rig.rotation_euler=(0,0,0); rig.scale=(1,1,1)
 bpy.context.view_layer.objects.active=rig; rig.select_set(True)
 bpy.ops.object.mode_set(mode="EDIT")
 eb={}
@@ -195,29 +201,38 @@ def idle(f):
         rot("wing."+suf,s*.10*math.sin(t/2))
     for n,k in [("tail.01",.08),("tail.02",.12),("tail.03",.16),("tail.tip",.18)]:
         rot(n,k*math.sin(t+.6))
-def locomotion(f,amount):
-    t=(f-1)/24*math.tau
+def locomotion(f,amount,cycle_frames=24):
+    t=(f-1)/cycle_frames*math.tau
     for suf,phase in [("L",0),("R",math.pi)]:
         a=math.sin(t+phase)
-        rot("thigh."+suf,.55*amount*a); rot("shin."+suf,.45*amount*max(0,-a))
-        rot("upper_arm."+suf,-.30*amount*a)
+        # Swing limbs in their sagittal plane, not around the bone's roll axis.
+        rot("thigh."+suf,x=.55*amount*a)
+        rot("shin."+suf,x=.45*amount*max(0,-a))
+        rot("upper_arm."+suf,x=-.30*amount*a)
     rot("spine",.04*amount*math.sin(2*t)); rot("chest",.025*amount*math.sin(2*t+1))
     for suf,s in [("L",1),("R",-1)]: rot("wing."+suf,s*.12*amount*math.sin(2*t))
     for n,k in [("tail.01",.08),("tail.02",.12),("tail.03",.16),("tail.tip",.20)]:
         rot(n,k*math.sin(t+.5))
+def smooth(v):
+    v=max(0.0,min(1.0,v))
+    return v*v*(3.0-2.0*v)
 def attack(f):
-    t=(f-1)/26
-    power=math.sin(min(1,max(0,t))*math.pi)
-    rot("spine",-.22*power); rot("chest",-.35*power)
-    rot("upper_arm.R",-.9*power); rot("forearm.R",-.7*power); rot("sword",-.8*power)
-    rot("wing.L",.2*power); rot("wing.R",-.2*power)
+    t=(f-1)/30
+    anticipation=math.sin(math.pi*min(1.0,t/.24)) if t<.24 else 0.0
+    impact=smooth((t-.24)/.18)*(1.0-smooth((t-.42)/.50))
+    rot("spine",-.10*anticipation-.22*impact)
+    rot("chest",-.16*anticipation-.35*impact)
+    rot("upper_arm.R",x=-.9*impact)
+    rot("forearm.R",x=-.7*impact)
+    rot("sword",x=-.8*impact)
+    rot("wing.L",.2*impact); rot("wing.R",-.2*impact)
 def cast(f):
     p=math.sin((f-1)/24*math.pi)
-    rot("upper_arm.L",.65*p); rot("upper_arm.R",-.65*p)
+    rot("upper_arm.L",x=.65*p); rot("upper_arm.R",x=-.65*p)
     rot("wing.L",.35*p); rot("wing.R",-.35*p)
     rot("tail.01",.18*p); rot("tail.02",.24*p); rot("tail.03",.30*p)
 def death(f):
-    p=(f-1)/30
+    p=smooth((f-1)/30)
     rot("spine",.65*p); rot("head",-.3*p); rot("wing.L",.45*p); rot("wing.R",-.45*p)
 def hit(f):
     p=math.sin((f-1)/12*math.pi)
@@ -233,17 +248,52 @@ def ultimate(f):
     rot("upper_arm.L",.8*p); rot("upper_arm.R",-.8*p)
     rot("wing.L",.7*p); rot("wing.R",-.7*p); rot("chest",-.1*p)
     rot("tail.01",.30*p); rot("tail.02",-.35*p); rot("tail.03",.40*p)
-clip("Idle",[1,16,31],idle)
-clip("Run",[1,6,11,16,21],lambda f:locomotion(f,1.0))
-clip("Walk",[1,7,13,19,25],lambda f:locomotion(f,.65))
-clip("Attack",[1,4,8,12,17,22,27],attack)
-clip("Cast",[1,8,16,25],cast)
-clip("Death",[1,10,20,31],death)
-clip("Hit",[1,4,8,13],hit)
+def two_hand_push(f):
+    p=math.sin((f-1)/30*math.pi)
+    rot("spine",-.16*p); rot("chest",-.24*p)
+    rot("upper_arm.L",x=.78*p); rot("upper_arm.R",x=-.78*p)
+    rot("forearm.L",x=.34*p); rot("forearm.R",x=-.34*p)
+    rot("wing.L",.14*p); rot("wing.R",-.14*p)
+def rally_raise(f):
+    p=math.sin((f-1)/30*math.pi)
+    rot("chest",-.18*p); rot("head",.08*p)
+    rot("upper_arm.L",x=-.72*p); rot("upper_arm.R",x=.72*p)
+    rot("forearm.L",x=-.28*p); rot("forearm.R",x=.28*p)
+    rot("wing.L",.32*p); rot("wing.R",-.32*p)
+    rot("tail.02",.12*p); rot("tail.03",.18*p)
+def slash_down(f):
+    p=math.sin((f-1)/30*math.pi)
+    rot("spine",-.18*p); rot("chest",-.24*p)
+    rot("upper_arm.R",x=-1.0*p); rot("forearm.R",x=-.82*p); rot("sword",x=-.95*p)
+    rot("wing.L",.12*p); rot("wing.R",-.18*p)
+def slash_rising(f):
+    p=math.sin((f-1)/30*math.pi)
+    rot("spine",.10*p); rot("chest",.18*p)
+    rot("upper_arm.R",x=.78*p); rot("forearm.R",x=-.52*p); rot("sword",x=.92*p)
+    rot("wing.L",.10*p); rot("wing.R",-.14*p)
+def spin_cleave(f):
+    p=math.sin((f-1)/30*math.pi)
+    rot("pelvis",z=.42*p); rot("spine",z=.62*p); rot("chest",z=.48*p)
+    rot("upper_arm.R",x=-.72*p); rot("forearm.R",x=-.55*p); rot("sword",x=-.65*p)
+    rot("upper_arm.L",x=.40*p); rot("wing.L",.42*p); rot("wing.R",-.42*p)
+    rot("tail.01",.22*p); rot("tail.02",-.28*p); rot("tail.03",.34*p)
+clip("Idle",[1,8,16,24,31],idle)
+clip("Run",[1,4,7,10,13,16,19,22,25],lambda f:locomotion(f,1.0,24))
+clip("Walk",[1,5,9,13,17,21,25,29,33],lambda f:locomotion(f,.65,32))
+clip("Attack",[1,4,7,10,13,16,19,22,25,28,31],attack)
+clip("Cast",[1,4,7,10,13,16,19,22,25],cast)
+clip("Death",[1,8,16,24,31],death)
+clip("Hit",[1,3,5,7,9,11,13],hit)
 clip("TurnLeft",[1,5,9,13,17],lambda f:turn(f,1))
 clip("TurnRight",[1,5,9,13,17],lambda f:turn(f,-1))
 clip("Stop",[1,4,7,11],stop)
-clip("Ultimate",[1,8,16,24,31],ultimate)
+clip("Ultimate",[1,6,11,16,21,26,31],ultimate)
+# Warrior skill IDs resolve to these distinct clips through skills.skillfx releases.
+clip("two_hand_push",[1,4,8,12,16,20,24,28,31],two_hand_push)
+clip("rally_raise",[1,4,8,12,16,20,24,28,31],rally_raise)
+clip("slash_down",[1,4,8,12,16,20,24,28,31],slash_down)
+clip("slash_rising",[1,4,8,12,16,20,24,28,31],slash_rising)
+clip("spin_cleave",[1,4,8,12,16,20,24,28,31],spin_cleave)
 bpy.context.scene.frame_set(1)
 
 os.makedirs(os.path.dirname(OUT),exist_ok=True)
@@ -267,7 +317,7 @@ light("Key", (cx-3,cy-4,4),850,(1.0,.92,.84),4)
 light("Fill",(cx+3,cy-3,2.5),320,(.42,.52,.78),3)
 light("Rim",(cx,cy+2,3.5),520,(1.0,.16,.055),2)
 camd=bpy.data.cameras.new("Zargat_Camera"); cam=bpy.data.objects.new("Zargat_Camera",camd); scene.collection.objects.link(cam)
-cam.location=(cx+2.8,cy-6,2.7); cam.rotation_euler=(Vector((cx,cy,1.2))-cam.location).to_track_quat("-Z","Y").to_euler()
+cam.location=(cx+2.8,cy+6,2.7); cam.rotation_euler=(Vector((cx,cy,1.2))-cam.location).to_track_quat("-Z","Y").to_euler()
 camd.type="ORTHO"; camd.ortho_scale=max(width,depth,2.6)*1.45; scene.camera=cam
 scene.render.filepath=PNG; bpy.ops.render.render(write_still=True)
 if not os.path.isfile(PNG) or os.path.getsize(PNG)<10000: raise RuntimeError("Blender preview render failed")

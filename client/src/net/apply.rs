@@ -98,7 +98,7 @@ fn accept_dash_ack(
     changed
 }
 
-/// Minions render at this multiple of the shared normalized hero height.
+/// Lane minions render at this multiple of the shared creature reference height.
 const MINION_MODEL_HEIGHT_SCALE: f32 = 1.125;
 
 fn network_projectile(state: &ProjectileState) -> NetworkProjectile {

@@ -578,7 +578,9 @@ pub fn spawn_team_select_ui(
                 parent,
                 crate::ui::living_background::LivingScene::Arena,
                 crate::ui::living_background::LivingBands {
-                    header: Some(120.0),
+                    // No opaque header band: it was painting over the first
+                    // row of hero cards on landscape mobile layouts.
+                    header: None,
                     footer: None,
                 },
                 crate::ui::theme::Form::of(compact),
@@ -1905,12 +1907,22 @@ fn layout_spacious_picker(
             node.display = Display::None; continue;
         }
         if class.is_some() {
-            node.width = Val::Px(if phone { left_w } else { (left_w - 24.0) / 4.0 });
+            node.width = Val::Px(if phone { (left_w - 8.0) / 2.0 } else { (left_w - 24.0) / 4.0 });
             node.height = Val::Px(if phone {
-                ((bottom - class_y - 24.0) / 5.0).clamp(40.0, 48.0)
+                // Two columns mean three rows for the starter roster. Keep the
+                // portrait and label fully inside each horizontal hero card.
+                ((bottom - class_y - 12.0) / 3.0).clamp(84.0, 96.0)
             } else {
                 64.0
             });
+            if phone {
+                // Override the compact 22%-wide / 108px-tall source defaults;
+                // otherwise their min/max constraints defeat the two-column size.
+                node.min_width = Val::Px(0.0);
+                node.max_width = Val::Auto;
+                node.min_height = Val::Px(84.0);
+                node.max_height = Val::Auto;
+            }
             node.flex_direction = if phone {
                 FlexDirection::Row
             } else {
@@ -1933,6 +1945,15 @@ fn layout_spacious_picker(
             }
             "TeamSelectOverlay" => {
                 node.padding = UiRect::ZERO;
+            }
+            "HeroLaneFilterTabs" => {
+                // Keep the filters available; the header band is removed
+                // separately so this row no longer overlaps the roster.
+                node.display = Display::Flex;
+            }
+            "ClassSelectTitle" => {
+                // Remove the redundant "01 HEROES" plaque above the cards.
+                node.display = Display::None;
             }
             "HeroSelectHeader" => {
                 absolute(&mut node, inset, top, w - inset - layout.right, 48.0);
@@ -1974,19 +1995,11 @@ fn layout_spacious_picker(
                         layout.class_height()
                     },
                 );
-                node.flex_direction = if phone {
-                    FlexDirection::Column
-                } else {
-                    FlexDirection::Row
-                };
+                node.flex_direction = FlexDirection::Row;
                 node.justify_content = JustifyContent::FlexStart;
                 node.column_gap = Val::Px(8.0);
                 node.row_gap = Val::Px(6.0);
-                node.flex_wrap = if phone {
-                    FlexWrap::NoWrap
-                } else {
-                    FlexWrap::Wrap
-                };
+                node.flex_wrap = FlexWrap::Wrap;
                 node.overflow = Overflow::scroll_y();
             }
             "AvatarSelectTitle" => absolute(&mut node, grid_x, grid_y - 24.0, grid_w, 20.0),
