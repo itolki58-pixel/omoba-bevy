@@ -13,6 +13,7 @@ use bevy::world_serialization::WorldAssetRoot;
 use std::collections::HashMap;
 
 use crate::camera::MainCamera;
+use crate::combat::CombatStats;
 use crate::creatures3d::{CreatureAssets, ProceduralCreature, spawn_creature};
 use crate::model_scale::{ModelScaleSource, NormalizeModelScale};
 use crate::net::{NetworkNeutral, NeutralAiState, NeutralAiStateTag, NeutralCampType};
@@ -492,7 +493,6 @@ fn force_boss_models_double_sided(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::combat::CombatStats;
     use crate::creatures3d::{CreatureAssets, test_app};
     use crate::model_scale::CREATURE_MODEL_TARGET_HEIGHT;
 
