@@ -164,10 +164,14 @@ pub(super) fn move_player(
 }
 
 
-/// The in-game Zaragat GLB uses the same local -Z forward axis as the other
-/// heroes. A previous +Z special case inverted movement and made him run backwards.
-fn hero_yaw_for_avatar(_avatar_slug: Option<&str>, direction: Vec3) -> f32 {
-    shared::math::hero_yaw_towards(direction.x, direction.z)
+/// The bundled Zaragat GLB is authored facing local +Z; the rest of the
+/// hero roster faces local -Z. Keep the matching yaw convention per asset.
+fn hero_yaw_for_avatar(avatar_slug: Option<&str>, direction: Vec3) -> f32 {
+    if avatar_slug == Some("zargat") {
+        shared::math::unit_yaw_towards(direction.x, direction.z)
+    } else {
+        shared::math::hero_yaw_towards(direction.x, direction.z)
+    }
 }
 
 /// A local presentation clock: pause/frame steps follow authority, never global Time.
@@ -425,7 +429,7 @@ mod avatar_facing_tests {
     use super::*;
 
     #[test]
-    fn zargat_and_other_heroes_face_their_travel_direction() {
+    fn each_hero_faces_its_travel_direction_using_its_asset_forward_axis() {
         for direction in [
             Vec3::X,
             Vec3::Z,
@@ -433,7 +437,12 @@ mod avatar_facing_tests {
             Vec3::NEG_Z,
             Vec3::new(0.6, 0.0, -0.8),
         ] {
-            for avatar in [Some("zargat"), Some("anna"), None] {
+            let zargat_yaw = hero_yaw_for_avatar(Some("zargat"), direction);
+            let zargat_forward = shared::math::unit_forward(zargat_yaw);
+            assert!((zargat_forward[0] - direction.x).abs() < 1e-5);
+            assert!((zargat_forward[1] - direction.z).abs() < 1e-5);
+
+            for avatar in [Some("anna"), None] {
                 let yaw = hero_yaw_for_avatar(avatar, direction);
                 let forward = shared::math::hero_forward(yaw);
                 assert!((forward[0] - direction.x).abs() < 1e-5);
