@@ -6,6 +6,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::camera::{CameraState, MainCamera};
 use crate::combat::CombatStats;
+use crate::game_vfx::{Curve as VfxCurve, Orient as VfxOrient, ParticleSource, ParticleSpec, SkillBurst, Tint};
+use crate::skill_presentation::vocab::ParticleShape as VfxShape;
 use crate::maps::MapLayout;
 use crate::net::{
     ClientSession, NetworkAvatar, NetworkHeroClass, NetworkMinion, NetworkNeutral,
@@ -633,6 +635,7 @@ fn expire_local_ping_markers(
 /// local feedback only; it does not claim that teammates received a ping.
 fn update_local_ping_marker(
     mut commands: Commands,
+    mut vfx: MessageWriter<SkillBurst>,
     navigation: Res<MinimapNavigationState>,
     containers: Query<Entity, With<MinimapContainer>>,
     layout: Res<MapLayout>,
@@ -640,6 +643,26 @@ fn update_local_ping_marker(
     mut marker: ResMut<LocalPingMarker>,
 ) {
     if let Some(target) = navigation.movement_target {
+        // A separate ground-ring particle makes the order visible in the world
+        // as well as on the minimap. It is cosmetic and never affects simulation.
+        vfx.write(SkillBurst(vec![ParticleSpec {
+            origin: target + Vec3::Y * 0.12,
+            size: 2.2,
+            lifetime: 0.85,
+            color: Tint {
+                color: Color::srgb(1.0, 0.82, 0.28),
+                gain: 1.35,
+            },
+            end_color: Some(Tint {
+                color: Color::srgba(1.0, 0.82, 0.28, 0.0),
+                gain: 1.35,
+            }),
+            shape: VfxShape::Ringlet,
+            curve: VfxCurve::Grow,
+            orient: VfxOrient::Ground,
+            source: ParticleSource::Move,
+            ..ParticleSpec::BASE
+        }]));
         if let Some(entity) = marker.entity.take() {
             commands.entity(entity).despawn();
         }
@@ -1329,6 +1352,7 @@ mod tests {
             .init_resource::<LocalPingMarker>()
             .init_resource::<MapLayout>()
             .init_resource::<Time>()
+            .add_message::<SkillBurst>()
             .add_systems(Update, update_local_ping_marker);
         let container = app.world_mut().spawn((Node::default(), MinimapContainer)).id();
         app.world_mut()
