@@ -1,7 +1,7 @@
-//! Pre-join selection flow: hero class -> roster avatar -> team.
+//! Pre-join selection flow: choose a hero, then join a team.
 //!
-//! The roster avatars (CC0 VRM models under `assets/avatars/`) are the primary
-//! cosmetic path for the demo; the legacy SDK character stays in
+//! The roster avatars under `assets/avatars/` are the primary cosmetic path;
+//! the legacy SDK character stays in
 //! [`TeamSelection::character`] as the fallback model when no roster avatar is
 //! selected. Picking a team commits the join (class + avatar + team in one
 //! packet).
@@ -9,7 +9,7 @@
 
 use bevy::prelude::*;
 use omoba_passport::avatars::avatar_roster;
-use shared::{HeroClass, prematch::Role};
+use shared::HeroClass;
 use std::collections::HashMap;
 
 pub use crate::domain::Team;
@@ -27,18 +27,20 @@ pub use shared::wire::CharacterChoice;
 
 const TEAM_BUTTON_SIZE: f32 = 64.0;
 const TEAM_BUTTON_GAP: f32 = 28.0;
-const CLASS_BUTTON_WIDTH: f32 = 190.0;
-const CLASS_BUTTON_HEIGHT: f32 = 60.0;
-const CLASS_BUTTON_GAP: f32 = 12.0;
+const CLASS_BUTTON_WIDTH: f32 = 164.0;
+const CLASS_BUTTON_HEIGHT: f32 = 112.0;
+const CLASS_BUTTON_GAP: f32 = 10.0;
+const COMPACT_CLASS_BUTTON_WIDTH: f32 = 56.0;
+const COMPACT_CLASS_BUTTON_HEIGHT: f32 = 104.0;
 const AVATAR_BUTTON_WIDTH: f32 = 76.0;
 const AVATAR_BUTTON_HEIGHT: f32 = 92.0;
 const AVATAR_THUMBNAIL_SIZE: f32 = 56.0;
 const AVATAR_GRID_GAP: f32 = 8.0;
 const AVATAR_GRID_COLUMNS: usize = 8;
 const SPRITE_GRID_MAX_COLUMNS: usize = 5;
+#[allow(dead_code)]
 const SPRITE_GRID_WIDTH_PERCENT: f32 = 92.0;
 // Opaque: the match world must not be visible while a hero is being picked.
-const TEAM_OVERLAY_COLOR: Color = crate::ui::theme::BACKDROP;
 const SELECT_BUTTON_COLOR: Color = crate::ui::theme::TILE;
 const SELECT_BUTTON_SELECTED_COLOR: Color = crate::ui::theme::TILE_SELECTED;
 
@@ -48,8 +50,8 @@ const SELECT_BUTTON_SELECTED_COLOR: Color = crate::ui::theme::TILE_SELECTED;
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum HeroSelectAction {
     Back,
+    Filter(HeroLaneFilter),
     Class(HeroClass),
-    Lane(LaneFilter),
     Avatar(String),
     Sprite(String),
     LockIn(Team),
@@ -58,40 +60,37 @@ enum HeroSelectAction {
     RefreshStudio,
 }
 
-/// Lane filter shown above the hero roster. Carry is the Gold lane and Solo is EXP.
+
+// Hero cards are filtered by their lane; the card itself always represents a hero.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum LaneFilter {
+enum HeroLaneFilter {
     #[default]
     All,
     Gold,
-    Exp,
-    Mid,
+    Experience,
+    Center,
     Jungle,
     Support,
 }
-
-impl LaneFilter {
-    const ALL: [Self; 6] = [Self::All, Self::Gold, Self::Exp, Self::Mid, Self::Jungle, Self::Support];
-
-    const fn label(self) -> &'static str {
-        match self {
-            Self::All => "ALL",
-            Self::Gold => "GOLD",
-            Self::Exp => "EXP",
-            Self::Mid => "MID",
-            Self::Jungle => "JUNGLE",
-            Self::Support => "SUPPORT",
-        }
-    }
-
-    const fn matches(self, role: Role) -> bool {
+impl HeroLaneFilter {
+    fn matches(self, role: shared::prematch::Role) -> bool {
         match self {
             Self::All => true,
-            Self::Gold => matches!(role, Role::Carry),
-            Self::Exp => matches!(role, Role::Solo),
-            Self::Mid => matches!(role, Role::Mid),
-            Self::Jungle => matches!(role, Role::Jungle),
-            Self::Support => matches!(role, Role::Support),
+            Self::Gold => role == shared::prematch::Role::Carry,
+            Self::Experience => role == shared::prematch::Role::Solo,
+            Self::Center => role == shared::prematch::Role::Mid,
+            Self::Jungle => role == shared::prematch::Role::Jungle,
+            Self::Support => role == shared::prematch::Role::Support,
+        }
+    }
+    fn label_key(self) -> &'static str {
+        match self {
+            Self::All => "draft.filter.all",
+            Self::Gold => "draft.filter.gold",
+            Self::Experience => "draft.filter.experience",
+            Self::Center => "draft.filter.center",
+            Self::Jungle => "draft.filter.jungle",
+            Self::Support => "draft.filter.support",
         }
     }
 }
@@ -99,8 +98,6 @@ impl LaneFilter {
 #[derive(Resource)]
 pub struct TeamSelection {
     pub handheld: shared::handheld::HandheldSelection,
-    /// Active lane filter in the hero picker.
-    pub lane_filter: LaneFilter,
     pub team: Option<Team>,
     /// Legacy SDK character; used as the model when no roster avatar is picked.
     pub character: CharacterChoice,
@@ -110,22 +107,24 @@ pub struct TeamSelection {
     pub avatar: Option<String>,
     /// Selected 2D sprite character, preserved independently of the 3D avatar.
     pub sprite_character: String,
+    hero_filter: HeroLaneFilter,
 }
 
 impl Default for TeamSelection {
     fn default() -> Self {
         Self {
             handheld: Default::default(),
-            lane_filter: LaneFilter::All,
             team: None,
             character: CharacterChoice::default(),
             hero_class: HeroClass::default(),
             // Preselect the first shipped avatar so a plain "click a team"
             // flow already exercises the roster path.
-            avatar: crate::passport::selectable_avatars()
-                .first()
-                .map(|avatar| avatar.slug.clone()),
-            sprite_character: shared::DEFAULT_SPRITE_CHARACTER_ID.to_owned(),
+            avatar: shared::hero_roster::profile(HeroClass::Warrior)
+                .map(|hero| hero.avatar.to_owned()),
+            sprite_character: shared::hero_roster::profile(HeroClass::Warrior)
+                .map(|hero| hero.sprite_character.to_owned())
+                .unwrap_or_else(|| shared::DEFAULT_SPRITE_CHARACTER_ID.to_owned()),
+            hero_filter: HeroLaneFilter::All,
         }
     }
 }
@@ -162,12 +161,13 @@ impl Plugin for TeamSelectPlugin {
                         .after(UiSet::Dispatch)
                         .before(crate::net::ClientNetPipeline::SendCommands),
                     sync_hero_panel,
+                    sync_hero_filter.after(team_select_ui_system),
                     sync_hero_select_status,
                     apply_phone_copy,
                 )
                     .run_if(in_state(AppScreen::HeroSelect)),
             )
-            .add_systems(Update, (attach_avatar_thumbnails, restore_picker_scroll, sync_lane_filter_visibility))
+            .add_systems(Update, (attach_avatar_thumbnails, restore_picker_scroll))
             .add_systems(
                 Update,
                 wallet_connect_ui_system
@@ -263,13 +263,26 @@ fn class_keys(class: HeroClass) -> (&'static str, &'static str) {
         HeroClass::Chainkeeper => ("hero.chainkeeper.name", "hero.chainkeeper.tagline"),
         HeroClass::Frostguard => ("hero.frostguard.name", "hero.frostguard.tagline"),
         HeroClass::Adventurer => ("hero.adventurer.name", "hero.adventurer.tagline"),
-        HeroClass::Zargat => ("hero.zargat.name", "hero.zargat.tagline"),
     }
 }
 
-/// `Warrior · Melee bruiser…` in the active language.
+/// Fixed position and signature weapon shown for the selected hero.
 fn class_line(class: HeroClass) -> String {
-    format!("{} · {}", data::hero_name(class), data::hero_tagline(class))
+    let role = shared::hero_roster::profile(class)
+        .map(|hero| data::role(hero.position))
+        .unwrap_or_else(|| data::role(class.primary_role()));
+    let weapon = shared::hero_roster::profile(class)
+        .map_or(tr("team.weapon.default"), |hero| match hero.weapon {
+            None => tr("team.weapon.integrated"),
+            Some("forge-sword") => tr("team.weapon.sword"),
+            Some("forge-hammer") => tr("team.weapon.hammer"),
+            Some("dawn-scepter") => tr("team.weapon.scepter"),
+            Some("dagger") => tr("team.weapon.dagger"),
+            Some("wild-repeater") => tr("team.weapon.repeater"),
+            Some("verdant-bow") => tr("team.weapon.bow"),
+            _ => tr("team.weapon.default"),
+        });
+    format!("{role} · {weapon}")
 }
 
 #[derive(Component)]
@@ -323,6 +336,7 @@ struct SpriteGridLayout {
     max_width: f32,
 }
 
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn sprite_grid_layout(character_count: usize) -> SpriteGridLayout {
     let columns = character_count.clamp(1, SPRITE_GRID_MAX_COLUMNS);
     SpriteGridLayout {
@@ -378,9 +392,9 @@ fn setup_team_select_ui(
 
 /// A short window gets the compact picker layout.
 fn is_compact(windows: &Query<&Window, With<bevy::window::PrimaryWindow>>) -> bool {
-    windows
-        .single()
-        .is_ok_and(|window| window.resolution.height() < COMPACT_HEIGHT)
+    windows.single().is_ok_and(|window| {
+        window.resolution.width() < 900.0 || window.resolution.height() < COMPACT_HEIGHT
+    })
 }
 
 /// Avatar thumbnails are used outside the picker (profile card, collection),
@@ -398,9 +412,9 @@ fn load_avatar_thumbnails(
     visual_mode: PlayerVisualMode,
     thumbnails: &mut AvatarThumbnails,
 ) {
-    if visual_mode != PlayerVisualMode::Models3d {
-        return;
-    }
+    // Hero portraits are UI assets, not 3D model assets: load them in both
+    // render modes so the picker always shows the character, never a role icon.
+    let _ = visual_mode;
     for avatar in avatar_roster()
         .iter()
         .cloned()
@@ -525,31 +539,33 @@ pub fn spawn_team_select_ui(
     preview_image: Handle<Image>,
     compact: bool,
 ) {
-    let sprite_grid = sprite_grid_layout(crate::sprite_roster::sprite_character_roster().len());
     let root = commands
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                top: Val::Px(0.0),
-                bottom: Val::Px(0.0),
-                justify_content: JustifyContent::Center,
+                left: Val::Percent(if compact { 2.0 } else { 4.0 }),
+                top: Val::Percent(if compact { 3.0 } else { 5.0 }),
+                width: Val::Percent(if compact { 96.0 } else { 92.0 }),
+                height: Val::Percent(if compact { 94.0 } else { 90.0 }),
+                justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(if compact { 5.0 } else { 10.0 }),
-                // Room on the right for the live hero panel (3D mode only).
-                // Proportional, so a small window keeps both columns readable.
-                padding: UiRect::axes(Val::Px(18.0), Val::Px(18.0)).with_right(
-                    if visual_mode == PlayerVisualMode::Models3d {
-                        Val::Percent(HERO_PANEL_PERCENT + 2.0)
-                    } else {
-                        Val::Px(18.0)
-                    },
-                ),
+                row_gap: Val::Px(if compact { 4.0 } else { 10.0 }),
+                padding: UiRect::axes(
+                    Val::Px(if compact { 8.0 } else { 18.0 }),
+                    Val::Px(if compact { 8.0 } else { 18.0 }),
+                )
+                .with_right(if visual_mode == PlayerVisualMode::Models3d && !compact {
+                    Val::Percent(HERO_PANEL_PERCENT + 2.0)
+                } else {
+                    Val::Px(if compact { 8.0 } else { 18.0 })
+                }),
+                border: UiRect::all(Val::Px(1.0)),
+                border_radius: BorderRadius::all(Val::Px(16.0)),
                 ..default()
             },
-            BackgroundColor(TEAM_OVERLAY_COLOR),
+            BackgroundColor(crate::ui::theme::PANEL_OPAQUE),
+            BorderColor::all(crate::ui::theme::PANEL_EDGE),
             ZIndex(crate::ui::theme::SCREEN_Z),
             // Leaving hero select always takes the picker with it, whether the
             // player locked in, went back, or the session pulled the screen.
@@ -638,30 +654,40 @@ pub fn spawn_team_select_ui(
                         Name::new("HeroSelectStatus"),
                     ));
                 });
-            parent.spawn((
-                Text::new("01 HEROES"),
-                TextFont { font_size: 18.0.into(), ..default() },
-                TextStyle::new(TextRole::Title),
-                TextColor(theme::GOLD),
-                Name::new("ClassSelectTitle"),
-            ));
+            spawn_section_title(
+                parent,
+                PhoneCopy::label("team.section.class", "team.section.class_phone"),
+                "ClassSelectTitle",
+            );
 
             parent
                 .spawn((
                     Node {
+                        width: Val::Percent(100.0),
                         flex_direction: FlexDirection::Row,
-                        flex_wrap: FlexWrap::NoWrap,
-                        justify_content: JustifyContent::FlexStart,
-                        max_width: Val::Percent(100.0),
+                        flex_wrap: FlexWrap::Wrap,
+                        justify_content: JustifyContent::Center,
                         column_gap: Val::Px(6.0),
-                        row_gap: Val::Px(4.0),
+                        row_gap: Val::Px(6.0),
                         ..default()
                     },
-                    Name::new("LaneFiltersRow"),
+                    Name::new("HeroLaneFilterTabs"),
                 ))
-                .with_children(|row| {
-                    for filter in LaneFilter::ALL {
-                        spawn_lane_filter_button(row, filter, selection.lane_filter == filter);
+                .with_children(|tabs| {
+                    for filter in [
+                        HeroLaneFilter::All,
+                        HeroLaneFilter::Gold,
+                        HeroLaneFilter::Experience,
+                        HeroLaneFilter::Center,
+                        HeroLaneFilter::Jungle,
+                        HeroLaneFilter::Support,
+                    ] {
+                        spawn_hero_filter_button(
+                            tabs,
+                            filter,
+                            selection.hero_filter == filter,
+                            compact,
+                        );
                     }
                 });
 
@@ -671,9 +697,15 @@ pub fn spawn_team_select_ui(
                         flex_direction: FlexDirection::Row,
                         flex_wrap: FlexWrap::Wrap,
                         justify_content: JustifyContent::Center,
+                        align_content: AlignContent::Center,
+                        width: Val::Percent(100.0),
                         max_width: Val::Percent(100.0),
-                        column_gap: Val::Px(CLASS_BUTTON_GAP),
-                        row_gap: Val::Px(CLASS_BUTTON_GAP),
+                        column_gap: Val::Px(if compact { 6.0 } else { CLASS_BUTTON_GAP }),
+                        row_gap: Val::Px(if compact { 6.0 } else { CLASS_BUTTON_GAP }),
+                        max_height: Val::Percent(if compact { 48.0 } else { 56.0 }),
+                        min_height: Val::Px(0.0),
+                        overflow: Overflow::scroll_y(),
+                        flex_shrink: 1.0,
                         ..default()
                     },
                     Name::new("ClassButtonsRow"),
@@ -682,199 +714,13 @@ pub fn spawn_team_select_ui(
                         .keyed(0x434c4153),
                 ))
                 .with_children(|row| {
-                    for class in HeroClass::ALL {
-                        spawn_class_button(row, class, selection.hero_class == class);
-                    }
-                });
-
-            spawn_section_title(
-                parent,
-                PhoneCopy::label("team.section.avatar", "team.section.avatar_phone"),
-                "AvatarSelectTitle",
-            );
-            parent.spawn((
-                PhoneCopy::label("team.scroll_hint", "team.scroll_hint_phone"),
-                TextFont {
-                    font_size: (12.5).into(),
-                    ..default()
-                },
-                TextColor(crate::ui::theme::MUTED),
-                Name::new("RendererStatus"),
-            ));
-
-            parent
-                .spawn((
-                    Node {
-                        display: if visual_mode == PlayerVisualMode::Models3d {
-                            Display::Flex
-                        } else {
-                            Display::None
-                        },
-                        width: Val::Percent(92.0),
-                        max_width: Val::Px(
-                            AVATAR_GRID_COLUMNS as f32 * (AVATAR_BUTTON_WIDTH + AVATAR_GRID_GAP),
-                        ),
-                        // Whole rows only: a half-cut row reads as a broken
-                        // layout rather than as something to scroll. A short
-                        // window gets one row so the lock-in stays visible.
-                        max_height: Val::Px(
-                            if compact { 1.0 } else { 2.0 }
-                                * (AVATAR_BUTTON_HEIGHT + AVATAR_GRID_GAP)
-                                + AVATAR_GRID_GAP,
-                        ),
-                        overflow: Overflow::scroll_y(),
-                        flex_shrink: 0.0,
-                        flex_direction: FlexDirection::Row,
-                        flex_wrap: FlexWrap::Wrap,
-                        justify_content: JustifyContent::Center,
-                        column_gap: Val::Px(AVATAR_GRID_GAP),
-                        row_gap: Val::Px(AVATAR_GRID_GAP),
-                        ..default()
-                    },
-                    if visual_mode == PlayerVisualMode::Models3d {
-                        Visibility::Visible
-                    } else {
-                        Visibility::Hidden
-                    },
-                    roster_scroll(),
-                    ModelAvatarGrid,
-                    BackgroundColor(crate::ui::theme::perceptual(
-                        crate::ui::tokens::color::SURFACE_1,
-                    )),
-                    Name::new("AvatarGrid"),
-                ))
-                .with_children(|grid| {
-                    if visual_mode != PlayerVisualMode::Models3d {
-                        return;
-                    }
-                    let catalogue = crate::passport::avatar_catalogue();
-                    spawn_avatar_group_label(grid, "team.group.default", "DefaultAvatarsLabel");
-                    for entry in catalogue
-                        .entries
-                        .iter()
-                        .filter(|e| e.source == crate::passport::AvatarCatalogueSource::Default)
-                    {
-                        let avatar = &entry.avatar;
-                        spawn_avatar_button(
-                            grid,
-                            &avatar.slug,
-                            &avatar.display_name,
-                            selection.avatar.as_deref() == Some(avatar.slug.as_str()),
-                        );
-                    }
-                    spawn_avatar_group_label(grid, "team.group.studio", "StudioAvatarsLabel");
-                    spawn_avatar_group_hint(
-                        grid,
-                        crate::i18n::data::catalogue_status(&catalogue.status),
-                    );
-                    grid.spawn((
-                        Button,
-                        Node {
-                            min_width: Val::Px(120.0),
-                            min_height: Val::Px(44.0),
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)),
-                            border_radius: BorderRadius::all(Val::Px(6.0)),
-                            ..default()
-                        },
-                        BackgroundColor(WALLET_BUTTON_COLOR),
-                        ButtonStyle::new(ButtonKind::Link),
-                        UiAction(HeroSelectAction::RefreshStudio),
-                        TestId::new("PickerRefreshStudio"),
-                    ))
-                    .with_children(|button| {
-                        button.spawn((
-                            Localized::new("team.refresh_studio").into_text(),
-                            TextFont {
-                                font_size: (13.0).into(),
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
-                    for entry in catalogue
-                        .entries
-                        .iter()
-                        .filter(|e| e.source != crate::passport::AvatarCatalogueSource::Default)
-                    {
-                        let avatar = &entry.avatar;
-                        spawn_avatar_button(
-                            grid,
-                            &avatar.slug,
-                            &avatar.display_name,
-                            selection.avatar.as_deref() == Some(avatar.slug.as_str()),
-                        );
-                    }
-                    spawn_ekza_row(grid);
-                });
-
-            parent
-                .spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        width: Val::Px(3.0),
-                        border_radius: BorderRadius::all(Val::Px(2.0)),
-                        ..default()
-                    },
-                    BackgroundColor(theme::EDGE),
-                    PickerScrollbar,
-                    Name::new("PickerScrollbar"),
-                ))
-                .with_children(|track| {
-                    track.spawn((
-                        Node {
-                            position_type: PositionType::Absolute,
-                            width: Val::Percent(100.0),
-                            height: Val::Percent(40.0),
-                            border_radius: BorderRadius::all(Val::Px(2.0)),
-                            ..default()
-                        },
-                        BackgroundColor(theme::GOLD),
-                        PickerScrollThumb,
-                    ));
-                });
-
-            parent
-                .spawn((
-                    Node {
-                        display: if visual_mode == PlayerVisualMode::Sprite2d {
-                            Display::Flex
-                        } else {
-                            Display::None
-                        },
-                        max_height: Val::Vh(32.0),
-                        overflow: Overflow::scroll_y(),
-                        flex_shrink: 0.0,
-                        width: Val::Percent(SPRITE_GRID_WIDTH_PERCENT),
-                        max_width: Val::Px(sprite_grid.max_width),
-                        flex_direction: FlexDirection::Row,
-                        flex_wrap: FlexWrap::Wrap,
-                        justify_content: JustifyContent::Center,
-                        column_gap: Val::Px(AVATAR_GRID_GAP),
-                        row_gap: Val::Px(AVATAR_GRID_GAP),
-                        ..default()
-                    },
-                    if visual_mode == PlayerVisualMode::Sprite2d {
-                        Visibility::Visible
-                    } else {
-                        Visibility::Hidden
-                    },
-                    roster_scroll(),
-                    SpriteAvatarGrid,
-                    Name::new("SpriteCharacterGrid"),
-                ))
-                .with_children(|grid| {
-                    for (index, character) in crate::sprite_roster::sprite_character_roster()
-                        .iter()
-                        .enumerate()
-                        .filter(|_| visual_mode == PlayerVisualMode::Sprite2d)
-                    {
-                        spawn_sprite_button(
-                            grid,
-                            character,
-                            sprite_assets.portrait(index),
-                            selection.sprite_character == character.id,
+                    for hero in shared::hero_roster::STARTER_ROSTER {
+                        spawn_class_button(
+                            row,
+                            hero,
+                            selection.hero_class == hero.class,
+                            selection.hero_filter,
+                            compact,
                         );
                     }
                 });
@@ -922,7 +768,7 @@ pub fn spawn_team_select_ui(
                 HeroSelectNotice,
                 Name::new("HeroSelectNotice"),
             ));
-            if visual_mode == PlayerVisualMode::Models3d {
+            if visual_mode == PlayerVisualMode::Models3d && !compact {
                 spawn_hero_panel(parent, selection, preview_image.clone());
             }
         })
@@ -962,7 +808,7 @@ fn spawn_hero_panel(
     preview_image: Handle<Image>,
 ) {
     let class = selection.hero_class;
-    let avatar_name = crate::passport::avatar_display_name(selection.avatar.as_deref());
+    let avatar_name = data::hero_name(selection.hero_class);
     parent
         .spawn((
             Node {
@@ -1122,7 +968,7 @@ fn sync_hero_panel(
     {
         preview.show_portrait(slug);
     }
-    let avatar_name = crate::passport::avatar_display_name(selection.avatar.as_deref());
+    let avatar_name = data::hero_name(selection.hero_class);
     for mut text in &mut names {
         if text.0 != avatar_name {
             text.0 = avatar_name.to_owned();
@@ -1149,6 +995,7 @@ fn sync_hero_panel(
 
 /// Wallet and account connection in one strip under the grids. Both are
 /// optional: the shipped roster plays without either.
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_ekza_row(parent: &mut ChildSpawnerCommands) {
     parent
         .spawn((
@@ -1293,6 +1140,7 @@ fn sync_picker_scrollbar(
     }
 }
 
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_sprite_button(
     grid: &mut ChildSpawnerCommands,
     character: &crate::sprite_roster::SpriteCharacterDefinition,
@@ -1384,6 +1232,7 @@ fn spawn_section_title(parent: &mut ChildSpawnerCommands, title: impl Bundle, na
 
 /// Full-width row inside the wrapping avatar grid, so each group starts on its
 /// own line while the grid keeps a single scroll area.
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_avatar_group_label(grid: &mut ChildSpawnerCommands, title: &'static str, name: &str) {
     grid.spawn((
         Node {
@@ -1403,6 +1252,7 @@ fn spawn_avatar_group_label(grid: &mut ChildSpawnerCommands, title: &'static str
     });
 }
 
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_avatar_group_hint(grid: &mut ChildSpawnerCommands, hint: impl crate::i18n::UiLabel) {
     grid.spawn((
         Node {
@@ -1421,47 +1271,110 @@ fn spawn_avatar_group_hint(grid: &mut ChildSpawnerCommands, hint: impl crate::i1
     });
 }
 
-fn spawn_lane_filter_button(row: &mut ChildSpawnerCommands, filter: LaneFilter, selected: bool) {
-    row.spawn((
+
+#[derive(Component)]
+struct HeroFilterTab(HeroLaneFilter);
+
+#[derive(Component)]
+struct HeroCardLane(shared::prematch::Role);
+
+fn spawn_hero_filter_button(
+    parent: &mut ChildSpawnerCommands,
+    filter: HeroLaneFilter,
+    selected: bool,
+    compact: bool,
+) {
+    let (text, localized) = Localized::new(filter.label_key()).into_text();
+    parent.spawn((
         Button,
         Node {
-            min_width: Val::Px(44.0),
-            height: Val::Px(38.0),
-            flex_grow: 1.0,
+            width: Val::Px(if compact { 92.0 } else { 112.0 }),
+            min_width: Val::Px(if compact { 92.0 } else { 112.0 }),
+            height: Val::Px(if compact { 32.0 } else { 36.0 }),
+            min_height: Val::Px(if compact { 32.0 } else { 36.0 }),
+            flex_shrink: 0.0,
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
-            padding: UiRect::axes(Val::Px(5.0), Val::Px(4.0)),
-            border_radius: BorderRadius::all(Val::Px(7.0)),
+            padding: UiRect::all(Val::Px(4.0)),
+            border: UiRect::all(Val::Px(1.0)),
+            border_radius: BorderRadius::all(Val::Px(6.0)),
             ..default()
         },
         BackgroundColor(if selected { SELECT_BUTTON_SELECTED_COLOR } else { SELECT_BUTTON_COLOR }),
+        BorderColor::all(if selected { theme::GOLD } else { theme::PANEL_EDGE }),
         ButtonStyle { kind: ButtonKind::Tile, selected },
-        UiAction(HeroSelectAction::Lane(filter)),
-        TestId::new(format!("LaneFilter-{:?}", filter).to_ascii_lowercase()),
+        UiAction(HeroSelectAction::Filter(filter)),
+        HeroFilterTab(filter),
+        TestId::new(format!("HeroFilter-{}", filter.label_key())),
+        Name::new(format!("HeroFilter-{}", filter.label_key())),
     ))
     .with_children(|button| {
         button.spawn((
-            Text::new(filter.label()),
-            TextFont { font_size: 12.0.into(), ..default() },
-            TextStyle::keep_case(TextRole::Button),
+            text,
+            localized,
+            TextFont { font_size: (if compact { 10.0 } else { 11.0 }).into(), ..default() },
             TextColor(theme::IVORY),
             TextLayout::justify(Justify::Center),
         ));
     });
 }
 
-fn spawn_class_button(row: &mut ChildSpawnerCommands, class: HeroClass, selected: bool) {
+fn sync_hero_filter(
+    selection: Res<TeamSelection>,
+    mut cards: Query<(&HeroCardLane, &mut Node)>,
+    mut tabs: Query<(&HeroFilterTab, &mut ButtonStyle)>,
+) {
+    if !selection.is_changed() {
+        return;
+    }
+    for (card, mut node) in &mut cards {
+        node.display = if selection.hero_filter.matches(card.0) {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+    for (tab, mut style) in &mut tabs {
+        style.selected = selection.hero_filter == tab.0;
+    }
+}
+
+fn spawn_class_button(
+    row: &mut ChildSpawnerCommands,
+    hero: shared::hero_roster::HeroRosterEntry,
+    selected: bool,
+    filter: HeroLaneFilter,
+    compact: bool,
+) {
+    let class = hero.class;
+    let (name, _) = class_keys(class);
+    let width = if compact {
+        COMPACT_CLASS_BUTTON_WIDTH
+    } else {
+        CLASS_BUTTON_WIDTH
+    };
+    let height = if compact {
+        COMPACT_CLASS_BUTTON_HEIGHT
+    } else {
+        CLASS_BUTTON_HEIGHT
+    };
     row.spawn((
         Button,
         Node {
-            width: Val::Px(CLASS_BUTTON_WIDTH),
-            height: Val::Px(CLASS_BUTTON_HEIGHT),
+            width: if compact { Val::Percent(23.0) } else { Val::Px(width) },
+            min_width: if compact { Val::Px(50.0) } else { Val::Px(width) },
+            max_width: if compact { Val::Percent(23.0) } else { Val::Px(width) },
+            height: Val::Px(height),
+            min_height: Val::Px(height),
+            display: if filter.matches(hero.position) { Display::Flex } else { Display::None },
             flex_direction: FlexDirection::Column,
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
-            row_gap: Val::Px(3.0),
-            padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
-            border_radius: BorderRadius::all(Val::Px(8.0)),
+            column_gap: Val::Px(0.0),
+            row_gap: Val::Px(4.0),
+            padding: UiRect::all(Val::Px(if compact { 5.0 } else { 8.0 })),
+            border: UiRect::all(Val::Px(if selected { 2.0 } else { 1.0 })),
+            border_radius: BorderRadius::all(Val::Px(9.0)),
             ..default()
         },
         BackgroundColor(if selected {
@@ -1469,29 +1382,59 @@ fn spawn_class_button(row: &mut ChildSpawnerCommands, class: HeroClass, selected
         } else {
             SELECT_BUTTON_COLOR
         }),
+        BorderColor::all(if selected { theme::GOLD } else { theme::PANEL_EDGE }),
         ButtonStyle {
             kind: ButtonKind::Tile,
             selected,
         },
         UiAction(HeroSelectAction::Class(class)),
         ClassSelectButton,
+        HeroCardLane(hero.position),
         TestId::new(format!("ClassButton-{}", class.id())),
     ))
     .with_children(|button| {
-        let (name, _) = class_keys(class);
-        button.spawn(crate::ui::widgets::icon_node(
-            crate::ui::widgets::game::class_icon(class),
-            24.0,
-            theme::GOLD,
+        button.spawn((
+            Node {
+                width: Val::Px(if compact { 44.0 } else { 66.0 }),
+                height: Val::Px(if compact { 62.0 } else { 66.0 }),
+                flex_shrink: 0.0,
+                border_radius: BorderRadius::all(Val::Px(7.0)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(crate::ui::theme::PANEL),
+            AvatarThumbnailSlot {
+                slug: hero.avatar.to_owned(),
+            },
+            Name::new(format!("HeroPortrait-{}", hero.avatar)),
         ));
         button.spawn((
-            Localized::new(name).into_text(),
-            theme::role_text(TextRole::Button),
-            TextColor(theme::IVORY),
-        ));
+            Node {
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(2.0),
+                min_width: Val::Px(0.0),
+                ..default()
+            },
+            Name::new(format!("HeroCardText-{}", class.id())),
+        ))
+        .with_children(|labels| {
+            labels.spawn((
+                Localized::new(name).into_text(),
+                TextFont {
+                    font_size: (if compact { 11.0 } else { 14.0 }).into(),
+                    ..default()
+                },
+                TextColor(theme::IVORY),
+                TextLayout::justify(Justify::Center),
+            ));
+        });
     });
 }
 
+#[allow(dead_code)] // Legacy roster widgets remain for saved avatar-library screens.
 fn spawn_avatar_button(
     grid: &mut ChildSpawnerCommands,
     slug: &str,
@@ -1652,14 +1595,17 @@ fn team_select_ui_system(
                     return;
                 }
             }
-            HeroSelectAction::Class(class) => {
-                selection.hero_class = *class;
-                if *class == HeroClass::Zargat { selection.avatar = Some("zargat".into()); }
-                selection_changed = true;
+            HeroSelectAction::Filter(filter) => {
+                selection.hero_filter = *filter;
             }
-            HeroSelectAction::Lane(filter) => {
-                selection.lane_filter = *filter;
-                selection_changed = true;
+            HeroSelectAction::Class(class) => {
+                if let Some(hero) = shared::hero_roster::profile(*class) {
+                    selection.hero_class = *class;
+                    selection.handheld = shared::handheld::HandheldSelection::ClassDefault;
+                    selection.avatar = Some(hero.avatar.to_owned());
+                    selection.sprite_character = hero.sprite_character.to_owned();
+                    selection_changed = true;
+                }
             }
             HeroSelectAction::Avatar(slug) => {
                 if client_session.is_offline()
@@ -1732,7 +1678,6 @@ fn team_select_ui_system(
         for (action, mut style) in &mut styles {
             let selected = match &action.0 {
                 HeroSelectAction::Class(class) => *class == selection.hero_class,
-                HeroSelectAction::Lane(filter) => *filter == selection.lane_filter,
                 HeroSelectAction::Avatar(slug) => selection.avatar.as_deref() == Some(slug),
                 HeroSelectAction::Sprite(id) => selection.sprite_character == *id,
                 _ => continue,
@@ -1741,22 +1686,6 @@ fn team_select_ui_system(
                 style.selected = selected;
             }
         }
-    }
-}
-
-/// Hide hero cards outside the active lane without rebuilding the picker.
-fn sync_lane_filter_visibility(
-    selection: Res<TeamSelection>,
-    mut heroes: Query<(&UiAction<HeroSelectAction>, &mut Visibility), With<ClassSelectButton>>,
-) {
-    if !selection.is_changed() { return; }
-    for (action, mut visibility) in &mut heroes {
-        let HeroSelectAction::Class(class) = &action.0 else { continue; };
-        *visibility = if selection.lane_filter.matches(class.primary_role()) {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
     }
 }
 
@@ -1792,22 +1721,27 @@ fn lock_in(
     if connection == ClientConnectionState::Disconnected {
         return LockIn::Reconnect;
     }
-    let sprite_character = Some(selection.sprite_character.clone());
+    let hero = shared::hero_roster::profile(selection.hero_class)
+        .or_else(|| shared::hero_roster::profile(HeroClass::Warrior))
+        .expect("starter roster contains Zargat");
+    let handheld = shared::handheld::HandheldSelection::ClassDefault;
+    let avatar = Some(hero.avatar.to_owned());
+    let sprite_character = Some(hero.sprite_character.to_owned());
     let command = if sandbox || offline {
         NetworkCommand::Join {
-            handheld: selection.handheld.clone(),
+            handheld,
             team,
             character: selection.character,
-            hero_class: selection.hero_class,
-            avatar: selection.avatar.clone(),
+            hero_class: hero.class,
+            avatar,
             sprite_character,
         }
     } else {
         NetworkCommand::JoinPrematch {
-            handheld: selection.handheld.clone(),
+            handheld,
             character: selection.character,
-            hero_class: selection.hero_class,
-            avatar: selection.avatar.clone(),
+            hero_class: hero.class,
+            avatar,
             sprite_character,
         }
     };
@@ -2028,19 +1962,14 @@ fn layout_spacious_picker(
                 node.display = if phone { Display::None } else { Display::Flex }
             }
             "ClassSelectTitle" => absolute(&mut node, inset, class_y - 24.0, left_w, 20.0),
-            "LaneFiltersRow" => {
-                let filter_width = if phone { stage_x - inset - 12.0 } else { left_w };
-                absolute(&mut node, inset, class_y, filter_width, 40.0);
-                node.column_gap = Val::Px(4.0);
-            }
             "ClassButtonsRow" => {
                 absolute(
                     &mut node,
                     inset,
-                    class_y + 48.0,
+                    class_y,
                     left_w,
                     if phone {
-                        bottom - class_y - 48.0
+                        bottom - class_y
                     } else {
                         layout.class_height()
                     },
@@ -2191,18 +2120,16 @@ impl PickerLayout {
             (available * 0.29).min(352.0)
         };
         let stage_x = w - right - stage_w;
-        let left_w = if phone {
-            available * 0.22
-        } else {
-            stage_x - inset - 24.0
-        };
+        // The hero grid now owns the full left pane; there is no separate
+        // avatar-selection column between it and the fixed hero preview.
+        let left_w = stage_x - inset - if phone { 12.0 } else { 24.0 };
         let class_y = top + if phone { 72.0 } else { 104.0 };
         let grid_x = if phone { inset + left_w + 12.0 } else { inset };
-        let class_rows = HeroClass::ALL.len().div_ceil(4).min(2) as f32;
+        let class_rows = shared::hero_roster::STARTER_ROSTER.len().div_ceil(4).min(3) as f32;
         let grid_y = if phone {
-            class_y + 48.0
+            class_y
         } else {
-            class_y + 48.0 + class_rows * 64.0 + (class_rows - 1.0) * 6.0 + 32.0
+            class_y + class_rows * 64.0 + (class_rows - 1.0) * 6.0 + 40.0
         };
         let grid_w = if phone {
             stage_x - grid_x - 12.0
@@ -2233,13 +2160,13 @@ impl PickerLayout {
     }
 
     fn tile_width(self) -> f32 {
-        let columns = if self.phone { 3.0 } else { 8.0 };
+        let columns = if self.phone { 4.0 } else { 8.0 };
         let padding = if self.phone { 8.0 } else { 24.0 };
         ((self.grid_w - padding - (columns - 1.0) * 8.0) / columns).floor()
     }
 
     fn class_height(self) -> f32 {
-        self.grid_y - self.class_y - 48.0 - 32.0
+        self.grid_y - self.class_y - 40.0
     }
 }
 
@@ -2256,15 +2183,15 @@ mod tests {
             (844.0, 390.0, true, [32.0, 32.0, 12.0, 20.0]),
         ] {
             let p = PickerLayout::new(w, h, phone, safe);
-            assert!(p.grid_x + p.grid_w + 10.0 <= p.stage_x);
+            assert!(p.inset + p.left_w + 10.0 <= p.stage_x);
+            assert!(p.left_w >= 300.0, "{p:?}");
             assert!(p.stage_h >= 140.0, "{p:?}");
             assert!(p.stage_y + p.stage_h <= p.action_y - 46.0);
             assert!(p.action_y + 56.0 <= h - safe[3]);
             assert!(p.stage_x + p.stage_w <= w - safe[1]);
             assert!(p.grid_y + p.grid_h <= h - safe[3]);
-            assert!(p.tile_width() >= 68.0, "{p:?}");
             if phone {
-                assert!(p.inset + p.left_w + 10.0 <= p.grid_x);
+                assert!(p.inset + p.left_w + 10.0 <= p.stage_x);
             }
         }
     }
@@ -2335,7 +2262,7 @@ mod tests {
         assert!(matches!(
             command,
             NetworkCommand::JoinPrematch { hero_class: HeroClass::Mage, avatar: Some(ref a), sprite_character: Some(ref s), .. }
-                if a == "agnes" && s == "ronin"
+                if a == "anna" && s == "clockwork-turnip-oracle"
         ));
 
         for (sandbox, expected) in [(true, AppScreen::InMatch), (false, AppScreen::Searching)] {
@@ -2416,7 +2343,7 @@ mod tests {
     }
 
     #[test]
-    fn model_join_ui_excludes_inactive_layout_and_scrolls_all_shipped_choices() {
+    fn model_join_ui_shows_only_the_twelve_fixed_heroes() {
         let mut app = App::new();
         app.add_message::<bevy::input::mouse::MouseWheel>()
             .init_resource::<ButtonInput<KeyCode>>()
@@ -2435,75 +2362,44 @@ mod tests {
         app.world_mut()
             .spawn((Window::default(), bevy::window::PrimaryWindow));
         app.update();
-        let mut model = app
-            .world_mut()
-            .query_filtered::<(Entity, &Node), With<ModelAvatarGrid>>();
-        let (grid, node) = model.single(app.world()).unwrap();
-        assert_eq!(node.display, Display::Flex);
-        // Two whole avatar rows on a normal window; a short window gets one.
+
+        let mut heroes = app.world_mut().query::<&ClassSelectButton>();
+        assert_eq!(heroes.iter(app.world()).count(), 12);
+        let mut filters = app.world_mut().query::<&HeroFilterTab>();
+        assert_eq!(filters.iter(app.world()).count(), 6);
+        let mut visible_cards = app.world_mut().query::<(&HeroCardLane, &Node)>();
         assert_eq!(
-            node.max_height,
-            Val::Px(2.0 * (AVATAR_BUTTON_HEIGHT + AVATAR_GRID_GAP) + AVATAR_GRID_GAP)
+            visible_cards.iter(app.world()).filter(|(_, node)| node.display != Display::None).count(),
+            12
         );
-        assert_eq!(node.overflow.y, OverflowAxis::Scroll);
-        let mut inactive = app
+        let mut avatars = app.world_mut().query::<&AvatarSelectButton>();
+        assert_eq!(avatars.iter(app.world()).count(), 0);
+        let mut portrait_slots = app.world_mut().query::<&AvatarThumbnailSlot>();
+        assert_eq!(portrait_slots.iter(app.world()).count(), 12);
+        let root = app
+            .world_mut()
+            .query_filtered::<(&Node, &Name), With<TeamSelectRoot>>()
+            .single(app.world())
+            .unwrap();
+        assert_eq!(root.0.width, Val::Percent(92.0));
+        assert_eq!(root.0.height, Val::Percent(90.0));
+        assert_eq!(root.1.as_str(), "TeamSelectOverlay");
+        let mut model_grids = app
+            .world_mut()
+            .query_filtered::<&Node, With<ModelAvatarGrid>>();
+        assert_eq!(model_grids.iter(app.world()).count(), 0);
+        let mut sprite_grids = app
             .world_mut()
             .query_filtered::<&Node, With<SpriteAvatarGrid>>();
-        assert_eq!(inactive.single(app.world()).unwrap().display, Display::None);
-        let mut choices = app.world_mut().query::<&AvatarSelectButton>();
-        assert_eq!(choices.iter(app.world()).count(), avatar_roster().len());
-        // Defaults precede the persistent Studio section, even without a connection.
-        let mut names = app.world_mut().query::<crate::ui::test_id::NodeKey>();
-        let names: Vec<String> = names
-            .iter(app.world())
-            .map(|name| name.as_str().to_owned())
-            .collect();
-        for expected in [
-            "DefaultAvatarsLabel",
-            "StudioAvatarsLabel",
-            "PurchasedAvatarsHint",
-            // Pairing starts from the menu, not from a launch flag.
-            "WalletConnectButton",
-        ] {
-            assert!(names.iter().any(|name| name == expected), "{expected}");
-        }
-        assert_eq!(
-            crate::passport::wallet_view(),
-            crate::passport::WalletView::Disconnected
-        );
-        assert!(!crate::passport::poll_wallet());
+        assert_eq!(sprite_grids.iter(app.world()).count(), 0);
         let mut sprite_choices = app.world_mut().query::<&SpriteSelectButton>();
         assert_eq!(sprite_choices.iter(app.world()).count(), 0);
         let mut teams = app.world_mut().query::<&TeamSelectButton>();
         assert_eq!(teams.iter(app.world()).count(), 1);
-        // A 720p / 768p roster viewport is bounded while the complete content scrolls.
-        for height in [720.0, 768.0] {
-            app.world_mut().entity_mut(grid).insert((
-                ComputedNode {
-                    size: Vec2::new(672.0, height * 0.32),
-                    content_size: Vec2::new(672.0, 700.0),
-                    inverse_scale_factor: 1.0,
-                    ..default()
-                },
-                // No visibility propagation in this app.
-                InheritedVisibility::VISIBLE,
-            ));
-            app.world_mut()
-                .resource_mut::<ButtonInput<KeyCode>>()
-                .press(KeyCode::PageDown);
-            app.update();
-            assert!(app.world().entity(grid).get::<ScrollPosition>().unwrap().y > 0.0);
-            assert!(
-                app.world().entity(grid).get::<ScrollPosition>().unwrap().y
-                    <= 700.0 - height * 0.32
-            );
-        }
-        let mut status = app.world_mut().query::<(&Name, Option<&Button>)>();
-        assert!(
-            status
-                .iter(app.world())
-                .any(|(name, button)| name.as_str() == "RendererStatus" && button.is_none())
-        );
+        let selection = TeamSelection::default();
+        assert_eq!(selection.hero_class, HeroClass::Warrior);
+        assert_eq!(selection.avatar.as_deref(), Some("zargat"));
+        assert_eq!(selection.handheld, shared::handheld::HandheldSelection::ClassDefault);
     }
 
     fn hero_select_app() -> App {
@@ -2549,6 +2445,10 @@ mod tests {
             app.world().resource::<TeamSelection>().hero_class,
             HeroClass::Mage
         );
+        let selection = app.world().resource::<TeamSelection>();
+        assert_eq!(selection.avatar.as_deref(), Some("anna"));
+        assert_eq!(selection.sprite_character, "clockwork-turnip-oracle");
+        assert_eq!(selection.handheld, shared::handheld::HandheldSelection::ClassDefault);
         app.update();
         assert!(harness::drain_actions::<HeroSelectAction>(app.world_mut()).is_empty());
         let tile = harness::find(app.world_mut(), &mage).unwrap();
@@ -2637,16 +2537,28 @@ mod tests {
             ))
             .id();
         let text = |app: &App| app.world().get::<Text>(label).unwrap().0.clone();
-        assert_eq!(text(&app), "01  CHOOSE YOUR CLASS");
+        assert_eq!(text(&app), "01  CHOOSE YOUR HEROES");
         app.update();
-        assert_eq!(text(&app), "01  CLASS");
-        app.insert_resource(Locale::detached(LocaleId::parse("zh-Hans").unwrap()));
+        assert_eq!(text(&app), "01  HEROES");
+        app.insert_resource(Locale::detached(LocaleId::parse("ru").unwrap()));
         app.update();
-        assert_eq!(text(&app), "01  职业");
+        assert_eq!(text(&app), "01  ГЕРОИ");
         app.world_mut()
             .resource_mut::<crate::mobile_controls::MobileControls>()
             .enabled = false;
         app.update();
         assert_eq!(text(&app), "01  选择职业");
     }
+    #[test]
+    fn hero_lane_filters_cover_all_twelve_heroes() {
+        let roster = &shared::hero_roster::STARTER_ROSTER;
+        let count = |filter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
+        assert_eq!(count(HeroLaneFilter::All), 12);
+        assert_eq!(count(HeroLaneFilter::Gold), 2);
+        assert_eq!(count(HeroLaneFilter::Experience), 3);
+        assert_eq!(count(HeroLaneFilter::Center), 2);
+        assert_eq!(count(HeroLaneFilter::Jungle), 2);
+        assert_eq!(count(HeroLaneFilter::Support), 3);
+    }
+
 }
