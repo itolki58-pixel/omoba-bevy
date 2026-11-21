@@ -25,10 +25,10 @@ use bevy::prelude::*;
 
 use crate::team::CharacterChoice;
 
-/// Base standing hero height before the presentation-only +25% model multiplier.
+/// Standing hero height after the requested 25% presentation increase.
 /// This changes presentation only: `PLAYER_SIZE`, combat ranges and navigation
 /// clearance keep their existing values, as does the neutral-creature reference below.
-pub const DEFAULT_MODEL_TARGET_HEIGHT: f32 = 2.625;
+pub const DEFAULT_MODEL_TARGET_HEIGHT: f32 = 3.28125;
 /// Stable reference for neutral creatures and bosses. Lane minions receive
 /// their separate 25% presentation increase in `MINION_MODEL_HEIGHT_SCALE`.
 pub const CREATURE_MODEL_TARGET_HEIGHT: f32 = 1.15;
@@ -309,7 +309,7 @@ fn effective_target_height(
             .target_height
             .clamp(MIN_MODEL_TARGET_HEIGHT, MAX_MODEL_TARGET_HEIGHT)
     };
-    reference_height * (if normalization.uses_creature_reference { 1.0 } else { 1.25 }) * normalization.height_scale * override_multiplier
+    reference_height * normalization.height_scale * override_multiplier
 }
 
 /// Walks the glTF node graph (bind pose, no animation) and folds every mesh
@@ -791,8 +791,8 @@ mod tests {
         let player = NormalizeModelScale::for_player_model();
         let boss = NormalizeModelScale::scaled_by(3.0);
         let minion = NormalizeModelScale::scaled_by(0.6);
-        assert!((effective_target_height(&settings, &player, 1.25) - 1.25).abs() < 1e-6);
-        assert!((effective_target_height(&settings, &player, 1.5) - 1.875).abs() < 1e-6);
+        assert!((effective_target_height(&settings, &player, 1.25) - 1.0).abs() < 1e-6);
+        assert!((effective_target_height(&settings, &player, 1.5) - 1.5).abs() < 1e-6);
         for target_height in [DEFAULT_MODEL_TARGET_HEIGHT, 0.5, 2.4] {
             let settings = ModelScaleSettings { target_height };
             assert!((effective_target_height(&settings, &boss, 1.0) - 3.45).abs() < 1e-6);
@@ -802,7 +802,7 @@ mod tests {
         // Out-of-range settings are clamped before multipliers apply.
         let wild = ModelScaleSettings { target_height: 9.0 };
         assert!(
-            (effective_target_height(&wild, &player, 1.0) - MAX_MODEL_TARGET_HEIGHT * 1.25).abs() < 1e-6
+            (effective_target_height(&wild, &player, 1.0) - MAX_MODEL_TARGET_HEIGHT).abs() < 1e-6
         );
     }
 
