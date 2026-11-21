@@ -35,7 +35,7 @@
 - [ ] Confirm the compact hero grid remains below the "Герои" heading on narrow screens.
 
 ### Phase 1 — Match readability and tactical communication
-- [ ] Add a client-side tactical ping wheel and map/world ping visuals.
+- [x] Add a client-side tactical ping wheel and local map/world ping visuals (touch long-press on minimap, directional drag selection; server relay remains separate).
 - [ ] Define a versioned, bounded ping message for server relay; provide the server patch separately before enabling multiplayer relay.
 - [ ] Add objective spawn/respawn timers and neutral-objective announcements using authoritative server timestamps.
 - [ ] Improve minimap layers for lanes, towers, camps, bosses, brush and allied/enemy visibility.
