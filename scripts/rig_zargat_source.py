@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Rig the user-supplied Zaragat GLB without replacing its source geometry."""
-import bpy, math, os
+import bpy, math, os, json, struct
 from mathutils import Vector
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -301,6 +301,62 @@ bpy.ops.object.select_all(action="DESELECT"); body.select_set(True); rig.select_
 bpy.context.view_layer.objects.active=rig
 bpy.ops.export_scene.gltf(filepath=OUT,export_format="GLB",use_selection=True,
     export_apply=True,export_animations=True,export_nla_strips=True,export_skins=True,export_yup=True)
+if not os.path.isfile(OUT) or os.path.getsize(OUT)<100000: raise RuntimeError("Rigged Zaragat export failed")
+
+# The client retargeter consumes semantic VRM humanoid metadata, never bone-name guesses.
+def add_vrm1_humanoid_metadata(path):
+    raw = open(path, "rb").read()
+    magic, version, total = struct.unpack_from("<4sII", raw, 0)
+    if magic != b"glTF" or version != 2 or total != len(raw):
+        raise RuntimeError("Zargat export is not a valid GLB 2.0 container")
+    chunks = []
+    offset = 12
+    json_index = None
+    while offset < len(raw):
+        length, kind = struct.unpack_from("<II", raw, offset)
+        offset += 8
+        data = raw[offset:offset + length]
+        if len(data) != length:
+            raise RuntimeError("Zargat GLB contains a truncated chunk")
+        if kind == 0x4E4F534A:
+            if json_index is not None:
+                raise RuntimeError("Zargat GLB has multiple JSON chunks")
+            json_index = len(chunks)
+        chunks.append((kind, data))
+        offset += length
+    if json_index is None:
+        raise RuntimeError("Zargat GLB has no JSON chunk")
+    document = json.loads(chunks[json_index][1].rstrip(b" \\t\\r\\n\\0").decode("utf-8"))
+    node_by_name = {node.get("name"): index for index, node in enumerate(document.get("nodes", [])) if node.get("name")}
+    semantic_to_node = {
+        "hips": "pelvis", "spine": "spine", "chest": "chest", "neck": "neck", "head": "head",
+        "leftUpperArm": "upper_arm.L", "leftLowerArm": "forearm.L", "leftHand": "hand.L",
+        "rightUpperArm": "upper_arm.R", "rightLowerArm": "forearm.R", "rightHand": "hand.R",
+        "leftUpperLeg": "thigh.L", "leftLowerLeg": "shin.L", "leftFoot": "foot.L",
+        "rightUpperLeg": "thigh.R", "rightLowerLeg": "shin.R", "rightFoot": "foot.R",
+    }
+    missing = [name for name in semantic_to_node.values() if name not in node_by_name]
+    if missing:
+        raise RuntimeError("Zargat GLB is missing humanoid joints: " + ", ".join(missing))
+    document.setdefault("extensions", {})["VRMC_vrm"] = {
+        "specVersion": "1.0",
+        "meta": {"name": "Zargat", "version": "1.0", "authors": ["User-supplied model"]},
+        "humanoid": {"humanBones": {semantic: {"node": node_by_name[node_name]} for semantic, node_name in semantic_to_node.items()}},
+    }
+    used = document.setdefault("extensionsUsed", [])
+    if "VRMC_vrm" not in used:
+        used.append("VRMC_vrm")
+    json_data = json.dumps(document, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    json_data += b" " * ((-len(json_data)) % 4)
+    chunks[json_index] = (0x4E4F534A, json_data)
+    rebuilt = bytearray(struct.pack("<4sII", b"glTF", 2, 0))
+    for kind, data in chunks:
+        rebuilt.extend(struct.pack("<II", len(data), kind))
+        rebuilt.extend(data)
+    struct.pack_into("<I", rebuilt, 8, len(rebuilt))
+    open(path, "wb").write(rebuilt)
+
+add_vrm1_humanoid_metadata(OUT)
 if not os.path.isfile(OUT) or os.path.getsize(OUT)<100000: raise RuntimeError("Rigged Zaragat export failed")
 # Render a true Blender preview of the supplied model.
 scene=bpy.context.scene
