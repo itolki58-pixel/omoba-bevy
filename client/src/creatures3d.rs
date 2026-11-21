@@ -107,7 +107,7 @@ pub(crate) fn setup_creature_assets(
     commands.insert_resource(CreatureAssets {
         block: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
         stone: meshes.add(stone),
-        crystal: meshes.add(Cone::new(0.5, 1.0).mesh().resolution(4)),
+        crystal: meshes.add(Cone::new(0.5, 1.0).mesh().resolution(8)),
         ivory: material(Color::srgb(0.67, 0.72, 0.58), LinearRgba::BLACK, 0.0),
         brass: material(Color::srgb(0.58, 0.39, 0.13), LinearRgba::BLACK, 0.7),
         jade: material(
