@@ -993,7 +993,9 @@ fn update_minimap_icons_system(
         let known = game
             .as_ref()
             .and_then(|snapshot| snapshot.vision.as_ref())
-            .is_none_or(|vision| shared::vision::point_visible(&vision.sources, position, false));
+            .is_none_or(|vision| {
+                shared::vision::point_visible(&vision.sources, [position.x, position.y], false)
+            });
         let color = if !known {
             Color::srgb(0.34, 0.32, 0.25)
         } else if stats.is_alive() {
