@@ -148,6 +148,14 @@ pub struct PlayerModelResolver<'w> {
     asset_server: Res<'w, AssetServer>,
 }
 
+/// Maps client-authored skins to their bundled base humanoid rig.
+fn roster_model_slug(slug: &str) -> &str {
+    match slug {
+        "zargat" => "crowley",
+        _ => slug,
+    }
+}
+
 impl PlayerModelResolver<'_> {
     pub fn resolve(
         &mut self,
@@ -190,7 +198,12 @@ impl PlayerModelResolver<'_> {
                     return self.catalog.handles_for(sdk_character(character));
                 }
             }
-            let (scene, gltf) = self.avatars.ensure_loaded(&self.asset_server, slug);
+            // Zargat is a client-authored skin over the bundled CC0 Crowley
+            // humanoid rig. Keep the network/catalogue identity as `zargat`,
+            // but load Crowley's existing base GLB rather than requesting a
+            // nonexistent `avatars/zargat.glb`.
+            let model_slug = roster_model_slug(slug);
+            let (scene, gltf) = self.avatars.ensure_loaded(&self.asset_server, model_slug);
             return (Some(scene), Some(gltf));
         }
         self.catalog.handles_for(sdk_character(character))
@@ -637,6 +650,13 @@ pub(crate) fn force_vrm_models_double_sided(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zargat_uses_the_bundled_crowley_humanoid_as_its_base_rig() {
+        assert_eq!(roster_model_slug("zargat"), "crowley");
+        assert_eq!(roster_model_slug("crowley"), "crowley");
+        assert_eq!(roster_model_slug("agnes"), "agnes");
+    }
 
     #[test]
     fn sdk_character_keeps_every_variant_and_wire_id() {
