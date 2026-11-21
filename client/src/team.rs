@@ -1944,6 +1944,12 @@ fn layout_spacious_picker(
             "TeamSelectOverlay" => {
                 node.padding = UiRect::ZERO;
             }
+            "HeroLaneFilterTabs" => {
+                // On narrow phone layouts the filter strip occupies the same
+                // vertical band as the first hero-card row. Hide it there so
+                // the top row is fully visible and tappable; desktop keeps filters.
+                node.display = if phone { Display::None } else { Display::Flex };
+            }
             "HeroSelectHeader" => {
                 absolute(&mut node, inset, top, w - inset - layout.right, 48.0);
                 node.flex_direction = FlexDirection::Row;
