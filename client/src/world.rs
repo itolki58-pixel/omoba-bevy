@@ -1,4 +1,6 @@
+#[cfg(not(target_os = "android"))]
 use bevy::camera::Hdr;
+#[cfg(not(target_os = "android"))]
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::ecs::system::SystemParam;
 use bevy::gltf::{Gltf, GltfLoaderSettings};
@@ -6,6 +8,7 @@ use bevy::light::CascadeShadowConfigBuilder;
 #[cfg(not(target_os = "android"))]
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::prelude::*;
+#[cfg(not(target_os = "android"))]
 use bevy::render::view::{ColorGrading, ColorGradingGlobal};
 use bevy::world_serialization::WorldAssetRoot;
 #[cfg(not(target_os = "android"))]
@@ -371,15 +374,20 @@ fn setup_main_camera(
     let camera = commands
         .spawn((
             Camera3d::default(),
-            // Conservative Android default from Bevy's mobile example.
+            // Conservative Android defaults: no MSAA and an LDR camera target.
+            // Avoiding the HDR intermediate + tonemapping pass reduces mobile
+            // bandwidth while retaining the same scene geometry and actor sizes.
             #[cfg(target_os = "android")]
             Msaa::Off,
             Camera {
                 clear_color: ClearColorConfig::Custom(Color::srgb(0.12, 0.19, 0.20)),
                 ..default()
             },
+            #[cfg(not(target_os = "android"))]
             Hdr,
+            #[cfg(not(target_os = "android"))]
             Tonemapping::TonyMcMapface,
+            #[cfg(not(target_os = "android"))]
             ColorGrading {
                 global: ColorGradingGlobal {
                     post_saturation: 1.08,
