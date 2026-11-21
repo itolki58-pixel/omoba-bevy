@@ -1528,6 +1528,25 @@ mod tests {
     use crate::input_context::GameplayInputContext;
 
     #[test]
+    fn tactical_ping_wheel_selects_four_directions_and_rejects_short_or_invalid_drags() {
+        assert_eq!(tactical_ping_choice(Vec2::new(0.0, -24.0)), Some(0));
+        assert_eq!(tactical_ping_choice(Vec2::new(24.0, 0.0)), Some(1));
+        assert_eq!(tactical_ping_choice(Vec2::new(0.0, 24.0)), Some(2));
+        assert_eq!(tactical_ping_choice(Vec2::new(-24.0, 0.0)), Some(3));
+        assert_eq!(tactical_ping_choice(Vec2::new(4.0, 4.0)), None);
+        assert_eq!(tactical_ping_choice(Vec2::splat(f32::NAN)), None);
+        assert_eq!(
+            TacticalPingKind::ALL,
+            [
+                TacticalPingKind::Attack,
+                TacticalPingKind::OnMyWay,
+                TacticalPingKind::Retreat,
+                TacticalPingKind::Missing,
+            ]
+        );
+    }
+
+    #[test]
     fn minimap_move_order_shows_a_local_ping_and_expires_after_2_4_seconds() {
         let mut app = App::new();
         app.init_resource::<MinimapNavigationState>()
