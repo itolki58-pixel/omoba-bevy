@@ -91,12 +91,10 @@ pub(crate) fn setup_creature_assets(
     if *mode != PlayerVisualMode::Models3d {
         return;
     }
-    let mut stone = Sphere::new(0.5)
+    let stone = Sphere::new(0.5)
         .mesh()
-        .ico(1)
-        .expect("fixed one-subdivision icosphere is valid");
-    stone.duplicate_vertices();
-    stone.compute_flat_normals();
+        .ico(2)
+        .expect("fixed two-subdivision smooth icosphere is valid");
     let mut material = |base_color, emissive, metallic| {
         materials.add(StandardMaterial {
             base_color,
@@ -298,6 +296,58 @@ pub(crate) fn spawn_creature(
                     );
                 }
             }
+        }
+        match kind {
+            ProceduralCreature::Minion(_, MinionKind::Melee) => {
+                part(
+                    "melee-brow-crest",
+                    &assets.crystal,
+                    &assets.brass,
+                    Vec3::new(0.0, 1.91, 0.10),
+                    Vec3::new(0.28, 0.52, 0.25),
+                    0.0,
+                    PartMotion::Still,
+                );
+                part(
+                    "melee-chest-plate",
+                    &assets.stone,
+                    accent,
+                    Vec3::new(0.0, 1.12, 0.30),
+                    Vec3::new(0.66, 0.43, 0.30),
+                    0.0,
+                    PartMotion::Still,
+                );
+            }
+            ProceduralCreature::Minion(_, MinionKind::Caster) => {
+                part(
+                    "caster-hood",
+                    &assets.stone,
+                    accent,
+                    Vec3::new(0.0, 1.54, -0.08),
+                    Vec3::new(0.72, 0.64, 0.64),
+                    0.0,
+                    PartMotion::Head,
+                );
+                part(
+                    "caster-sigil",
+                    &assets.crystal,
+                    &assets.ivory,
+                    Vec3::new(0.0, 1.16, 0.37),
+                    Vec3::new(0.22, 0.35, 0.18),
+                    0.0,
+                    PartMotion::Still,
+                );
+                part(
+                    "caster-mantle",
+                    &assets.stone,
+                    &assets.brass,
+                    Vec3::new(0.0, 0.82, -0.32),
+                    Vec3::new(0.86, 0.48, 0.24),
+                    0.0,
+                    PartMotion::Torso,
+                );
+            }
+            _ => {}
         }
         match kind {
             ProceduralCreature::Minion(Team::Green, _) => part(
@@ -595,14 +645,17 @@ pub(crate) fn animate_creatures(
             if pulse.remaining <= 0.0 {
                 0.0
             } else {
-                // Begin visibly at release, then recover exactly to rest.
-                (pulse.remaining / MINION_ATTACK_POSE_SECONDS).sqrt()
+                // Smooth anticipation/contact/recovery envelope; no abrupt pose pop.
+                let progress = (1.0 - pulse.remaining / MINION_ATTACK_POSE_SECONDS)
+                    .clamp(0.0, 1.0);
+                (std::f32::consts::PI * progress).sin().max(0.0)
             }
         });
         *transform = part.rest;
-        let phase = time.elapsed_secs() * 7.2 + part.owner.index_u32() as f32 * 0.7;
+        let phase_offset = part.owner.index_u32() as f32 * 0.7;
+        let phase = time.elapsed_secs() * 6.8 + phase_offset;
         let stride = phase.sin();
-        let idle_breath = (time.elapsed_secs() * 2.4 + part.owner.index_u32() as f32).sin();
+        let idle_breath = (time.elapsed_secs() * 2.1 + phase_offset * 1.7).sin();
         match part.motion {
             PartMotion::Torso => {
                 transform.translation.y += if walking {
@@ -610,15 +663,19 @@ pub(crate) fn animate_creatures(
                 } else {
                     idle_breath * 0.018
                 };
-                transform.scale.y *= 1.0 + idle_breath * 0.012;
+                transform.scale.y *= 1.0 + idle_breath * 0.016;
+                transform.rotation = part.rest.rotation
+                    * Quat::from_rotation_z(if walking { stride * 0.018 } else { idle_breath * 0.012 });
             }
             PartMotion::Head => {
                 let nod = if walking { stride * 0.045 } else { idle_breath * 0.025 };
-                transform.rotation = part.rest.rotation * Quat::from_rotation_x(nod);
+                transform.rotation = part.rest.rotation
+                    * Quat::from_rotation_x(nod)
+                    * Quat::from_rotation_z(if walking { stride * 0.018 } else { idle_breath * 0.012 });
                 transform.translation.y += if walking { (stride * 0.5 + 0.5) * 0.025 } else { idle_breath * 0.012 };
             }
             PartMotion::Shoulder(side) => {
-                let swing = if walking { stride * side * 0.12 } else { idle_breath * side * 0.025 };
+                let swing = if walking { stride * side * 0.16 } else { idle_breath * side * 0.035 };
                 transform.rotation = part.rest.rotation * Quat::from_rotation_z(swing);
             }
             PartMotion::Leg(side) if walking => {
