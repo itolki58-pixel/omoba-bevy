@@ -5,10 +5,24 @@
 use bevy::prelude::*;
 
 use crate::{
-    net::NetworkAvatar,
+    net::{NetworkAvatar, RemotePlayer},
     player::Player,
     sprite::PlayerVisualMode,
 };
+
+pub(crate) struct ZargatVisualsPlugin;
+
+impl Plugin for ZargatVisualsPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, setup_zargat_assets)
+            .add_systems(
+                Update,
+                (attach_zargat_visuals, animate_zargat_wings)
+                    .chain()
+                    .run_if(crate::sprite::in_models3d()),
+            );
+    }
+}
 
 #[derive(Resource)]
 pub(crate) struct ZargatAssets {
@@ -100,7 +114,13 @@ pub(crate) fn setup_zargat_assets(
 pub(crate) fn attach_zargat_visuals(
     mut commands: Commands,
     assets: Option<Res<ZargatAssets>>,
-    heroes: Query<(Entity, &NetworkAvatar), (With<Player>, Without<ZargatVisual>)>,
+    heroes: Query<
+        (Entity, &NetworkAvatar),
+        (
+            Or<(With<Player>, With<RemotePlayer>)>,
+            Without<ZargatVisual>,
+        ),
+    >,
 ) {
     let Some(assets) = assets else {
         return;
