@@ -644,11 +644,13 @@ fn update_local_ping_marker(
         }
         if let Ok(container) = containers.single() {
             let point = map_point(*layout, target);
+            let mut ping_node = marker_node(point, 22.0);
+            ping_node.border = UiRect::all(Val::Px(2.0));
             let mut spawned = None;
             commands.entity(container).with_children(|parent| {
                 let entity = parent
                     .spawn((
-                        marker_node(point, 22.0),
+                        ping_node,
                         BorderColor::all(Color::srgb(1.0, 0.82, 0.28)),
                         BackgroundColor(Color::srgba(1.0, 0.82, 0.28, 0.18)),
                         ZIndex(10),
@@ -1287,13 +1289,15 @@ mod tests {
             .resource_mut::<MinimapNavigationState>()
             .movement_target = Some(Vec3::new(12.0, 0.0, -8.0));
         app.update();
-        assert_eq!(
-            app.world_mut()
-                .query_filtered::<Entity, With<Name>>()
-                .iter(app.world())
-                .filter(|entity| app.world().get::<Name>(*entity).is_some_and(|name| name.as_str() == "MinimapLocalPing"))
-                .count(),
-            1
+        let ping = app
+            .world()
+            .resource::<LocalPingMarker>()
+            .entity
+            .expect("local ping spawned");
+        assert!(
+            app.world()
+                .get::<Name>(ping)
+                .is_some_and(|name| name.as_str() == "MinimapLocalPing")
         );
         app.world_mut()
             .resource_mut::<MinimapNavigationState>()
@@ -1302,14 +1306,8 @@ mod tests {
             .resource_mut::<Time>()
             .advance_by(std::time::Duration::from_millis(2500));
         app.update();
-        assert_eq!(
-            app.world_mut()
-                .query_filtered::<Entity, With<Name>>()
-                .iter(app.world())
-                .filter(|entity| app.world().get::<Name>(*entity).is_some_and(|name| name.as_str() == "MinimapLocalPing"))
-                .count(),
-            0
-        );
+        assert!(app.world().resource::<LocalPingMarker>().entity.is_none());
+        assert!(app.world().get_entity(ping).is_err());
         assert!(app.world().get_entity(container).is_ok());
     }
 
