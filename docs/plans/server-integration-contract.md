@@ -8,6 +8,7 @@ This is a server-owner handoff. The client changes in PR #18 are intentionally l
 - `shared/src/protocol/wire.rs`: `ServerPacket::Snapshot` currently has no tactical-ping collection or boss respawn timer collection.
 - `shared/src/protocol/wire.rs`: `NeutralState` contains identity, position, HP and AI state, but no respawn deadline/remaining time.
 - `server/src/snapshot.rs`: the current neutral snapshot filters to `dead_until.is_none() && hp > 0`. Dead bosses therefore disappear from client snapshots.
+- Consequently, the current client minimap can mark a boss while its live neutral entity is replicated, but cannot keep a static dead-boss marker or show its respawn countdown yet.
 - `common/src/entities.rs`: server neutral runtime state already has `dead_until: Option<Instant>`.
 - `common/src/neutrals.rs`: boss first-spawn and respawn schedules already use `dead_until`; no new timer simulation is required.
 
