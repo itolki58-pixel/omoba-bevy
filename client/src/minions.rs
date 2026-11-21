@@ -79,7 +79,7 @@ mod tests {
     use crate::net::{MinionBrainState, NetworkMinionBrainState};
     use shared::combat::MinionKind;
 
-    const TEST_HEIGHT_SCALE: f32 = 1.40625;
+    const TEST_HEIGHT_SCALE: f32 = 1.125;
 
     fn spawn_minion(app: &mut App, team: Team, kind: MinionKind) -> Entity {
         let mode = *app.world().resource::<PlayerVisualMode>();
