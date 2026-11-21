@@ -87,6 +87,10 @@ cx=(xmin+xmax)*0.5; cy=(ymin+ymax)*0.5
 ad = bpy.data.armatures.new("Zargat_Armature")
 rig = bpy.data.objects.new("Zargat_Rig", ad)
 bpy.context.collection.objects.link(rig)
+# The supplied mesh is authored toward +Z after glTF Y-up conversion; OMOBA
+# characters face -Z. Keep this correction on the rig root so every clip agrees.
+rig.rotation_mode = "XYZ"
+rig.rotation_euler.z = math.pi
 bpy.context.view_layer.objects.active=rig; rig.select_set(True)
 bpy.ops.object.mode_set(mode="EDIT")
 eb={}
@@ -195,29 +199,38 @@ def idle(f):
         rot("wing."+suf,s*.10*math.sin(t/2))
     for n,k in [("tail.01",.08),("tail.02",.12),("tail.03",.16),("tail.tip",.18)]:
         rot(n,k*math.sin(t+.6))
-def locomotion(f,amount):
-    t=(f-1)/24*math.tau
+def locomotion(f,amount,cycle_frames=24):
+    t=(f-1)/cycle_frames*math.tau
     for suf,phase in [("L",0),("R",math.pi)]:
         a=math.sin(t+phase)
-        rot("thigh."+suf,.55*amount*a); rot("shin."+suf,.45*amount*max(0,-a))
-        rot("upper_arm."+suf,-.30*amount*a)
+        # Swing limbs in their sagittal plane, not around the bone's roll axis.
+        rot("thigh."+suf,x=.55*amount*a)
+        rot("shin."+suf,x=.45*amount*max(0,-a))
+        rot("upper_arm."+suf,x=-.30*amount*a)
     rot("spine",.04*amount*math.sin(2*t)); rot("chest",.025*amount*math.sin(2*t+1))
     for suf,s in [("L",1),("R",-1)]: rot("wing."+suf,s*.12*amount*math.sin(2*t))
     for n,k in [("tail.01",.08),("tail.02",.12),("tail.03",.16),("tail.tip",.20)]:
         rot(n,k*math.sin(t+.5))
+def smooth(v):
+    v=max(0.0,min(1.0,v))
+    return v*v*(3.0-2.0*v)
 def attack(f):
-    t=(f-1)/26
-    power=math.sin(min(1,max(0,t))*math.pi)
-    rot("spine",-.22*power); rot("chest",-.35*power)
-    rot("upper_arm.R",-.9*power); rot("forearm.R",-.7*power); rot("sword",-.8*power)
-    rot("wing.L",.2*power); rot("wing.R",-.2*power)
+    t=(f-1)/30
+    anticipation=math.sin(math.pi*min(1.0,t/.24)) if t<.24 else 0.0
+    impact=smooth((t-.24)/.18)*(1.0-smooth((t-.42)/.50))
+    rot("spine",-.10*anticipation-.22*impact)
+    rot("chest",-.16*anticipation-.35*impact)
+    rot("upper_arm.R",x=-.9*impact)
+    rot("forearm.R",x=-.7*impact)
+    rot("sword",x=-.8*impact)
+    rot("wing.L",.2*impact); rot("wing.R",-.2*impact)
 def cast(f):
     p=math.sin((f-1)/24*math.pi)
-    rot("upper_arm.L",.65*p); rot("upper_arm.R",-.65*p)
+    rot("upper_arm.L",x=.65*p); rot("upper_arm.R",x=-.65*p)
     rot("wing.L",.35*p); rot("wing.R",-.35*p)
     rot("tail.01",.18*p); rot("tail.02",.24*p); rot("tail.03",.30*p)
 def death(f):
-    p=(f-1)/30
+    p=smooth((f-1)/30)
     rot("spine",.65*p); rot("head",-.3*p); rot("wing.L",.45*p); rot("wing.R",-.45*p)
 def hit(f):
     p=math.sin((f-1)/12*math.pi)
@@ -233,17 +246,17 @@ def ultimate(f):
     rot("upper_arm.L",.8*p); rot("upper_arm.R",-.8*p)
     rot("wing.L",.7*p); rot("wing.R",-.7*p); rot("chest",-.1*p)
     rot("tail.01",.30*p); rot("tail.02",-.35*p); rot("tail.03",.40*p)
-clip("Idle",[1,16,31],idle)
-clip("Run",[1,6,11,16,21],lambda f:locomotion(f,1.0))
-clip("Walk",[1,7,13,19,25],lambda f:locomotion(f,.65))
-clip("Attack",[1,4,8,12,17,22,27],attack)
-clip("Cast",[1,8,16,25],cast)
-clip("Death",[1,10,20,31],death)
-clip("Hit",[1,4,8,13],hit)
+clip("Idle",[1,8,16,24,31],idle)
+clip("Run",[1,4,7,10,13,16,19,22,25],lambda f:locomotion(f,1.0,24))
+clip("Walk",[1,5,9,13,17,21,25,29,33],lambda f:locomotion(f,.65,32))
+clip("Attack",[1,4,7,10,13,16,19,22,25,28,31],attack)
+clip("Cast",[1,4,7,10,13,16,19,22,25],cast)
+clip("Death",[1,8,16,24,31],death)
+clip("Hit",[1,3,5,7,9,11,13],hit)
 clip("TurnLeft",[1,5,9,13,17],lambda f:turn(f,1))
 clip("TurnRight",[1,5,9,13,17],lambda f:turn(f,-1))
 clip("Stop",[1,4,7,11],stop)
-clip("Ultimate",[1,8,16,24,31],ultimate)
+clip("Ultimate",[1,6,11,16,21,26,31],ultimate)
 bpy.context.scene.frame_set(1)
 
 os.makedirs(os.path.dirname(OUT),exist_ok=True)
