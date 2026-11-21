@@ -41,6 +41,9 @@ pub(crate) struct CreaturePart {
 #[derive(Clone, Copy)]
 enum PartMotion {
     Still,
+    Torso,
+    Head,
+    Shoulder(f32),
     Leg(f32),
     Arm(f32),
     MinionHand(f32, MinionKind),
@@ -144,6 +147,7 @@ pub(crate) fn spawn_creature(
         ProceduralCreature::WendigoGuardian | ProceduralCreature::Jungle(_) => &assets.aether,
     };
     let guardian = kind == ProceduralCreature::WendigoGuardian;
+    let minion = matches!(kind, ProceduralCreature::Minion(_, _));
     let caster = matches!(kind, ProceduralCreature::Minion(_, MinionKind::Caster));
     commands.entity(owner).insert(kind).with_children(|parent| {
         let mut part = |name: &str,
@@ -186,7 +190,7 @@ pub(crate) fn spawn_creature(
                 if caster { 0.54 } else { 0.68 },
             ),
             0.0,
-            PartMotion::Still,
+            if minion { PartMotion::Torso } else { PartMotion::Still },
         );
         part(
             "head",
@@ -195,7 +199,7 @@ pub(crate) fn spawn_creature(
             Vec3::new(0.0, 1.49, 0.06),
             Vec3::new(0.61, 0.55, 0.52),
             0.0,
-            PartMotion::Still,
+            if minion { PartMotion::Head } else { PartMotion::Still },
         );
         part(
             "brow",
@@ -225,6 +229,17 @@ pub(crate) fn spawn_creature(
                 0.0,
                 PartMotion::Leg(side),
             );
+            if minion {
+                part(
+                    "knee-guard",
+                    &assets.stone,
+                    accent,
+                    Vec3::new(side * 0.22, 0.34, 0.19),
+                    Vec3::splat(0.16),
+                    0.0,
+                    PartMotion::Leg(side),
+                );
+            }
             part(
                 "shoulder",
                 &assets.stone,
@@ -238,7 +253,7 @@ pub(crate) fn spawn_creature(
                     0.48
                 }),
                 0.0,
-                PartMotion::Still,
+                if minion { PartMotion::Shoulder(side) } else { PartMotion::Still },
             );
             part(
                 "arm",
@@ -585,20 +600,40 @@ pub(crate) fn animate_creatures(
             }
         });
         *transform = part.rest;
-        let phase = time.elapsed_secs() * 8.0 + part.owner.index_u32() as f32 * 0.7;
+        let phase = time.elapsed_secs() * 7.2 + part.owner.index_u32() as f32 * 0.7;
+        let stride = phase.sin();
+        let idle_breath = (time.elapsed_secs() * 2.4 + part.owner.index_u32() as f32).sin();
         match part.motion {
+            PartMotion::Torso => {
+                transform.translation.y += if walking {
+                    (stride * 0.5 + 0.5) * 0.035
+                } else {
+                    idle_breath * 0.018
+                };
+                transform.scale.y *= 1.0 + idle_breath * 0.012;
+            }
+            PartMotion::Head => {
+                let nod = if walking { stride * 0.045 } else { idle_breath * 0.025 };
+                transform.rotation = part.rest.rotation * Quat::from_rotation_x(nod);
+                transform.translation.y += if walking { (stride * 0.5 + 0.5) * 0.025 } else { idle_breath * 0.012 };
+            }
+            PartMotion::Shoulder(side) => {
+                let swing = if walking { stride * side * 0.12 } else { idle_breath * side * 0.025 };
+                transform.rotation = part.rest.rotation * Quat::from_rotation_z(swing);
+            }
             PartMotion::Leg(side) if walking => {
                 // Feet only lift; the rest-ground plane is never penetrated.
-                transform.translation.y += (phase.sin() * side).max(0.0) * 0.10;
-                transform.translation.z += phase.sin() * side * 0.14;
+                transform.translation.y += (stride * side).max(0.0) * 0.10;
+                transform.translation.z += stride * side * 0.14;
+                transform.rotation = part.rest.rotation * Quat::from_rotation_x(stride * side * 0.12);
             }
             PartMotion::Arm(side) if walking => {
-                let angle = phase.sin() * side * 0.28;
+                let angle = stride * side * 0.28;
                 transform.rotation = part.rest.rotation * Quat::from_rotation_x(angle);
             }
             PartMotion::MinionHand(side, role) if walking || attack_strength > 0.0 => {
                 let walk_angle = if walking {
-                    phase.sin() * side * 0.28
+                    stride * side * 0.28
                 } else {
                     0.0
                 };
