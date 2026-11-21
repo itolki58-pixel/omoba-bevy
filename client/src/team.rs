@@ -2565,7 +2565,7 @@ mod tests {
     #[test]
     fn hero_lane_filters_cover_all_twelve_heroes() {
         let roster = &shared::hero_roster::STARTER_ROSTER;
-        let count = |filter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
+        let count = |filter: HeroLaneFilter| roster.iter().filter(|hero| filter.matches(hero.position)).count();
         assert_eq!(count(HeroLaneFilter::All), 12);
         assert_eq!(count(HeroLaneFilter::Gold), 2);
         assert_eq!(count(HeroLaneFilter::Experience), 3);
