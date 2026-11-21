@@ -164,8 +164,8 @@ pub(super) fn move_player(
 }
 
 
-/// Zaragat's supplied GLB is authored facing local +Z; the rest of the hero
-/// roster follows Bevy's local -Z convention. Keep the correction per-avatar.
+/// The bundled Zaragat GLB is authored facing local +Z; the rest of the
+/// hero roster faces local -Z. Keep the matching yaw convention per asset.
 fn hero_yaw_for_avatar(avatar_slug: Option<&str>, direction: Vec3) -> f32 {
     if avatar_slug == Some("zargat") {
         shared::math::unit_yaw_towards(direction.x, direction.z)
@@ -429,7 +429,7 @@ mod avatar_facing_tests {
     use super::*;
 
     #[test]
-    fn zargat_and_other_heroes_face_their_travel_direction() {
+    fn each_hero_faces_its_travel_direction_using_its_asset_forward_axis() {
         for direction in [
             Vec3::X,
             Vec3::Z,
@@ -442,10 +442,12 @@ mod avatar_facing_tests {
             assert!((zargat_forward[0] - direction.x).abs() < 1e-5);
             assert!((zargat_forward[1] - direction.z).abs() < 1e-5);
 
-            let regular_yaw = hero_yaw_for_avatar(Some("anna"), direction);
-            let regular_forward = shared::math::hero_forward(regular_yaw);
-            assert!((regular_forward[0] - direction.x).abs() < 1e-5);
-            assert!((regular_forward[1] - direction.z).abs() < 1e-5);
+            for avatar in [Some("anna"), None] {
+                let yaw = hero_yaw_for_avatar(avatar, direction);
+                let forward = shared::math::hero_forward(yaw);
+                assert!((forward[0] - direction.x).abs() < 1e-5);
+                assert!((forward[1] - direction.z).abs() < 1e-5);
+            }
         }
     }
 }

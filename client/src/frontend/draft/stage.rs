@@ -33,9 +33,9 @@ fn stage_members(prematch: &PrematchSnapshot, your_id: u64) -> Vec<StageMember> 
             avatar: player.avatar.clone(),
             character: player.character,
             leader: false,
-            // The viewer keeps a personal preview; a teammate's empty plinth
-            // and PICKING plate remain until the server confirms their lock.
-            revealed: player.locked || player.player_id == your_id,
+            // Show every assigned hero during draft; an empty avatar remains
+            // concealed, while the local viewer always sees their own preview.
+            revealed: player.locked || player.player_id == your_id || player.avatar.is_some(),
         })
         .collect()
 }
@@ -284,8 +284,7 @@ mod tests {
         assert_eq!(team[0].role, Role::Jungle);
         assert!(own_team(&prematch, 42).is_empty());
 
-        // Unconfirmed teammates retain identity but no model; the local
-        // player stays visible even before locking their personal preview.
+        // Every teammate with an assigned avatar is visible before lock-in.
         prematch
             .players
             .iter_mut()
@@ -295,7 +294,7 @@ mod tests {
         let before = stage_members(&prematch, 8);
         assert_eq!(
             before.iter().map(|m| m.revealed).collect::<Vec<_>>(),
-            [true, true, false, false, true]
+            [true, true, true, true, true]
         );
         assert_eq!(before[0].avatar.as_deref(), Some("avatar-8"));
         assert_eq!(before[2].avatar.as_deref(), Some("avatar-7"));

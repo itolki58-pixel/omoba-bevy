@@ -450,6 +450,8 @@ fn sync_stage(
                 },
                 RenderLayers::layer(STAGE_LAYER),
                 NormalizeModelScale::for_player_model(),
+                crate::net::NetworkCharacterChoice(member.character),
+                crate::net::NetworkAvatar(member.avatar.clone()),
                 Name::new(format!("PartyStageModel{index}")),
             ))
             .id();
