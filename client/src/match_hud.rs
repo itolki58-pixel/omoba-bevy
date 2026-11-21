@@ -13,8 +13,8 @@ use crate::hud_layout::HudRegion;
 use crate::input_bindings::upgrade_key_display;
 use crate::input_bindings::{help_key_display, skill_keys_display};
 use crate::net::{
-    GameState, GameStateSnapshot, NetworkHeroClass, NetworkStructure, PlayerProgression,
-    StructureKind, TeamBuffKind, TeamBuffState,
+    GameState, GameStateSnapshot, NetworkHeroClass, NetworkNeutral, NetworkNeutralCampType,
+    NetworkStructure, PlayerProgression, StructureKind, TeamBuffKind, TeamBuffState,
 };
 #[cfg(test)]
 use crate::net::{TargetId, TargetKind};
@@ -537,6 +537,7 @@ fn update_match_hud(
         ),
         With<NetworkStructure>,
     >,
+    boss_neutrals: Query<(&CombatStats, &NetworkNeutralCampType), With<NetworkNeutral>>,
     target_state: Res<TargetState>,
     mobile: Option<Res<crate::mobile_controls::MobileControls>>,
     mut status: Query<&mut Text, With<MatchHudStatusText>>,
@@ -565,7 +566,25 @@ fn update_match_hud(
         );
         return;
     }
-    let objective_line = enemy_base_objective_line(&local_team, &enemy_bases);
+    let mut objective_line = enemy_base_objective_line(&local_team, &enemy_bases);
+    // Show live raid objectives using authoritative neutral snapshots. A
+    // respawn countdown is deliberately not inferred: the current wire state
+    // does not replicate neutral respawn deadlines.
+    let active_bosses = boss_neutrals
+        .iter()
+        .filter(|(stats, camp)| camp.0.is_boss() && stats.is_alive())
+        .map(|(stats, camp)| {
+            format!(
+                "{} {:.0}%",
+                data::boss(camp.0),
+                (stats.hp.max(0.0) / stats.max_hp.max(1.0) * 100.0).clamp(0.0, 100.0)
+            )
+        })
+        .collect::<Vec<_>>();
+    if !active_bosses.is_empty() {
+        objective_line.push_str("  ·  ");
+        objective_line.push_str(&active_bosses.join("  ·  "));
+    }
     // Phones name the touch controls instead of the keyboard shortcuts.
     let phone = phone_hud(mobile.as_deref());
     let target = tr(
