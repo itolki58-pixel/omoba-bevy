@@ -6,6 +6,10 @@ use std::collections::{HashMap, HashSet};
 
 use crate::camera::{CameraState, MainCamera};
 use crate::combat::CombatStats;
+use crate::game_vfx::{
+    Curve as VfxCurve, Orient as VfxOrient, ParticleSource, ParticleSpec, SkillBurst, Tint,
+};
+use crate::skill_presentation::vocab::ParticleShape as VfxShape;
 use crate::maps::MapLayout;
 use crate::net::{
     ClientSession, NetworkAvatar, NetworkHeroClass, NetworkMinion, NetworkNeutral,
@@ -34,6 +38,7 @@ impl Plugin for MinimapPlugin {
         app.add_plugins(crate::minimap_route::MinimapRoutePlugin)
             .init_resource::<MinimapUiState>()
             .init_resource::<MinimapNavigationState>()
+            .init_resource::<LocalPingMarker>()
             .add_systems(Startup, setup_minimap_ui)
             .add_systems(
                 PostUpdate,
@@ -41,9 +46,12 @@ impl Plugin for MinimapPlugin {
             )
             .add_systems(
                 Update,
-                handle_minimap_navigation_system
-                    .in_set(crate::input_context::InputContextSet::Actions)
-                    .before(crate::combat::CombatPointerInputSet),
+                (
+                    handle_minimap_navigation_system
+                        .in_set(crate::input_context::InputContextSet::Actions)
+                        .before(crate::combat::CombatPointerInputSet),
+                    update_local_ping_marker.after(handle_minimap_navigation_system),
+                ),
             )
             .add_systems(
                 Update,
@@ -94,8 +102,17 @@ struct MinimapUiState {
     structure_icons: HashMap<Entity, Entity>,
     minion_icons: HashMap<Entity, Entity>,
     camp_icons: [Option<Entity>; shared::jungle::CAMP_COUNT],
+    boss_icons: HashMap<Entity, Entity>,
     rockets: HashMap<u64, [Entity; 3]>,
 }
+/// Short-lived local confirmation of a minimap move/ping target.
+/// Team-wide relay is intentionally server-authoritative and is not implied here.
+#[derive(Resource, Default)]
+struct LocalPingMarker {
+    entity: Option<Entity>,
+    timer: Option<Timer>,
+}
+
 #[derive(Component)]
 struct MinimapRoot;
 
@@ -616,6 +633,89 @@ fn expire_local_ping_markers(
     }
 }
 
+/// Show a brief gold ring at the selected minimap destination. This is
+/// local feedback only; it does not claim that teammates received a ping.
+fn update_local_ping_marker(
+    mut commands: Commands,
+    mut vfx: MessageWriter<SkillBurst>,
+    navigation: Res<MinimapNavigationState>,
+    containers: Query<Entity, With<MinimapContainer>>,
+    layout: Res<MapLayout>,
+    time: Res<Time>,
+    mut marker: ResMut<LocalPingMarker>,
+) {
+    if let Some(target) = navigation.movement_target {
+        // A separate ground-ring particle makes the order visible in the world
+        // as well as on the minimap. It is cosmetic and never affects simulation.
+        vfx.write(SkillBurst(vec![ParticleSpec {
+            origin: target + Vec3::Y * 0.12,
+            size: 2.2,
+            lifetime: 0.85,
+            color: Tint {
+                color: Color::srgb(1.0, 0.82, 0.28),
+                gain: 1.35,
+            },
+            end_color: Some(Tint {
+                color: Color::srgba(1.0, 0.82, 0.28, 0.0),
+                gain: 1.35,
+            }),
+            shape: VfxShape::Ringlet,
+            curve: VfxCurve::Grow,
+            orient: VfxOrient::Ground,
+            source: ParticleSource::Move,
+            ..ParticleSpec::BASE
+        }]));
+        if let Some(entity) = marker.entity.take() {
+            commands.entity(entity).despawn();
+        }
+        if let Ok(container) = containers.single() {
+            let point = map_point(*layout, target);
+            let mut ping_node = marker_node(point, 22.0);
+            ping_node.border = UiRect::all(Val::Px(2.0));
+            let mut spawned = None;
+            commands.entity(container).with_children(|parent| {
+                let entity = parent
+                    .spawn((
+                        ping_node,
+                        BorderColor::all(Color::srgb(1.0, 0.82, 0.28)),
+                        BackgroundColor(Color::srgba(1.0, 0.82, 0.28, 0.18)),
+                        ZIndex(10),
+                        Pickable::IGNORE,
+                        Name::new("MinimapLocalPing"),
+                    ))
+                    .with_children(|ring| {
+                        ring.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(7.0),
+                                top: Val::Px(7.0),
+                                width: Val::Px(8.0),
+                                height: Val::Px(8.0),
+                                border_radius: BorderRadius::MAX,
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(1.0, 0.88, 0.48)),
+                            Pickable::IGNORE,
+                            Name::new("MinimapLocalPingCenter"),
+                        ));
+                    })
+                    .id();
+                spawned = Some(entity);
+            });
+            marker.entity = spawned;
+            marker.timer = Some(Timer::from_seconds(2.4, TimerMode::Once));
+        }
+    }
+    if let (Some(entity), Some(timer)) = (marker.entity, marker.timer.as_mut()) {
+        timer.tick(time.delta());
+        if timer.is_finished() {
+            commands.entity(entity).despawn();
+            marker.entity = None;
+            marker.timer = None;
+        }
+    }
+}
+
 /// A rect in UI logical pixels as window logical pixels (× `UiScale`).
 fn ui_to_window(rect: Rect, ui_scale: Option<&UiScale>) -> Rect {
     let scale = ui_scale.map_or(1.0, |scale| scale.0);
@@ -651,7 +751,7 @@ fn update_minimap_icons_system(
         With<NetworkStructure>,
     >,
     minions: Query<(Entity, &Transform, &Team, &CombatStats), With<NetworkMinion>>,
-    neutrals: Query<(&Transform, &NetworkNeutralCampType, &CombatStats), With<NetworkNeutral>>,
+    neutrals: Query<(Entity, &Transform, &NetworkNeutralCampType, &CombatStats), With<NetworkNeutral>>,
     thumbnails: Res<AvatarThumbnails>,
     sprites: Res<SpriteVisualAssets>,
     mode: Res<PlayerVisualMode>,
@@ -855,7 +955,7 @@ fn update_minimap_icons_system(
     despawn_removed_icons(&mut commands, &mut state.minion_icons, &seen);
     let camps = shared::jungle::camp_layout(layout.size().x);
     let mut living = [false; shared::jungle::CAMP_COUNT];
-    for (transform, kind, stats) in &neutrals {
+    for (_, transform, kind, stats) in &neutrals {
         if !stats.is_alive() || kind.0.is_boss() {
             continue;
         }
@@ -882,6 +982,53 @@ fn update_minimap_icons_system(
             living[index] = true;
         }
     }
+    // Boss objectives get their own persistent, high-contrast map marker.
+    // Their known spawn location remains visible, while living/dead state is
+    // only disclosed when the objective point is currently in team vision.
+    let mut seen_bosses = HashSet::new();
+    for (entity, transform, kind, stats) in &neutrals {
+        if !kind.0.is_boss() {
+            continue;
+        }
+        seen_bosses.insert(entity);
+        let position = transform.translation.xz();
+        let known = game
+            .as_ref()
+            .and_then(|snapshot| snapshot.vision.as_ref())
+            .is_none_or(|vision| {
+                shared::vision::point_visible(&vision.sources, [position.x, position.y], false)
+            });
+        let color = if !known {
+            Color::srgb(0.34, 0.32, 0.25)
+        } else if stats.is_alive() {
+            Color::srgb(1.0, 0.78, 0.20)
+        } else {
+            Color::srgb(0.20, 0.18, 0.14)
+        };
+        let mut node = marker_node(map_point(*layout, transform.translation), 14.0);
+        node.border = UiRect::all(Val::Px(2.0));
+        node.border_radius = BorderRadius::all(Val::Px(4.0));
+        let components = (
+            node,
+            BackgroundColor(color),
+            BorderColor::all(Color::srgb(1.0, 0.88, 0.48)),
+        );
+        if let Some(icon) = state.boss_icons.get(&entity) {
+            commands.entity(*icon).insert(components);
+        } else {
+            let icon = commands
+                .spawn((
+                    components,
+                    ZIndex(4),
+                    Name::new("MinimapBossObjective"),
+                    ChildOf(container),
+                ))
+                .id();
+            state.boss_icons.insert(entity, icon);
+        }
+    }
+    despawn_removed_icons(&mut commands, &mut state.boss_icons, &seen_bosses);
+
     for (index, (anchor, kind)) in camps.into_iter().enumerate() {
         let known = game
             .as_ref()
@@ -1203,6 +1350,42 @@ mod tests {
     use crate::input_context::GameplayInputContext;
 
     #[test]
+    fn minimap_move_order_shows_a_local_ping_and_expires_after_2_4_seconds() {
+        let mut app = App::new();
+        app.init_resource::<MinimapNavigationState>()
+            .init_resource::<LocalPingMarker>()
+            .init_resource::<MapLayout>()
+            .init_resource::<Time>()
+            .add_message::<SkillBurst>()
+            .add_systems(Update, update_local_ping_marker);
+        let container = app.world_mut().spawn((Node::default(), MinimapContainer)).id();
+        app.world_mut()
+            .resource_mut::<MinimapNavigationState>()
+            .movement_target = Some(Vec3::new(12.0, 0.0, -8.0));
+        app.update();
+        let ping = app
+            .world()
+            .resource::<LocalPingMarker>()
+            .entity
+            .expect("local ping spawned");
+        assert!(
+            app.world()
+                .get::<Name>(ping)
+                .is_some_and(|name| name.as_str() == "MinimapLocalPing")
+        );
+        app.world_mut()
+            .resource_mut::<MinimapNavigationState>()
+            .movement_target = None;
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_millis(2500));
+        app.update();
+        assert!(app.world().resource::<LocalPingMarker>().entity.is_none());
+        assert!(app.world().get_entity(ping).is_err());
+        assert!(app.world().get_entity(container).is_ok());
+    }
+
+    #[test]
     fn rocket_marker_tracks_received_position_and_disappears_with_the_effect() {
         let mut app = App::new();
         app.init_resource::<MinimapUiState>()
@@ -1293,6 +1476,41 @@ mod tests {
             .id();
         app.world_mut().resource_mut::<MinimapUiState>().container = Some(container);
         app
+    }
+
+    #[test]
+    fn boss_objectives_have_distinct_minimap_markers() {
+        let mut app = marker_app();
+        let boss = app
+            .world_mut()
+            .spawn((
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                NetworkNeutralCampType(NeutralCampType::WindDragon),
+                CombatStats::default(),
+                NetworkNeutral,
+            ))
+            .id();
+        app.update();
+        let icon = *app
+            .world()
+            .resource::<MinimapUiState>()
+            .boss_icons
+            .get(&boss)
+            .expect("boss objective marker");
+        assert!(
+            app.world()
+                .get::<Name>(icon)
+                .is_some_and(|name| name.as_str() == "MinimapBossObjective")
+        );
+        app.world_mut().despawn(boss);
+        app.update();
+        assert!(
+            !app.world()
+                .resource::<MinimapUiState>()
+                .boss_icons
+                .contains_key(&boss)
+        );
+        assert!(app.world().get_entity(icon).is_err());
     }
 
     #[test]
